@@ -7,9 +7,10 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use App\Models\User;
+use App\Models\UserDetail;
 use App\Models\LogPeminjaman;
 use App\Models\Item;
-use App\Models\ActivityLog; // Add this import if available
+use App\Models\ActivityLog;
 use Carbon\Carbon;
 
 class DashboardController extends Controller
@@ -17,6 +18,12 @@ class DashboardController extends Controller
     public function index()
     {
         $user = Auth::user();
+
+        // Pastikan user detail tersedia dan sync koin
+        $userDetail = $user->detail;
+        if ($userDetail) {
+            $userDetail->syncKoin(); // Sync koin berdasarkan item yang dipinjam
+        }
 
         // ========== USER BORROWING STATISTICS ==========
         $userStats = $this->getUserBorrowingStats($user);
@@ -68,33 +75,21 @@ class DashboardController extends Controller
      */
     private function getUserBorrowingStats($user)
     {
-        // Get currently borrowed tools (tools that have been borrowed but not returned)
-        $borrowedItems = DB::table('log_peminjaman as lp1')
-            ->select('item_id', 'item_name', 'timestamp')
-            ->where('user_id', $user->id)
-            ->whereNotExists(function ($query) use ($user) {
-                $query->select(DB::raw(1))
-                    ->from('log_peminjaman as lp2')
-                    ->whereRaw('lp2.item_id = lp1.item_id')
-                    ->where('lp2.user_id', $user->id)
-                    ->where('lp2.activity_type', 'kembali')
-                    ->whereRaw('lp2.timestamp > lp1.timestamp');
-            })
-            ->where('activity_type', 'pinjam')
-            ->distinct()
-            ->get();
+        $userDetail = $user->detail;
 
+        // Get borrowed items from Items table
+        $borrowedItems = Item::where('user_id', $user->id)->get();
         $borrowedToolsCount = $borrowedItems->count();
 
         // Calculate overdue items (borrowed more than 7 days ago)
         $overdueCount = 0;
         foreach ($borrowedItems as $item) {
-            if (Carbon::parse($item->timestamp)->diffInDays(Carbon::now()) > 7) {
+            if (Carbon::parse($item->updated_at)->diffInDays(Carbon::now()) > 7) {
                 $overdueCount++;
             }
         }
 
-        // Get total borrowing history
+        // Get total borrowing history dari log
         $totalBorrowed = LogPeminjaman::where('user_id', $user->id)
             ->where('activity_type', 'pinjam')
             ->count();
@@ -127,8 +122,12 @@ class DashboardController extends Controller
             'returned_items' => $returnedItems,
             'return_rate' => $returnRate,
             'borrowing_trend_percentage' => $borrowingTrendPercentage,
-            'max_borrow' => 10, // Can be made configurable
-            'borrowed_items_details' => $borrowedItems
+            'max_borrow' => 10,
+            'borrowed_items_details' => $borrowedItems,
+            // Koin info dari UserDetail
+            'available_koin' => $userDetail ? $userDetail->koin : 10,
+            'used_koin' => $borrowedToolsCount, // 1 koin per item
+            'total_koin' => 10
         ];
     }
 
@@ -137,37 +136,29 @@ class DashboardController extends Controller
      */
     private function getQuickStats($user)
     {
-        // Get current borrowed tools count
-        $currentBorrowedCount = DB::table('log_peminjaman as lp1')
-            ->where('user_id', $user->id)
-            ->whereNotExists(function ($query) use ($user) {
-                $query->select(DB::raw(1))
-                    ->from('log_peminjaman as lp2')
-                    ->whereRaw('lp2.item_id = lp1.item_id')
-                    ->where('lp2.user_id', $user->id)
-                    ->where('lp2.activity_type', 'kembali')
-                    ->whereRaw('lp2.timestamp > lp1.timestamp');
-            })
-            ->where('activity_type', 'pinjam')
-            ->distinct('item_id')
-            ->count();
+        $userDetail = $user->detail;
+
+        // Get current borrowed tools dari Items table
+        $currentBorrowedCount = Item::where('user_id', $user->id)->count();
 
         // Get overdue items
         $overdueItems = $this->getOverdueItemsCount($user);
 
-        // Get user coins (if coin system exists)
-        $coins = $user->detail->koin ?? 7;
-        $coinsUsed = $currentBorrowedCount * 1; // 1 coin per borrowed item
+        // Get koin info dari UserDetail model
+        $totalKoin = 10;
+        $availableKoin = $userDetail ? $userDetail->koin : $totalKoin;
+        $usedKoin = $totalKoin - $availableKoin;
 
         // Calculate available borrowing slots
-        $maxBorrow = 10; // Can be configurable
+        $maxBorrow = 10;
         $availableSlots = $maxBorrow - $currentBorrowedCount;
 
         return [
             'tools' => $currentBorrowedCount,
             'overdue' => $overdueItems,
-            'coins' => $coins,
-            'coins_used' => $coinsUsed,
+            'coins' => $availableKoin,
+            'coins_used' => $usedKoin,
+            'coins_total' => $totalKoin,
             'available_slots' => $availableSlots,
             'max_borrow' => $maxBorrow
         ];
@@ -178,21 +169,9 @@ class DashboardController extends Controller
      */
     private function getStorageStats($user)
     {
-        $used = DB::table('log_peminjaman as lp1')
-            ->where('user_id', $user->id)
-            ->whereNotExists(function ($query) use ($user) {
-                $query->select(DB::raw(1))
-                    ->from('log_peminjaman as lp2')
-                    ->whereRaw('lp2.item_id = lp1.item_id')
-                    ->where('lp2.user_id', $user->id)
-                    ->where('lp2.activity_type', 'kembali')
-                    ->whereRaw('lp2.timestamp > lp1.timestamp');
-            })
-            ->where('activity_type', 'pinjam')
-            ->distinct('item_id')
-            ->count();
-
-        $total = 10; // Can be made configurable based on user level/plan
+        // Gunakan data dari Items table
+        $used = Item::where('user_id', $user->id)->count();
+        $total = 10; // Maksimal peminjaman
         $percentage = $total > 0 ? round(($used / $total) * 100) : 0;
 
         return [
@@ -210,44 +189,33 @@ class DashboardController extends Controller
     {
         $reminders = [];
 
-        // Get currently borrowed items
-        $borrowedItems = DB::table('log_peminjaman as lp1')
-            ->select('lp1.item_id', 'lp1.item_name', 'lp1.timestamp')
-            ->where('lp1.user_id', $user->id)
-            ->whereNotExists(function ($query) use ($user) {
-                $query->select(DB::raw(1))
-                    ->from('log_peminjaman as lp2')
-                    ->whereRaw('lp2.item_id = lp1.item_id')
-                    ->where('lp2.user_id', $user->id)
-                    ->where('lp2.activity_type', 'kembali')
-                    ->whereRaw('lp2.timestamp > lp1.timestamp');
-            })
-            ->where('lp1.activity_type', 'pinjam')
-            ->orderBy('lp1.timestamp', 'desc')
+        // Get currently borrowed items dari Items table
+        $borrowedItems = Item::where('user_id', $user->id)
+            ->orderBy('updated_at', 'desc')
             ->get();
 
         foreach ($borrowedItems as $item) {
-            $borrowDate = Carbon::parse($item->timestamp);
+            $borrowDate = Carbon::parse($item->updated_at);
             $daysBorrowed = $borrowDate->diffInDays(Carbon::now());
 
             // Overdue items (more than 7 days)
             if ($daysBorrowed > 7) {
                 $reminders[] = [
-                    'message' => 'Overdue: Return ' . $item->item_name,
+                    'message' => 'Overdue: Return ' . $item->nama_barang,
                     'time' => 'borrowed ' . $borrowDate->diffForHumans(),
                     'type' => 'overdue',
                     'priority' => 'high',
-                    'item_id' => $item->item_id
+                    'item_id' => $item->id
                 ];
             }
             // Items borrowed for 5-7 days (reminder)
             elseif ($daysBorrowed >= 5) {
                 $reminders[] = [
-                    'message' => 'Reminder: Return ' . $item->item_name . ' soon',
+                    'message' => 'Reminder: Return ' . $item->nama_barang . ' soon',
                     'time' => 'borrowed ' . $borrowDate->diffForHumans(),
                     'type' => 'reminder',
                     'priority' => 'medium',
-                    'item_id' => $item->item_id
+                    'item_id' => $item->id
                 ];
             }
         }
@@ -328,7 +296,6 @@ class DashboardController extends Controller
     private function getWeeklyBorrowingData($user)
     {
         $weeklyBorrowingData = [];
-        $weeklyReturnData = [];
 
         for ($i = 6; $i >= 0; $i--) {
             $date = Carbon::now()->subDays($i);
@@ -400,23 +367,11 @@ class DashboardController extends Controller
      */
     private function getOverdueItemsCount($user)
     {
-        $borrowedItems = DB::table('log_peminjaman as lp1')
-            ->select('timestamp')
-            ->where('user_id', $user->id)
-            ->whereNotExists(function ($query) use ($user) {
-                $query->select(DB::raw(1))
-                    ->from('log_peminjaman as lp2')
-                    ->whereRaw('lp2.item_id = lp1.item_id')
-                    ->where('lp2.user_id', $user->id)
-                    ->where('lp2.activity_type', 'kembali')
-                    ->whereRaw('lp2.timestamp > lp1.timestamp');
-            })
-            ->where('activity_type', 'pinjam')
-            ->get();
+        $borrowedItems = Item::where('user_id', $user->id)->get();
 
         $overdueCount = 0;
         foreach ($borrowedItems as $item) {
-            if (Carbon::parse($item->timestamp)->diffInDays(Carbon::now()) > 7) {
+            if (Carbon::parse($item->updated_at)->diffInDays(Carbon::now()) > 7) {
                 $overdueCount++;
             }
         }
@@ -430,20 +385,14 @@ class DashboardController extends Controller
     public function getStats()
     {
         $user = Auth::user();
+        $userDetail = $user->detail;
 
-        $currentBorrowed = DB::table('log_peminjaman as lp1')
-            ->where('user_id', $user->id)
-            ->whereNotExists(function ($query) use ($user) {
-                $query->select(DB::raw(1))
-                    ->from('log_peminjaman as lp2')
-                    ->whereRaw('lp2.item_id = lp1.item_id')
-                    ->where('lp2.user_id', $user->id)
-                    ->where('lp2.activity_type', 'kembali')
-                    ->whereRaw('lp2.timestamp > lp1.timestamp');
-            })
-            ->where('activity_type', 'pinjam')
-            ->distinct('item_id')
-            ->count();
+        // Sync koin terlebih dahulu
+        if ($userDetail) {
+            $userDetail->syncKoin();
+        }
+
+        $currentBorrowed = Item::where('user_id', $user->id)->count();
 
         $totalBorrowed = LogPeminjaman::where('user_id', $user->id)
             ->where('activity_type', 'pinjam')
@@ -461,6 +410,8 @@ class DashboardController extends Controller
             'total_returned' => $totalReturned,
             'overdue_count' => $overdueCount,
             'return_rate' => $totalBorrowed > 0 ? round(($totalReturned / $totalBorrowed) * 100) : 0,
+            'available_koin' => $userDetail ? $userDetail->koin : 10,
+            'used_koin' => $currentBorrowed,
             'timestamp' => Carbon::now()->format('Y-m-d H:i:s')
         ]);
     }
@@ -470,9 +421,18 @@ class DashboardController extends Controller
      */
     public function refresh()
     {
+        $user = Auth::user();
+        $userDetail = $user->detail;
+
+        // Sync koin saat refresh
+        if ($userDetail) {
+            $userDetail->syncKoin();
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Dashboard data refreshed successfully',
+            'available_koin' => $userDetail ? $userDetail->koin : 10,
             'timestamp' => Carbon::now()->format('Y-m-d H:i:s')
         ]);
     }
@@ -544,5 +504,30 @@ class DashboardController extends Controller
         }
 
         return response()->json($data);
+    }
+
+    /**
+     * Force sync koin untuk user tertentu (admin function)
+     */
+    public function syncKoin()
+    {
+        $user = Auth::user();
+        $userDetail = $user->detail;
+
+        if ($userDetail) {
+            $userDetail->syncKoin();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Koin berhasil disinkronisasi',
+                'available_koin' => $userDetail->koin,
+                'borrowed_items' => $userDetail->borrowed_items_count
+            ]);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'User detail tidak ditemukan'
+        ], 404);
     }
 }

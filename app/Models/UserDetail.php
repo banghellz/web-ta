@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\DB;
 
 class UserDetail extends Model
 {
@@ -21,6 +20,10 @@ class UserDetail extends Model
         'pict',
         'rfid_uid',
         'koin'
+    ];
+
+    protected $attributes = [
+        'koin' => 10, // Default koin adalah 10
     ];
 
     // Relasi dengan User
@@ -42,227 +45,109 @@ class UserDetail extends Model
     }
 
     /**
-     * Mengurangi koin saat user meminjam item
-     * 
-     * @param int $itemId
-     * @param int $coinCost (default 1)
-     * @return bool
+     * Sinkronisasi koin berdasarkan jumlah item yang dipinjam
+     * Koin = 10 - jumlah item yang dipinjam
      */
-    public function borrowItem($itemId, $coinCost = 1)
+    public function syncKoin()
     {
-        // Cek apakah user memiliki koin yang cukup
-        if ($this->koin < $coinCost) {
-            return false; // Koin tidak cukup
-        }
+        $borrowedItemsCount = $this->borrowedItems()->count();
+        $newKoinValue = max(0, 10 - $borrowedItemsCount); // Minimal 0, maksimal 10
 
-        // Cek apakah item tersedia
-        $item = Item::find($itemId);
-        if (!$item || $item->available != 1 || $item->user_id != null) {
-            return false; // Item tidak tersedia atau sudah dipinjam
-        }
+        $this->update(['koin' => $newKoinValue]);
 
-        try {
-            DB::transaction(function () use ($item, $coinCost) {
-                // Update item - set user_id dan ubah available
-                $item->update([
-                    'user_id' => $this->user_id,
-                    'available' => 0
-                ]);
-
-                // Kurangi koin
-                $this->decrement('koin', $coinCost);
-
-                // Log aktivitas peminjaman
-                LogPeminjaman::create([
-                    'item_id' => $item->id,
-                    'item_name' => $item->nama_barang,
-                    'activity_type' => 'pinjam',
-                    'timestamp' => now(),
-                    'user_id' => $this->user_id,
-                    'username' => $this->nama
-                ]);
-            });
-
-            return true;
-        } catch (\Exception $e) {
-            return false;
-        }
+        return $this;
     }
 
     /**
-     * Mengembalikan koin saat user mengembalikan item
-     * 
-     * @param int $itemId
-     * @param int $coinReturn (default 1)
-     * @return bool
+     * Get jumlah item yang sedang dipinjam
      */
-    public function returnItem($itemId, $coinReturn = 1)
+    public function getBorrowedItemsCountAttribute()
     {
-        // Cek apakah item sedang dipinjam oleh user ini
+        return $this->borrowedItems()->count();
+    }
+
+    /**
+     * Get koin yang tersedia untuk meminjam item baru
+     */
+    public function getAvailableKoinAttribute()
+    {
+        return $this->koin;
+    }
+
+    /**
+     * Cek apakah user bisa meminjam item (masih ada koin)
+     */
+    public function canBorrowItem()
+    {
+        return $this->koin > 0;
+    }
+
+    /**
+     * Kurangi koin ketika meminjam item
+     */
+    public function borrowItem($itemId)
+    {
+        if (!$this->canBorrowItem()) {
+            return false; // Tidak bisa meminjam karena koin habis
+        }
+
+        // Update item dengan user_id
+        $item = Item::find($itemId);
+        if ($item && is_null($item->user_id)) {
+            $item->update(['user_id' => $this->user_id]);
+
+            // Sinkronisasi koin
+            $this->syncKoin();
+
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Kembalikan item dan tambah koin
+     */
+    public function returnItem($itemId)
+    {
         $item = Item::where('id', $itemId)
             ->where('user_id', $this->user_id)
             ->first();
 
-        if (!$item) {
-            return false; // Item tidak ditemukan atau bukan milik user ini
-        }
+        if ($item) {
+            // Set user_id menjadi null (item dikembalikan)
+            $item->update(['user_id' => null]);
 
-        try {
-            DB::transaction(function () use ($item, $coinReturn) {
-                // Update item - hapus user_id dan ubah available
-                $item->update([
-                    'user_id' => null,
-                    'available' => 1
-                ]);
-
-                // Kembalikan koin
-                $this->increment('koin', $coinReturn);
-
-                // Log aktivitas pengembalian
-                LogPeminjaman::create([
-                    'item_id' => $item->id,
-                    'item_name' => $item->nama_barang,
-                    'activity_type' => 'kembali',
-                    'timestamp' => now(),
-                    'user_id' => $this->user_id,
-                    'username' => $this->nama
-                ]);
-            });
+            // Sinkronisasi koin
+            $this->syncKoin();
 
             return true;
-        } catch (\Exception $e) {
-            return false;
         }
+
+        return false;
     }
 
     /**
-     * Mengembalikan semua item yang sedang dipinjam oleh user
-     * 
-     * @return bool
+     * Kembalikan semua item yang dipinjam user
      */
     public function returnAllItems()
     {
-        $borrowedItems = Item::where('user_id', $this->user_id)->get();
+        $this->borrowedItems()->update(['user_id' => null]);
+        $this->syncKoin();
 
-        if ($borrowedItems->isEmpty()) {
-            return true; // Tidak ada item yang dipinjam
-        }
-
-        try {
-            DB::transaction(function () use ($borrowedItems) {
-                foreach ($borrowedItems as $item) {
-                    // Update item
-                    $item->update([
-                        'user_id' => null,
-                        'available' => 1
-                    ]);
-
-                    // Kembalikan koin
-                    $this->increment('koin', 1);
-
-                    // Log aktivitas pengembalian
-                    LogPeminjaman::create([
-                        'item_id' => $item->id,
-                        'item_name' => $item->nama_barang,
-                        'activity_type' => 'kembali',
-                        'timestamp' => now(),
-                        'user_id' => $this->user_id,
-                        'username' => $this->nama
-                    ]);
-                }
-            });
-
-            return true;
-        } catch (\Exception $e) {
-            return false;
-        }
+        return $this;
     }
 
     /**
-     * Mendapatkan jumlah item yang sedang dipinjam
-     * 
-     * @return int
+     * Boot model events
      */
-    public function getBorrowedItemsCount()
+    protected static function boot()
     {
-        return Item::where('user_id', $this->user_id)->count();
-    }
+        parent::boot();
 
-    /**
-     * Mengecek apakah user memiliki koin yang cukup untuk meminjam
-     * 
-     * @param int $coinCost
-     * @return bool
-     */
-    public function canBorrow($coinCost = 1)
-    {
-        return $this->koin >= $coinCost;
-    }
-
-    /**
-     * Menambah koin (untuk admin/top up)
-     * 
-     * @param int $amount
-     * @return bool
-     */
-    public function addCoins($amount)
-    {
-        try {
-            $this->increment('koin', $amount);
-            return true;
-        } catch (\Exception $e) {
-            return false;
-        }
-    }
-
-    /**
-     * Auto-sync koin berdasarkan item yang sedang dipinjam
-     * Berguna untuk sinkronisasi jika ada ketidaksesuaian data
-     * 
-     * @return bool
-     */
-    public function syncCoins()
-    {
-        try {
-            $borrowedCount = $this->getBorrowedItemsCount();
-            $expectedCoins = 10 - $borrowedCount; // Asumsi koin awal 10
-
-            $this->update(['koin' => max(0, $expectedCoins)]);
-            return true;
-        } catch (\Exception $e) {
-            return false;
-        }
-    }
-
-    /**
-     * Scope untuk mendapatkan user dengan koin tertentu
-     */
-    public function scopeWithCoins($query, $minCoins)
-    {
-        return $query->where('koin', '>=', $minCoins);
-    }
-
-    /**
-     * Scope untuk mendapatkan user yang sedang meminjam item
-     */
-    public function scopeCurrentlyBorrowing($query)
-    {
-        return $query->whereHas('borrowedItems');
-    }
-
-    /**
-     * Accessor untuk mendapatkan status peminjaman
-     */
-    public function getIsBorrowingAttribute()
-    {
-        return $this->getBorrowedItemsCount() > 0;
-    }
-
-    /**
-     * Accessor untuk mendapatkan maksimal item yang bisa dipinjam
-     */
-    public function getMaxBorrowableItemsAttribute()
-    {
-        return $this->koin;
+        // Auto sync koin setelah model dibuat
+        static::created(function ($userDetail) {
+            $userDetail->syncKoin();
+        });
     }
 }

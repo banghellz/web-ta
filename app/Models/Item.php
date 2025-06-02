@@ -13,149 +13,98 @@ class Item extends Model
         'epc',
         'nama_barang',
         'available',
-        'user_id' // Field untuk tracking siapa yang meminjam
+        'user_id' // Tambahan untuk tracking siapa yang meminjam
     ];
 
-    /**
-     * Relasi dengan User yang sedang meminjam
-     */
+    protected $casts = [
+        'available' => 'integer',
+        'user_id' => 'integer',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime'
+    ];
+
+    // Relasi dengan User yang meminjam
     public function borrower()
     {
         return $this->belongsTo(User::class, 'user_id');
     }
 
-    /**
-     * Relasi dengan UserDetail yang sedang meminjam
-     */
+    // Relasi dengan UserDetail yang meminjam
     public function borrowerDetail()
     {
-        return $this->hasOneThrough(
-            UserDetail::class,
-            User::class,
-            'id', // Foreign key on users table
-            'user_id', // Foreign key on user_details table
-            'user_id', // Local key on items table
-            'id' // Local key on users table
-        );
+        return $this->belongsTo(UserDetail::class, 'user_id', 'user_id');
     }
 
-    /**
-     * Scope untuk item yang tersedia (sesuai dengan DashboardController)
-     * Item available jika: available > 0 DAN tidak sedang dipinjam (user_id null)
-     */
+    // Scope untuk item yang tersedia
     public function scopeAvailable($query)
     {
         return $query->where('available', '>', 0)->whereNull('user_id');
     }
 
-    /**
-     * Scope untuk item yang sedang dipinjam
-     */
+    // Scope untuk item yang habis
+    public function scopeOutOfStock($query)
+    {
+        return $query->where('available', '<=', 0);
+    }
+
+    // Scope untuk item yang sedang dipinjam
     public function scopeBorrowed($query)
     {
         return $query->whereNotNull('user_id');
     }
 
-    /**
-     * Scope untuk item yang out of stock (sesuai dengan DashboardController)
-     * Item out of stock jika: available = 0 ATAU available null
-     */
-    public function scopeOutOfStock($query)
+    // Scope untuk item yang tidak dipinjam
+    public function scopeNotBorrowed($query)
     {
-        return $query->where(function ($q) {
-            $q->where('available', '<=', 0)
-                ->orWhereNull('available');
-        });
+        return $query->whereNull('user_id');
     }
 
-    /**
-     * Scope untuk item yang low stock (opsional, untuk pengembangan)
-     */
-    public function scopeLowStock($query, $threshold = 5)
-    {
-        return $query->where('available', '<=', $threshold)
-            ->where('available', '>', 0);
-    }
-
-    /**
-     * Accessor untuk mengecek apakah item sedang dipinjam
-     */
-    public function getIsBorrowedAttribute()
-    {
-        return $this->user_id !== null;
-    }
-
-    /**
-     * Accessor untuk mengecek apakah item tersedia
-     */
-    public function getIsAvailableAttribute()
-    {
-        return $this->available > 0 && $this->user_id === null;
-    }
-
-    /**
-     * Accessor untuk mendapatkan nama peminjam
-     */
-    public function getBorrowerNameAttribute()
-    {
-        return $this->borrowerDetail ? $this->borrowerDetail->nama : null;
-    }
-
-    /**
-     * Accessor untuk mendapatkan status item dalam bentuk string
-     */
+    // Accessor untuk status ketersediaan
     public function getStatusAttribute()
     {
-        if ($this->user_id !== null) {
-            return 'Dipinjam';
-        } elseif ($this->available <= 0) {
-            return 'Habis';
-        } elseif ($this->available <= 5) {
-            return 'Stok Rendah';
-        } else {
-            return 'Tersedia';
+        if ($this->user_id) {
+            return 'Borrowed';
         }
+        return $this->available > 0 ? 'Available' : 'Out of Stock';
     }
 
-    /**
-     * Accessor untuk mendapatkan status class untuk styling
-     */
-    public function getStatusClassAttribute()
+    // Accessor untuk status badge class
+    public function getStatusBadgeClassAttribute()
     {
-        if ($this->user_id !== null) {
-            return 'warning'; // Item dipinjam
-        } elseif ($this->available <= 0) {
-            return 'danger'; // Item habis
-        } elseif ($this->available <= 5) {
-            return 'warning'; // Stok rendah
-        } else {
-            return 'success'; // Item tersedia
+        if ($this->user_id) {
+            return 'bg-warning';
         }
+        return $this->available > 0 ? 'bg-success' : 'bg-danger';
     }
 
-    /**
-     * Method untuk meminjam item
-     */
-    public function borrowItem($userId)
+    // Boot model events
+    protected static function boot()
     {
-        if ($this->is_available) {
-            $this->user_id = $userId;
-            $this->available = $this->available - 1;
-            return $this->save();
-        }
-        return false;
-    }
+        parent::boot();
 
-    /**
-     * Method untuk mengembalikan item
-     */
-    public function returnItem()
-    {
-        if ($this->is_borrowed) {
-            $this->user_id = null;
-            $this->available = $this->available + 1;
-            return $this->save();
-        }
-        return false;
+        // Auto sync koin ketika item dipinjam/dikembalikan
+        static::updated(function ($item) {
+            if ($item->isDirty('user_id')) {
+                // Jika user_id berubah, sync koin untuk user lama dan baru
+                $originalUserId = $item->getOriginal('user_id');
+                $newUserId = $item->user_id;
+
+                // Sync koin untuk user lama (yang mengembalikan item)
+                if ($originalUserId) {
+                    $oldUserDetail = UserDetail::where('user_id', $originalUserId)->first();
+                    if ($oldUserDetail) {
+                        $oldUserDetail->syncKoin();
+                    }
+                }
+
+                // Sync koin untuk user baru (yang meminjam item)
+                if ($newUserId) {
+                    $newUserDetail = UserDetail::where('user_id', $newUserId)->first();
+                    if ($newUserDetail) {
+                        $newUserDetail->syncKoin();
+                    }
+                }
+            }
+        });
     }
 }
