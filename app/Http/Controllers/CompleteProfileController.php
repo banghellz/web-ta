@@ -5,10 +5,14 @@ namespace App\Http\Controllers;
 use App\Models\RfidTag;
 use App\Models\UserDetail;
 use App\Models\User;
+use App\Models\Notification;
+use App\Mail\AccountRegistrationSuccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class CompleteProfileController extends Controller
 {
@@ -67,6 +71,27 @@ class CompleteProfileController extends Controller
 
             // Hapus data NIM dari session jika ada
             session()->forget('extracted_nim');
+
+            // Kirim email notifikasi setelah berhasil mendaftar
+            try {
+                // Refresh user untuk memastikan relasi detail ter-load
+                $user->refresh();
+                $user->load('detail');
+                Notification::userRegistered($user);
+                Mail::to($user->email)->send(new AccountRegistrationSuccess($user));
+
+                // Log sukses pengiriman email
+                Log::info('Registration success email sent to: ' . $user->email);
+
+                // Set flash message untuk memberitahu user bahwa email telah dikirim
+                session()->flash('email_sent', 'A confirmation email has been sent to your email address.');
+            } catch (\Exception $emailException) {
+                // Jika pengiriman email gagal, log error tapi tetap lanjutkan proses
+                Log::error('Failed to send registration email to: ' . $user->email . '. Error: ' . $emailException->getMessage());
+
+                // Set flash message untuk memberitahu user bahwa email gagal dikirim
+                session()->flash('email_failed', 'Registration successful, but we couldn\'t send the confirmation email. Please contact support if needed.');
+            }
 
             // Redirect ke dashboard setelah berhasil
             return match ($user->role) {

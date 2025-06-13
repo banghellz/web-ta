@@ -48,12 +48,14 @@
                                 <h3 class="mb-1">{{ $quickStats['tools'] ?? '3' }}</h3>
                                 <div class="text-uppercase text-muted fw-bold small">BORROWED TOOL</div>
                                 <div class="mt-3">
-                                    <a href="#" class="btn btn-outline-primary btn-sm">View Details</a>
+                                    <a href="{{ route('user.storage.index') }}"
+                                        class="btn btn-outline-primary btn-sm">View Details</a>
                                 </div>
                             </div>
                         </div>
                     </div>
 
+                    <!-- Borrowing Activity Chart -->
                     <!-- Borrowing Activity Chart -->
                     <div class="col-lg-6">
                         <div class="card h-100">
@@ -69,8 +71,8 @@
                                     Borrowing Activity this Month
                                 </h4>
                             </div>
-                            <div class="card-body d-flex align-items-center justify-content-center">
-                                <div class="placeholder placeholder-lg w-100" style="height: 160px;"></div>
+                            <div class="card-body">
+                                <canvas id="borrowingChart" height="120"></canvas>
                             </div>
                         </div>
                     </div>
@@ -312,4 +314,162 @@
             </div>
         </div>
     </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Data dari controller
+            const monthlyData = @json($monthlyActivity ?? []);
+
+            // Prepare data untuk chart
+            const chartLabels = [];
+            const chartData = [];
+
+            // Generate semua tanggal dalam bulan ini
+            const currentDate = new Date();
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                chartLabels.push(day);
+
+                // Cari data untuk tanggal ini
+                const dayData = monthlyData.find(item => item.date === dateStr);
+                chartData.push(dayData ? dayData.count : 0);
+            }
+
+            // Inisialisasi Chart
+            const ctx = document.getElementById('borrowingChart').getContext('2d');
+            const borrowingChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: chartLabels,
+                    datasets: [{
+                        label: 'Borrowing Count',
+                        data: chartData,
+                        borderColor: '#206bc4',
+                        backgroundColor: 'rgba(32, 107, 196, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 3,
+                        pointHoverRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: 'Day of Month'
+                            },
+                            grid: {
+                                display: false
+                            }
+                        },
+                        y: {
+                            display: true,
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Count'
+                            },
+                            grid: {
+                                color: 'rgba(0,0,0,0.1)'
+                            },
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    },
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    }
+                }
+            });
+
+            // Fungsi untuk update chart via AJAX
+            window.updateBorrowingChart = function() {
+                fetch('{{ route('user.dashboard.chart-data') }}?period=month&type=borrowing')
+                    .then(response => response.json())
+                    .then(data => {
+                        const newLabels = data.map(item => item.label);
+                        const newData = data.map(item => item.value);
+
+                        borrowingChart.data.labels = newLabels;
+                        borrowingChart.data.datasets[0].data = newData;
+                        borrowingChart.update();
+                    })
+                    .catch(error => {
+                        console.error('Error updating chart:', error);
+                    });
+            };
+        });
+        // Fungsi untuk refresh data dashboard
+        function refreshDashboard() {
+            $.ajax({
+                url: '{{ route('user.dashboard.refresh') }}',
+                method: 'GET',
+                success: function(response) {
+                    if (response.success) {
+                        // Update koin
+                        $('.total-coins').text(response.available_koin);
+
+                        // Update timestamp terakhir refresh
+                        $('#last-updated').text('Last updated: ' + response.timestamp);
+
+                        // Show success message
+                        showToast('success', response.message);
+                    }
+                },
+                error: function() {
+                    showToast('error', 'Failed to refresh dashboard data');
+                }
+            });
+        }
+
+        // Fungsi untuk refresh recent activities
+        function refreshActivities() {
+            $.ajax({
+                url: '{{ route('user.dashboard.activities') }}',
+                method: 'GET',
+                success: function(activities) {
+                    updateActivitiesSection(activities);
+                }
+            });
+        }
+
+        // Fungsi untuk refresh stats
+        function refreshStats() {
+            $.ajax({
+                url: '{{ route('user.dashboard.stats') }}',
+                method: 'GET',
+                success: function(stats) {
+                    // Update coins
+                    $('.total-coins').text(stats.available_koin);
+                    $('.used-coins').text(stats.used_koin);
+
+                    // Update borrowed tools
+                    $('.borrowed-tools').text(stats.current_borrowed);
+
+                    // Update overdue count jika ada
+                    $('.overdue-count').text(stats.overdue_count);
+                }
+            });
+        }
+
+        // Auto refresh setiap 30 detik
+        setInterval(function() {
+            refreshStats();
+        }, 30000);
+    </script>
 </x-layouts.user_layout>

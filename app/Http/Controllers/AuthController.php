@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Laravel\Socialite\Facades\Socialite;
 use App\Models\User;
 use App\Models\ActivityLog;
+use App\Models\Notification; // Add this import
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 
@@ -50,6 +51,10 @@ class AuthController extends Controller
 
             // Log the activity
             $this->logActivity($user, $isNewUser ? 'register' : 'login');
+
+
+
+
 
             // Redirect logic berdasarkan role
             if ($user->role === 'guest') {

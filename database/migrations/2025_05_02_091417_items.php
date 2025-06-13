@@ -15,7 +15,8 @@ return new class extends Migration
             $table->id();
             $table->string('epc');
             $table->string('nama_barang')->nullable();
-            $table->integer('available')->nullable();
+            $table->enum('status', ['available', 'borrowed', 'missing', 'out_of_stock'])
+                ->default('available');
             $table->bigInteger('user_id')->unsigned()->nullable();
             $table->timestamps();
 

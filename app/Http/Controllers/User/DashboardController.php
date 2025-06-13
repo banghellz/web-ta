@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use App\Models\User;
 use App\Models\UserDetail;
 use App\Models\LogPeminjaman;
@@ -232,44 +233,24 @@ class DashboardController extends Controller
     /**
      * Get recent activities with better formatting
      */
-    private function getRecentActivities($user)
+    //      * Get recent activities (private method untuk dashboard data)
+    //  */
+    private function getRecentActivities()
     {
-        $activities = [];
-
-        // Get recent log activities
-        $recentLogs = LogPeminjaman::where('user_id', $user->id)
-            ->orderBy('timestamp', 'desc')
-            ->take(10)
-            ->get();
-
-        foreach ($recentLogs as $log) {
-            $timestamp = Carbon::parse($log->timestamp);
-
-            $activity = [
-                'item_id' => $log->item_id,
-                'item_name' => $log->item_name,
-                'time' => $timestamp->format('H:i'),
-                'date' => $timestamp->format('M d'),
-                'full_date' => $timestamp->format('Y-m-d H:i:s'),
-                'human_time' => $timestamp->diffForHumans()
-            ];
-
-            if ($log->activity_type == 'pinjam') {
-                $activity['type'] = 'borrow';
-                $activity['message'] = 'You borrowed ' . $log->item_name;
-                $activity['icon'] = 'ti ti-download';
-                $activity['color'] = 'success';
-            } elseif ($log->activity_type == 'kembali') {
-                $activity['type'] = 'return';
-                $activity['message'] = 'You returned ' . $log->item_name;
-                $activity['icon'] = 'ti ti-upload';
-                $activity['color'] = 'info';
+        try {
+            // Cek apakah ActivityLog model exists
+            if (!class_exists('App\Models\ActivityLog')) {
+                return collect(); // Return empty collection jika model tidak ada
             }
 
-            $activities[] = $activity;
+            return \App\Models\ActivityLog::with('user')
+                ->latest()
+                ->limit(5)
+                ->get();
+        } catch (\Exception $e) {
+            Log::error('Failed to get recent activities for dashboard: ' . $e->getMessage());
+            return collect(); // Return empty collection jika error
         }
-
-        return array_slice($activities, 0, 5); // Return only 5 most recent
     }
 
     /**
