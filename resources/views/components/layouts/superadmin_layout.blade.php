@@ -14,8 +14,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <!-- Tabler CSS and Icons -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta17/dist/css/tabler.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.22.0/tabler-icons.min.css">
+    <link rel="stylesheet" href="/assets/css/tabler.min.css">
+    <link rel="stylesheet" href="/assets/css/tabler-icons.min.css">
 
     <!-- DataTables CSS -->
     <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
@@ -86,6 +86,18 @@
         .toast.text-info {
             border-left: 4px solid var(--tblr-info);
         }
+
+        /* Lucide icons styling */
+        [data-lucide] {
+            width: 1.25rem;
+            height: 1.25rem;
+            stroke-width: 2;
+        }
+
+        .icon[data-lucide] {
+            width: 1.25rem;
+            height: 1.25rem;
+        }
     </style>
 </head>
 
@@ -94,7 +106,7 @@
     <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1070;">
         <div id="notificationToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
             <div class="toast-header">
-                <i id="toastIcon" class="ti ti-bell me-2"></i>
+                <i id="toastIcon" data-lucide="bell" class="me-2"></i>
                 <strong id="toastTitle" class="me-auto">Notification</strong>
                 <small id="toastTime" class="text-muted">just now</small>
                 <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
@@ -121,17 +133,17 @@
                     <div class="d-none d-md-flex">
                         <!-- Theme Toggle -->
                         <a href="?theme=dark" class="nav-link px-0 hide-theme-dark" title="Enable dark mode">
-                            <i class="ti ti-moon icon"></i>
+                            <i data-lucide="moon" class="icon"></i>
                         </a>
                         <a href="?theme=light" class="nav-link px-0 hide-theme-light" title="Enable light mode">
-                            <i class="ti ti-sun icon"></i>
+                            <i data-lucide="sun" class="icon"></i>
                         </a>
 
                         <!-- Notification Dropdown -->
                         <div class="nav-item dropdown d-none d-md-flex me-3">
                             <a href="#" class="nav-link px-0 position-relative" data-bs-toggle="dropdown"
                                 id="notificationButton">
-                                <i class="ti ti-bell icon"></i>
+                                <i data-lucide="bell" class="icon"></i>
                                 <span id="notificationBadge"
                                     class="badge bg-red badge-pill position-absolute top-0 start-100 translate-middle"
                                     style="display: none;">0</span>
@@ -144,7 +156,7 @@
                                         <div class="card-actions">
                                             <button type="button" class="btn btn-sm btn-outline-danger"
                                                 onclick="clearAllNotifications()">
-                                                <i class="ti ti-trash"></i> Clear all
+                                                <i data-lucide="trash-2"></i> Clear all
                                             </button>
                                         </div>
                                     </div>
@@ -227,12 +239,17 @@
     </div>
 
     <!-- Scripts -->
+    <script src="{{ asset('assets/js/lucide.min.js') }}"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta17/dist/js/tabler.min.js"></script>
 
     <!-- Enhanced Unified Toast System -->
     <script>
+        window.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+        });
+
         // Enhanced Unified Toast System - Global
         window.UnifiedToastSystem = {
             // Initialize toast system
@@ -317,20 +334,26 @@
                 // Reset classes
                 this.toastElement.className = 'toast';
 
-                // Set icon
+                // Set icon using Lucide data-lucide attribute
                 const icons = {
-                    'success': 'ti-check',
-                    'error': 'ti-alert-circle',
-                    'warning': 'ti-alert-triangle',
-                    'info': 'ti-info-circle'
+                    'success': 'check-circle',
+                    'error': 'alert-circle',
+                    'warning': 'alert-triangle',
+                    'info': 'info'
                 };
 
-                this.toastIcon.className = `ti ${icons[type] || icons.info} me-2`;
+                this.toastIcon.setAttribute('data-lucide', icons[type] || icons.info);
+                this.toastIcon.className = 'me-2';
 
                 // Add color class
                 if (type !== 'info') {
                     const colorClass = type === 'error' ? 'text-danger' : `text-${type}`;
                     this.toastElement.classList.add(colorClass);
+                }
+
+                // Re-initialize Lucide icons for the toast icon
+                if (typeof lucide !== 'undefined') {
+                    lucide.createIcons();
                 }
             },
 
@@ -419,20 +442,20 @@
             <div class="notification-item border-bottom p-3" data-id="${notification.id}">
                 <div class="d-flex align-items-start">
                     <div class="notification-icon ${notification.type} me-3">
-                        <i class="ti ${icon}"></i>
+                        <i data-lucide="${icon}"></i>
                     </div>
                     <div class="flex-grow-1">
                         <div class="fw-bold">${escapeHtml(decodedTitle)}</div>
                         <div class="text-muted small">${escapeHtml(decodedMessage)}</div>
                         <div class="text-muted small mt-1">
-                            <i class="ti ti-clock"></i> ${timeAgo}
+                            <i data-lucide="clock"></i> ${timeAgo}
                         </div>
                     </div>
                     <div class="ms-auto">
                         <button type="button" class="btn btn-sm btn-ghost-secondary" 
                                 onclick="deleteNotification(${notification.id})" 
                                 title="Delete">
-                            <i class="ti ti-x"></i>
+                            <i data-lucide="x"></i>
                         </button>
                     </div>
                 </div>
@@ -441,6 +464,11 @@
             });
 
             container.html(html);
+
+            // Re-initialize Lucide icons for new content
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
         }
 
         function escapeHtml(text) {
@@ -504,13 +532,13 @@
 
         function getNotificationIcon(type) {
             const icons = {
-                'user_registered': 'ti-user-plus',
-                'tool_added': 'ti-plus',
-                'tool_deleted': 'ti-trash',
-                'tool_missing': 'ti-alert-triangle',
-                'tool_reclaimed': 'ti-check'
+                'user_registered': 'user-plus',
+                'tool_added': 'plus',
+                'tool_deleted': 'trash-2',
+                'tool_missing': 'alert-triangle',
+                'tool_reclaimed': 'check'
             };
-            return icons[type] || 'ti-bell';
+            return icons[type] || 'bell';
         }
 
         function deleteNotification(id) {
