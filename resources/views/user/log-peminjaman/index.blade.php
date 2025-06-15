@@ -1,4 +1,4 @@
-<x-layouts.user_layout title="History" pageTitle="My Borrowing History">
+<x-layouts.user_layout title="History" pageTitle="">
     <x-slot name="title">{{ $title }}</x-slot>
     <x-slot name="content">{{ $content }}</x-slot>
 

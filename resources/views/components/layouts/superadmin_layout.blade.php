@@ -18,7 +18,7 @@
     <link rel="stylesheet" href="/assets/css/tabler-icons.min.css">
 
     <!-- DataTables CSS -->
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" href="/assets/css/jquery.dataTables.min.css">
 
     @livewireStyles
     @stack('styles')
@@ -250,8 +250,8 @@
 
     <!-- Scripts -->
     <script src="{{ asset('assets/js/tabler.min.js') }}"></script>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+    <script src="{{ asset('assets/js/jquery-3.6.0.min.js') }}"></script>
+    <script src="{{ asset('assets/js/jquery.dataTables.min.js') }}"></script>
 
     <!-- Enhanced Unified Toast System dengan Tabler Icons -->
     <script>

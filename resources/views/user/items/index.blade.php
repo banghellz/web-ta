@@ -1,16 +1,14 @@
-<!-- resources/views/admin/dashboard/index.blade.php -->
-<x-layouts.user_layout title="Stocks" pageTitle="Stocks">
-    <x-slot name="title">{{ $title }}</x-slot>
-    <x-slot name="content">{{ $content }}</x-slot>
+<!-- resources/views/user/items/index.blade.php -->
+<x-layouts.user_layout title="Tool Stocks" pageTitle="">
 
     <div class="page-header d-print-none">
         <div class="container-xl">
             <div class="row g-2 align-items-center">
                 <div class="col">
                     <h2 class="page-title">
-                        <i class="ti ti-package me-2 text-primary"></i>{{ $title ?? 'Items Management' }}
+                        <i class="ti ti-package me-2 text-primary"></i>{{ $title ?? 'Tool Stocks' }}
                     </h2>
-                    <div class="text-muted mt-1">{{ $content ?? 'Manage inventory items and stock levels' }}</div>
+                    <div class="text-muted mt-1">{{ $content ?? 'View available tools and their current status' }}</div>
                 </div>
                 <div class="col-auto ms-auto">
                     <div class="btn-list">
@@ -20,10 +18,6 @@
                                 Refresh Data
                             </button>
                         </span>
-                        <a href="{{ route('user.items.create') }}" class="btn btn-success">
-                            <i class="ti ti-plus me-1"></i>
-                            Add New Item
-                        </a>
                     </div>
                 </div>
             </div>
@@ -35,7 +29,12 @@
             <!-- Statistics Cards -->
             <div class="card">
                 <div class="card-header">
-                    <h3 class="card-title">Inventory Statistics</h3>
+                    <h3 class="card-title">Tool Inventory Overview</h3>
+                    <div class="card-actions">
+                        <small class="text-muted" id="last-updated">
+                            Last updated: <span id="last-updated-time">Just now</span>
+                        </small>
+                    </div>
                 </div>
                 <div class="card-body">
                     <div class="row row-cards">
@@ -52,10 +51,10 @@
                                         <div class="col">
                                             <div class="font-weight-medium">
                                                 <span id="total-items">{{ number_format($totalItems ?? 0) }}</span>
-                                                Items
+                                                Tools
                                             </div>
                                             <div class="text-muted">
-                                                Total Items
+                                                Total in System
                                             </div>
                                         </div>
                                     </div>
@@ -76,57 +75,57 @@
                                             <div class="font-weight-medium">
                                                 <span
                                                     id="available-items">{{ number_format($availableItems ?? 0) }}</span>
-                                                Items
+                                                Tools
                                             </div>
                                             <div class="text-muted">
-                                                Available
+                                                Available to Borrow
                                             </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        <!-- Out of Stock -->
+                        <!-- Borrowed Items -->
                         <div class="col-sm-6 col-lg-3">
                             <div class="card card-sm">
                                 <div class="card-body">
                                     <div class="row align-items-center">
                                         <div class="col-auto">
-                                            <span class="bg-red text-white avatar">
-                                                <i class="ti ti-x"></i>
+                                            <span class="bg-yellow text-white avatar">
+                                                <i class="ti ti-user"></i>
                                             </span>
                                         </div>
                                         <div class="col">
                                             <div class="font-weight-medium">
                                                 <span
-                                                    id="out-of-stock-items">{{ number_format($outOfStockItems ?? 0) }}</span>
-                                                Items
+                                                    id="borrowed-items">{{ number_format($borrowedItems ?? 0) }}</span>
+                                                Tools
                                             </div>
                                             <div class="text-muted">
-                                                Out of Stock
+                                                Currently Borrowed
                                             </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        <!-- Availability Rate -->
+                        <!-- Missing Items -->
                         <div class="col-sm-6 col-lg-3">
                             <div class="card card-sm">
                                 <div class="card-body">
                                     <div class="row align-items-center">
                                         <div class="col-auto">
-                                            <span class="bg-info text-white avatar">
-                                                <i class="ti ti-percentage"></i>
+                                            <span class="bg-dark text-white avatar">
+                                                <i class="ti ti-alert-triangle"></i>
                                             </span>
                                         </div>
                                         <div class="col">
                                             <div class="font-weight-medium">
-                                                <span
-                                                    id="availability-rate">{{ $totalItems > 0 ? round(($availableItems / $totalItems) * 100) : 0 }}</span>%
+                                                <span id="missing-items">{{ number_format($missingItems ?? 0) }}</span>
+                                                Tools
                                             </div>
                                             <div class="text-muted">
-                                                Availability Rate
+                                                Missing
                                             </div>
                                         </div>
                                     </div>
@@ -140,7 +139,7 @@
             <!-- Items Table -->
             <div class="card mt-3">
                 <div class="card-header">
-                    <h3 class="card-title">Items List</h3>
+                    <h3 class="card-title">Available Tools</h3>
                     <div class="card-actions">
                         <div class="row g-2 align-items-center">
                             <div class="col">
@@ -151,8 +150,17 @@
                                     <select id="status-filter" class="form-select">
                                         <option value="">All Status</option>
                                         <option value="available">Available</option>
-                                        <option value="out_of_stock">Out of Stock</option>
+                                        <option value="borrowed">Borrowed</option>
+                                        <option value="missing">Missing</option>
                                     </select>
+                                </div>
+                            </div>
+                            <!-- Connection Status Indicator -->
+                            <div class="col-auto">
+                                <div id="connection-status" class="d-flex align-items-center">
+                                    <div id="connection-indicator" class="bg-success rounded-circle me-2"
+                                        style="width: 8px; height: 8px;" title="Connection"></div>
+                                    <small class="text-muted"><span id="connection-text">Live</span></small>
                                 </div>
                             </div>
                         </div>
@@ -165,11 +173,10 @@
                                 <tr>
                                     <th class="w-1">No</th>
                                     <th>EPC Code</th>
-                                    <th>Item Name</th>
-                                    <th>Available Quantity</th>
+                                    <th>Tool Name</th>
                                     <th>Status</th>
-                                    <th>Created At</th>
-                                    <th width="150">Actions</th>
+                                    <th>Borrower</th>
+                                    <th>Last Updated</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -182,22 +189,371 @@
         </div>
     </div>
 
+    <!-- Tool Detail Modal -->
+    <div class="modal modal-blur fade" id="modal-tool-detail" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Tool Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="tool-detail-content">
+                    <!-- Content will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @push('styles')
+        <style>
+            /* Connection status indicators */
+            #connection-status.connected #connection-indicator {
+                background-color: var(--tblr-green) !important;
+                animation: pulse 3s infinite;
+            }
+
+            #connection-status.connecting #connection-indicator {
+                background-color: var(--tblr-yellow) !important;
+                animation: spin 1s linear infinite;
+            }
+
+            #connection-status.disconnected #connection-indicator {
+                background-color: var(--tblr-red) !important;
+                animation: blink 1s infinite;
+            }
+
+            /* Improved animations */
+            @keyframes pulse {
+
+                0%,
+                100% {
+                    opacity: 1;
+                    transform: scale(1);
+                }
+
+                50% {
+                    opacity: 0.6;
+                    transform: scale(1.1);
+                }
+            }
+
+            @keyframes spin {
+                from {
+                    transform: rotate(0deg);
+                }
+
+                to {
+                    transform: rotate(360deg);
+                }
+            }
+
+            @keyframes blink {
+
+                0%,
+                50% {
+                    opacity: 1;
+                }
+
+                51%,
+                100% {
+                    opacity: 0.3;
+                }
+            }
+
+            /* Status update animation */
+            .status-updating {
+                animation: statusUpdate 0.8s ease-in-out;
+                transform-origin: center;
+            }
+
+            @keyframes statusUpdate {
+                0% {
+                    transform: scale(1);
+                }
+
+                30% {
+                    transform: scale(1.05);
+                }
+
+                100% {
+                    transform: scale(1);
+                }
+            }
+
+            /* Stat update animation */
+            .stat-updating {
+                animation: statUpdate 0.6s ease-in-out;
+                transform-origin: center;
+            }
+
+            @keyframes statUpdate {
+                0% {
+                    background-color: transparent;
+                    transform: scale(1);
+                }
+
+                50% {
+                    background-color: var(--tblr-green-lt);
+                    transform: scale(1.02);
+                }
+
+                100% {
+                    background-color: transparent;
+                    transform: scale(1);
+                }
+            }
+
+            /* Refresh button animation */
+            .btn.refreshing {
+                animation: spin 1s linear infinite;
+            }
+
+            /* Clickable tool names */
+            .tool-name-clickable {
+                color: var(--tblr-primary);
+                text-decoration: none;
+                cursor: pointer;
+                transition: color 0.15s ease-in-out;
+            }
+
+            .tool-name-clickable:hover {
+                color: var(--tblr-primary-dark);
+                text-decoration: underline;
+            }
+
+            /* Badge styling */
+            .badge-lg {
+                padding: 0.5rem 1rem;
+                font-size: 0.875rem;
+                font-weight: 500;
+            }
+
+            /* Mobile responsiveness */
+            @media (max-width: 768px) {
+                .card-actions .row {
+                    gap: 0.5rem;
+                }
+            }
+
+            /* Reduced motion for accessibility */
+            @media (prefers-reduced-motion: reduce) {
+
+                .status-updating,
+                .stat-updating,
+                #connection-indicator {
+                    animation: none !important;
+                }
+            }
+        </style>
+    @endpush
+
     @push('scripts')
         <script>
             $(function() {
-                const csrfToken = "{{ csrf_token() }}";
+                let pollingInterval = null;
+                let isPollingEnabled = true;
+                let pollingFailureCount = 0;
+                let currentPollingInterval = 30000; // 30 seconds for user view
 
-                // Initialize DataTable with custom styling
+                // Current stats cache
+                let currentStats = {
+                    total_items: {{ $totalItems ?? 0 }},
+                    available_items: {{ $availableItems ?? 0 }},
+                    borrowed_items: {{ $borrowedItems ?? 0 }},
+                    missing_items: {{ $missingItems ?? 0 }}
+                };
+
+                // === UTILITY FUNCTIONS ===
+                function showToast(message, type = 'success') {
+                    if (typeof toastr !== 'undefined') {
+                        toastr[type](message);
+                    } else {
+                        console.log(`${type.toUpperCase()}: ${message}`);
+                    }
+                }
+
+                function setConnectionStatus(status) {
+                    const $indicator = $('#connection-indicator');
+                    const $statusContainer = $('#connection-status');
+                    const $text = $('#connection-text');
+
+                    $statusContainer.removeClass('connected connecting disconnected').addClass(status);
+
+                    const statusConfig = {
+                        'connected': {
+                            title: 'Connected - Live updates active',
+                            text: 'Live'
+                        },
+                        'connecting': {
+                            title: 'Checking for updates...',
+                            text: 'Checking'
+                        },
+                        'disconnected': {
+                            title: 'Connection failed - Updates disabled',
+                            text: 'Offline'
+                        }
+                    };
+
+                    const config = statusConfig[status];
+                    if (config) {
+                        $indicator.attr('title', config.title);
+                        $text.text(config.text);
+                    }
+                }
+
+                function updateLastRefreshTime() {
+                    const now = new Date();
+                    $('#last-updated-time').text(now.toLocaleTimeString());
+                }
+
+                function updateStats(stats) {
+                    function animateStatUpdate(element, newValue) {
+                        const $element = $(element);
+                        const currentValue = parseInt($element.text().replace(/,/g, '')) || 0;
+
+                        if (currentValue !== newValue) {
+                            $element.addClass('stat-updating');
+                            $element.text(newValue.toLocaleString());
+                            setTimeout(() => $element.removeClass('stat-updating'), 500);
+                        }
+                    }
+
+                    Object.keys(stats).forEach(key => {
+                        const elementMap = {
+                            'total_items': '#total-items',
+                            'available_items': '#available-items',
+                            'borrowed_items': '#borrowed-items',
+                            'missing_items': '#missing-items'
+                        };
+
+                        const element = elementMap[key];
+                        if (element && stats[key] !== undefined && stats[key] !== currentStats[key]) {
+                            animateStatUpdate(element, stats[key]);
+                            currentStats[key] = stats[key];
+                        }
+                    });
+                }
+
+                function updateStatusBadge($badge, newStatus) {
+                    const statusConfig = {
+                        'available': {
+                            icon: 'ti-check',
+                            class: 'bg-success',
+                            text: 'Available'
+                        },
+                        'borrowed': {
+                            icon: 'ti-user',
+                            class: 'bg-warning',
+                            text: 'Borrowed'
+                        },
+                        'missing': {
+                            icon: 'ti-alert-triangle',
+                            class: 'bg-dark',
+                            text: 'Missing'
+                        }
+                    };
+
+                    const config = statusConfig[newStatus] || {
+                        icon: 'ti-help',
+                        class: 'bg-secondary',
+                        text: 'Unknown'
+                    };
+
+                    $badge.removeClass('bg-success bg-warning bg-dark bg-secondary')
+                        .addClass('status-updating')
+                        .addClass(config.class)
+                        .attr('data-status', newStatus)
+                        .html(`<i class="ti ${config.icon} me-1"></i>${config.text}`);
+
+                    setTimeout(() => $badge.removeClass('status-updating'), 800);
+                }
+
+                // === POLLING SYSTEM FOR LIVE UPDATES ===
+                function startPolling() {
+                    if (pollingInterval) clearInterval(pollingInterval);
+
+                    pollingInterval = setInterval(() => {
+                        if (!isPollingEnabled || document.hidden) return;
+                        checkForUpdates();
+                    }, currentPollingInterval);
+                }
+
+                function stopPolling() {
+                    if (pollingInterval) {
+                        clearInterval(pollingInterval);
+                        pollingInterval = null;
+                    }
+                }
+
+                function checkForUpdates() {
+                    setConnectionStatus('connecting');
+
+                    $.ajax({
+                        url: "{{ route('user.items.data') }}",
+                        type: 'GET',
+                        timeout: 10000,
+                        data: {
+                            _: Date.now()
+                        },
+                        success: function(response) {
+                            if (response.stats) {
+                                updateStats(response.stats);
+                            }
+
+                            // Update status badges in table
+                            if (response.data && Array.isArray(response.data)) {
+                                response.data.forEach(item => {
+                                    const $statusBadge = $(`.badge[data-item-id="${item.id}"]`);
+                                    if ($statusBadge.length > 0) {
+                                        const currentStatus = $statusBadge.data('status');
+                                        if (currentStatus !== item.status) {
+                                            updateStatusBadge($statusBadge, item.status);
+                                        }
+                                    }
+                                });
+                            }
+
+                            updateLastRefreshTime();
+                            setConnectionStatus('connected');
+                            pollingFailureCount = 0;
+                        },
+                        error: function(xhr, status, error) {
+                            pollingFailureCount++;
+                            console.warn('Polling failed:', error);
+
+                            if (pollingFailureCount >= 3) {
+                                setConnectionStatus('disconnected');
+                                currentPollingInterval = Math.min(60000, currentPollingInterval + 10000);
+                                startPolling();
+                            } else {
+                                setConnectionStatus('connected');
+                            }
+                        }
+                    });
+                }
+
+                // === DATATABLE INITIALIZATION ===
                 const table = $('#itemsTable').DataTable({
                     processing: true,
                     serverSide: true,
                     ajax: {
                         url: "{{ route('user.items.data') }}",
                         type: 'GET',
+                        timeout: 15000,
                         dataSrc: function(json) {
-                            // Update statistics if provided in response
                             updateStats(json.stats || {});
+                            updateLastRefreshTime();
+                            setConnectionStatus('connected');
+                            pollingFailureCount = 0;
                             return json.data;
+                        },
+                        error: function(xhr, error, code) {
+                            console.error('DataTable Ajax Error:', {
+                                status: xhr.status,
+                                error: error
+                            });
+                            setConnectionStatus('disconnected');
+                            pollingFailureCount++;
                         }
                     },
                     columns: [{
@@ -223,21 +579,12 @@
                             data: 'nama_barang',
                             name: 'nama_barang',
                             render: function(data, type, row) {
-                                return '<div class="text-wrap">' + data + '</div>';
-                            }
-                        },
-                        {
-                            data: 'available',
-                            name: 'available',
-                            className: 'text-center',
-                            render: function(data, type, row) {
-                                let badgeClass = 'bg-success';
-                                if (data == 0) {
-                                    badgeClass = 'bg-danger';
-                                } else if (data <= 5) {
-                                    badgeClass = 'bg-warning';
-                                }
-                                return '<span class="badge ' + badgeClass + '">' + data + '</span>';
+                                return '<div class="text-wrap">' +
+                                    '<a href="#" class="tool-name-clickable" data-tool-id="' + row.id +
+                                    '">' +
+                                    data +
+                                    '</a>' +
+                                    '</div>';
                             }
                         },
                         {
@@ -247,56 +594,70 @@
                             render: function(data, type, row) {
                                 let iconClass = '';
                                 let badgeClass = '';
+                                let statusText = '';
 
-                                if (data === 'available') {
-                                    iconClass = 'ti-check';
-                                    badgeClass = 'bg-success';
-                                } else if (data === 'out_of_stock') {
-                                    iconClass = 'ti-x';
-                                    badgeClass = 'bg-danger';
-                                } else if (data === 'low_stock') {
-                                    iconClass = 'ti-alert-triangle';
-                                    badgeClass = 'bg-warning';
-                                } else {
-                                    iconClass = 'ti-help';
-                                    badgeClass = 'bg-secondary';
+                                switch (data) {
+                                    case 'available':
+                                        iconClass = 'ti-check';
+                                        badgeClass = 'bg-success';
+                                        statusText = 'Available';
+                                        break;
+                                    case 'borrowed':
+                                        iconClass = 'ti-user';
+                                        badgeClass = 'bg-warning';
+                                        statusText = 'Borrowed';
+                                        break;
+                                    case 'missing':
+                                        iconClass = 'ti-alert-triangle';
+                                        badgeClass = 'bg-dark';
+                                        statusText = 'Missing';
+                                        break;
+                                    default:
+                                        iconClass = 'ti-help';
+                                        badgeClass = 'bg-secondary';
+                                        statusText = 'Unknown';
                                 }
 
-                                return '<span class="badge ' + badgeClass + '"><i class="ti ' +
-                                    iconClass + ' me-1"></i>' +
-                                    data.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) +
-                                    '</span>';
+                                return '<span class="badge ' + badgeClass + '" data-item-id="' + row
+                                    .id +
+                                    '" data-status="' + data + '"><i class="ti ' + iconClass +
+                                    ' me-1"></i>' + statusText + '</span>';
                             }
                         },
                         {
-                            data: 'created_at_formatted',
-                            name: 'created_at',
+                            data: 'borrower_name',
+                            name: 'borrower_name',
                             className: 'text-center',
                             render: function(data, type, row) {
-                                return '<div class="text-muted">' + data + '</div>';
+                                if (data && data.trim() !== '') {
+                                    return '<span class="text-muted">' + data + '</span>';
+                                } else {
+                                    return '<span class="text-muted">-</span>';
+                                }
                             }
                         },
                         {
-                            data: 'actions',
-                            name: 'actions',
-                            orderable: false,
-                            searchable: false,
-                            className: 'text-center'
+                            data: 'updated_at_formatted',
+                            name: 'updated_at',
+                            className: 'text-center',
+                            render: function(data, type, row) {
+                                return '<div class="text-muted small">' + data + '</div>';
+                            }
                         }
                     ],
                     order: [
                         [5, 'desc']
-                    ], // Order by created_at descending
+                    ], // Order by updated_at descending
                     dom: '<"d-flex justify-content-between align-items-center mb-3"<"d-flex align-items-center"l><"d-flex"f>>t<"d-flex justify-content-between align-items-center mt-3"<"text-muted"i><"d-flex"p>>',
                     language: {
                         search: '',
-                        searchPlaceholder: 'Search items...',
+                        searchPlaceholder: 'Search tools...',
                         lengthMenu: '_MENU_ entries per page',
-                        processing: "Loading items...",
-                        emptyTable: "No items found",
-                        info: "Showing _START_ to _END_ of _TOTAL_ items",
-                        infoEmpty: "Showing 0 to 0 of 0 items",
-                        infoFiltered: "(filtered from _MAX_ total items)",
+                        processing: "Loading tools...",
+                        emptyTable: "No tools found",
+                        info: "Showing _START_ to _END_ of _TOTAL_ tools",
+                        infoEmpty: "Showing 0 to 0 of 0 tools",
+                        infoFiltered: "(filtered from _MAX_ total tools)",
                         paginate: {
                             first: "First",
                             last: "Last",
@@ -309,96 +670,201 @@
                     responsive: true
                 });
 
-                // Handle refresh button
+                // === EVENT HANDLERS ===
                 $('#reload-items').on('click', function() {
-                    table.ajax.reload();
-                    if (typeof toastr !== 'undefined') {
-                        toastr.success('Data refreshed successfully!');
-                    }
+                    const $refreshBtn = $(this);
+                    $refreshBtn.addClass('refreshing');
+                    setConnectionStatus('connecting');
+
+                    table.ajax.reload(function(json) {
+                        $refreshBtn.removeClass('refreshing');
+                        showToast('Data refreshed successfully!', 'success');
+                        updateLastRefreshTime();
+                    }, false);
                 });
 
-                // Status filter
                 $('#status-filter').on('change', function() {
                     const selectedStatus = $(this).val();
-                    table.column(4).search(selectedStatus).draw();
+                    table.column(3).search(selectedStatus).draw();
                 });
 
-                // Delete confirmation using SweetAlert2
-                $(document).on('click', '.delete-item', function(e) {
+                // Tool detail modal - simplified without AJAX
+                $(document).on('click', '.tool-name-clickable', function(e) {
                     e.preventDefault();
 
-                    const form = $(this).closest('form');
-                    const itemName = $(this).data('item-name');
+                    // Get data from the table row
+                    const $row = $(this).closest('tr');
+                    const rowData = table.row($row).data();
 
-                    if (typeof Swal !== 'undefined') {
-                        Swal.fire({
-                            title: 'Delete Item',
-                            text: `Are you sure you want to delete "${itemName}"? This action cannot be undone.`,
-                            icon: 'warning',
-                            showCancelButton: true,
-                            confirmButtonColor: '#dc3545',
-                            cancelButtonColor: '#6c757d',
-                            confirmButtonText: 'Yes, Delete',
-                            cancelButtonText: 'Cancel'
-                        }).then((result) => {
-                            if (result.isConfirmed) {
-                                form.submit();
-                            }
-                        });
-                    } else {
-                        // Fallback to confirm dialog if SweetAlert2 is not available
-                        if (confirm(
-                                `Are you sure you want to delete "${itemName}"? This action cannot be undone.`
-                            )) {
-                            form.submit();
-                        }
+                    if (rowData) {
+                        showToolDetailModal(rowData);
                     }
                 });
 
-                // Helper function to update the statistics
-                function updateStats(stats) {
-                    if (stats.total_items !== undefined) {
-                        $('#total-items').text(stats.total_items.toLocaleString());
-                    }
-                    if (stats.available_items !== undefined) {
-                        $('#available-items').text(stats.available_items.toLocaleString());
-                    }
-                    if (stats.out_of_stock_items !== undefined) {
-                        $('#out-of-stock-items').text(stats.out_of_stock_items.toLocaleString());
-                    }
-                    if (stats.availability_rate !== undefined) {
-                        $('#availability-rate').text(Math.round(stats.availability_rate));
-                    }
+                function showToolDetailModal(toolData) {
+                    const statusConfig = {
+                        'available': {
+                            icon: 'ti-check',
+                            class: 'bg-success',
+                            text: 'Available for Borrowing'
+                        },
+                        'borrowed': {
+                            icon: 'ti-user',
+                            class: 'bg-warning',
+                            text: 'Currently Borrowed'
+                        },
+                        'missing': {
+                            icon: 'ti-alert-triangle',
+                            class: 'bg-dark',
+                            text: 'Missing/Lost'
+                        }
+                    };
+
+                    const config = statusConfig[toolData.status] || {
+                        icon: 'ti-help',
+                        class: 'bg-secondary',
+                        text: 'Unknown'
+                    };
+
+                    const borrowerInfo = toolData.borrower_name ? `
+                        <div class="row">
+                            <div class="col-sm-6">
+                                <div class="mb-3">
+                                    <label class="form-label text-muted">Current Borrower</label>
+                                    <div class="fw-bold">${toolData.borrower_name}</div>
+                                </div>
+                            </div>
+                            <div class="col-sm-6">
+                                <div class="mb-3">
+                                    <label class="form-label text-muted">Borrowed Since</label>
+                                    <div class="text-muted">
+                                        <i class="ti ti-clock me-1"></i>
+                                        ${toolData.updated_at_formatted}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    ` : '';
+
+                    const modalContent = `
+                        <div class="row">
+                            <div class="col-12">
+                                <!-- Tool Information -->
+                                <div class="card mb-3">
+                                    <div class="card-header">
+                                        <h4 class="card-title mb-0">
+                                            <i class="ti ti-tool me-2"></i>Tool Information
+                                        </h4>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-sm-6">
+                                                <div class="mb-3">
+                                                    <label class="form-label text-muted">Tool Name</label>
+                                                    <div class="fw-bold fs-5">${toolData.nama_barang}</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-sm-6">
+                                                <div class="mb-3">
+                                                    <label class="form-label text-muted">EPC Code</label>
+                                                    <div class="d-flex align-items-center">
+                                                        <span class="avatar avatar-sm me-2 bg-secondary text-white">
+                                                            <i class="ti ti-qrcode"></i>
+                                                        </span>
+                                                        <code class="bg-light px-2 py-1 rounded">${toolData.epc}</code>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="row">
+                                            <div class="col-sm-6">
+                                                <div class="mb-3">
+                                                    <label class="form-label text-muted">Current Status</label>
+                                                    <div>
+                                                        <span class="badge ${config.class} badge-lg">
+                                                            <i class="ti ${config.icon} me-1"></i>
+                                                            ${config.text}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-sm-6">
+                                                <div class="mb-3">
+                                                    <label class="form-label text-muted">Last Updated</label>
+                                                    <div class="d-flex align-items-center">
+                                                        <i class="ti ti-clock me-2 text-muted"></i>
+                                                        <span>${toolData.updated_at_formatted}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        ${borrowerInfo}
+                                    </div>
+                                </div>
+
+                                ${toolData.status === 'available' ? `
+                                                        <!-- Quick Info -->
+                                                        <div class="card">
+                                                            <div class="card-body">
+                                                                <div class="alert alert-success d-flex align-items-center mb-0">
+                                                                    <i class="ti ti-check-circle me-2"></i>
+                                                                    <div>
+                                                                        <strong>Available for Borrowing</strong><br>
+                                                                        <small>Use the physical RFID system to borrow this tool</small>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        ` : ''}
+                            </div>
+                        </div>
+                    `;
+
+                    $('#tool-detail-content').html(modalContent);
+                    $('#modal-tool-detail').modal('show');
                 }
 
-                // Helper function to get initials from name
-                function getInitials(name) {
-                    if (!name) return '?';
-                    return name.split(' ').map(n => n[0]).join('').toUpperCase();
-                }
+                // === PAGE VISIBILITY HANDLING ===
+                document.addEventListener('visibilitychange', function() {
+                    if (document.hidden) {
+                        isPollingEnabled = false;
+                    } else {
+                        isPollingEnabled = true;
+                        pollingFailureCount = Math.max(0, pollingFailureCount - 1);
+                        setConnectionStatus('connecting');
+                        setTimeout(() => {
+                            checkForUpdates();
+                        }, 2000);
+                    }
+                });
 
-                // Helper function to generate color from string
-                function stringToColor(str) {
-                    if (!str) return '#607D8B';
-                    let hash = 0;
-                    for (let i = 0; i < str.length; i++) {
-                        hash = str.charCodeAt(i) + ((hash << 5) - hash);
+                // === HELPER FUNCTIONS === - Remove unused functions
+
+                // === INITIALIZATION ===
+                updateLastRefreshTime();
+                setConnectionStatus('connected');
+                startPolling();
+
+                // Show Laravel session messages
+                @if (session('success'))
+                    showToast("{{ session('success') }}", 'success');
+                @endif
+
+                @if (session('error'))
+                    showToast("{{ session('error') }}", 'error');
+                @endif
+
+                // === GLOBAL FUNCTIONS ===
+                window.refreshToolsTable = function(silent = true) {
+                    if ($('#itemsTable').DataTable()) {
+                        $('#itemsTable').DataTable().ajax.reload(null, false);
                     }
-                    let color = '#';
-                    for (let i = 0; i < 3; i++) {
-                        const value = (hash >> (i * 8)) & 0xFF;
-                        color += ('00' + value.toString(16)).substr(-2);
-                    }
-                    return color;
-                }
+                };
+
+                console.log('User tools view initialized with live updates');
             });
-
-            // Global refresh function for backward compatibility
-            function refreshTable() {
-                if ($('#itemsTable').DataTable()) {
-                    $('#itemsTable').DataTable().ajax.reload(null, false);
-                }
-            }
         </script>
     @endpush
 </x-layouts.user_layout>

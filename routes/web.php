@@ -102,6 +102,14 @@ Route::prefix('user')
             Route::delete('/{item}', [App\Http\Controllers\User\ItemController::class, 'destroy'])->name('destroy');
             Route::patch('/{item}/quantity', [App\Http\Controllers\User\ItemController::class, 'updateQuantity'])->name('update-quantity');
         });
+
+        Route::prefix('missing-tools')->name('missing-tools.')->group(function () {
+            Route::get('/', [App\Http\Controllers\User\MissingToolsController::class, 'index'])->name('index');
+            Route::get('/data', [App\Http\Controllers\User\MissingToolsController::class, 'getData'])->name('data');
+            Route::get('/stats', [App\Http\Controllers\User\MissingToolsController::class, 'getStats'])->name('stats');
+            Route::get('/search', [App\Http\Controllers\User\MissingToolsController::class, 'search'])->name('search');
+            Route::get('/export', [App\Http\Controllers\User\MissingToolsController::class, 'export'])->name('export');
+        });
     });
 // Super Admin routes
 Route::prefix('superadmin')

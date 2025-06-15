@@ -259,8 +259,8 @@
                                             <div class="row align-items-center py-2">
                                                 <div class="col-auto">
                                                     <span
-                                                        class="avatar avatar-sm {{ $activity['type'] == 'borrow' ? 'bg-blue-lt' : 'bg-green-lt' }}">
-                                                        @if ($activity['type'] == 'borrow')
+                                                        class="avatar avatar-sm {{ $activity['type'] == 'pinjam' ? 'bg-blue-lt' : 'bg-green-lt' }}">
+                                                        @if ($activity['type'] == 'pinjam')
                                                             <svg xmlns="http://www.w3.org/2000/svg" class="icon"
                                                                 width="16" height="16" viewBox="0 0 24 24"
                                                                 stroke-width="2" stroke="currentColor" fill="none"
@@ -292,17 +292,20 @@
                                         @endforeach
                                     </div>
                                 @else
-                                    <div class="text-center py-4">
+                                    <div class="text-center py-5">
                                         <div class="text-muted">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-lg mb-2"
-                                                width="32" height="32" viewBox="0 0 24 24" stroke-width="2"
+                                            <svg xmlns="http://www.w3.org/2000/svg"
+                                                class="icon icon-lg mb-3 text-secondary" width="48"
+                                                height="48" viewBox="0 0 24 24" stroke-width="1.5"
                                                 stroke="currentColor" fill="none" stroke-linecap="round"
                                                 stroke-linejoin="round">
                                                 <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                                                 <circle cx="12" cy="12" r="9" />
                                                 <path d="M12 7v5l3 3" />
                                             </svg>
-                                            <div class="small">No recent activities</div>
+                                            <div class="fw-medium mb-1">No Recent Activities</div>
+                                            <div class="small text-secondary">Start borrowing tools to see your
+                                                activity history here</div>
                                         </div>
                                     </div>
                                 @endif

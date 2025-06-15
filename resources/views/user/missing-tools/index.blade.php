@@ -1,6 +1,6 @@
-<x-layouts.user_layout title="My Storage" pageTitle="">
-    <x-slot name="title">My Storage</x-slot>
-    <x-slot name="content">View your borrowed items</x-slot>
+<x-layouts.user_layout title="Missing Tools" pageTitle="">
+    <x-slot name="title">Missing Tools</x-slot>
+    <x-slot name="content">View your missing tools history</x-slot>
 
     {{-- Page Header --}}
     <div class="page-header d-print-none">
@@ -8,18 +8,24 @@
             <div class="row g-2 align-items-center">
                 <div class="col">
                     <h2 class="page-title">
-                        <i class="ti ti-package me-2 text-primary"></i>
-                        My Storage
+                        <i class="ti ti-alert-triangle me-2 text-warning"></i>
+                        Missing Tools
                     </h2>
                     <div class="text-muted mt-1">
-                        View and manage your borrowed tools
+                        Track tools that have been marked as missing
                     </div>
                 </div>
                 <div class="col-auto">
-                    <button id="refresh-btn" class="btn btn-primary">
-                        <i class="ti ti-refresh me-1"></i>
-                        Refresh
-                    </button>
+                    <div class="btn-list">
+                        <button id="refresh-btn" class="btn btn-primary">
+                            <i class="ti ti-refresh me-1"></i>
+                            Refresh
+                        </button>
+                        <a href="{{ route('user.missing-tools.export') }}" class="btn btn-outline-primary">
+                            <i class="ti ti-download me-1"></i>
+                            Export CSV
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
@@ -28,97 +34,104 @@
     {{-- Statistics Cards --}}
     <div class="page-body">
         <div class="container-xl">
-            <!-- My Storage Statistics -->
+            <!-- Missing Tools Statistics -->
             <div class="card">
                 <div class="card-header">
-                    <h3 class="card-title">My Storage Statistics</h3>
+                    <h3 class="card-title">Missing Tools Overview</h3>
+                    <div class="card-actions">
+                        <small class="text-muted" id="last-updated">
+                            Last updated: <span id="last-updated-time">Just now</span>
+                        </small>
+                    </div>
                 </div>
                 <div class="card-body">
                     <div class="row row-cards">
-                        <!-- Available Coins -->
+                        <!-- Total Missing -->
                         <div class="col-sm-6 col-lg-3">
                             <div class="card card-sm">
                                 <div class="card-body">
                                     <div class="row align-items-center">
                                         <div class="col-auto">
-                                            <span class="bg-yellow text-white avatar">
-                                                <i class="ti ti-coin"></i>
+                                            <span class="bg-warning text-white avatar">
+                                                <i class="ti ti-alert-triangle"></i>
                                             </span>
                                         </div>
                                         <div class="col">
                                             <div class="font-weight-medium">
-                                                <span
-                                                    id="available-coins">{{ $userDetail ? $userDetail->koin : 10 }}</span>
-                                                Coins
+                                                <span id="total-missing">0</span>
+                                                Tools
                                             </div>
                                             <div class="text-muted">
-                                                Available Balance
+                                                Total Missing
                                             </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        <!-- Currently Borrowed -->
+                        <!-- Pending -->
                         <div class="col-sm-6 col-lg-3">
                             <div class="card card-sm">
                                 <div class="card-body">
                                     <div class="row align-items-center">
                                         <div class="col-auto">
-                                            <span class="bg-primary text-white avatar">
-                                                <i class="ti ti-package"></i>
+                                            <span class="bg-danger text-white avatar">
+                                                <i class="ti ti-clock"></i>
                                             </span>
                                         </div>
                                         <div class="col">
                                             <div class="font-weight-medium">
-                                                <span id="total-borrowed">0</span> Items
+                                                <span id="pending-missing">0</span>
+                                                Tools
                                             </div>
                                             <div class="text-muted">
-                                                Currently Borrowed
+                                                Pending
                                             </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        <!-- Borrowed Today -->
+                        <!-- Reclaimed -->
                         <div class="col-sm-6 col-lg-3">
                             <div class="card card-sm">
                                 <div class="card-body">
                                     <div class="row align-items-center">
                                         <div class="col-auto">
-                                            <span class="bg-green text-white avatar">
-                                                <i class="ti ti-calendar-today"></i>
+                                            <span class="bg-success text-white avatar">
+                                                <i class="ti ti-check"></i>
                                             </span>
                                         </div>
                                         <div class="col">
                                             <div class="font-weight-medium">
-                                                <span id="borrowed-today">0</span> Items
+                                                <span id="reclaimed-missing">0</span>
+                                                Tools
                                             </div>
                                             <div class="text-muted">
-                                                Borrowed Today
+                                                Reclaimed
                                             </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        <!-- This Week -->
+                        <!-- Cancelled -->
                         <div class="col-sm-6 col-lg-3">
                             <div class="card card-sm">
                                 <div class="card-body">
                                     <div class="row align-items-center">
                                         <div class="col-auto">
-                                            <span class="bg-info text-white avatar">
-                                                <i class="ti ti-calendar-week"></i>
+                                            <span class="bg-secondary text-white avatar">
+                                                <i class="ti ti-x"></i>
                                             </span>
                                         </div>
                                         <div class="col">
                                             <div class="font-weight-medium">
-                                                <span id="borrowed-week">0</span> Items
+                                                <span id="cancelled-missing">0</span>
+                                                Tools
                                             </div>
                                             <div class="text-muted">
-                                                This Week
+                                                Cancelled
                                             </div>
                                         </div>
                                     </div>
@@ -132,24 +145,37 @@
             {{-- Main Content Card --}}
             <div class="card mt-3">
                 <div class="card-header">
-                    <h3 class="card-title">My Borrowed Items</h3>
+                    <h3 class="card-title">My Missing Tools</h3>
                     <div class="card-actions">
-                        <small class="text-muted" id="last-updated">
-                            Last updated: <span id="last-updated-time">Just now</span>
-                        </small>
+                        <div class="row g-2 align-items-center">
+                            <div class="col">
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="ti ti-filter"></i>
+                                    </span>
+                                    <select id="status-filter" class="form-select">
+                                        <option value="">All Status</option>
+                                        <option value="pending">Pending</option>
+                                        <option value="completed">Reclaimed</option>
+                                        <option value="cancelled">Cancelled</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
-                        <table id="storageTable" class="table table-vcenter card-table table-striped">
+                        <table id="missingToolsTable" class="table table-vcenter card-table table-striped">
                             <thead>
                                 <tr>
                                     <th class="w-1">No</th>
                                     <th>EPC Code</th>
                                     <th>Tool Name</th>
-                                    <th>Borrowed At</th>
-                                    <th>Duration</th>
+                                    <th>Reported Date</th>
                                     <th>Status</th>
+                                    <th>Duration</th>
+                                    <th>Action Date</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -165,22 +191,28 @@
     @push('styles')
         <style>
             /* Status badges */
+            .badge-status {
+                font-size: 0.75rem;
+                padding: 0.375rem 0.75rem;
+            }
+
+            /* Duration badges */
             .badge-duration {
                 font-size: 0.75rem;
                 padding: 0.375rem 0.75rem;
             }
 
-            .badge-duration.normal {
+            .badge-duration.short {
                 background-color: var(--tblr-green);
                 color: white;
             }
 
-            .badge-duration.warning {
+            .badge-duration.medium {
                 background-color: var(--tblr-orange);
                 color: white;
             }
 
-            .badge-duration.overdue {
+            .badge-duration.long {
                 background-color: var(--tblr-red);
                 color: white;
             }
@@ -255,9 +287,10 @@
 
                 // Current stats cache
                 let currentStats = {
-                    total_borrowed: 0,
-                    borrowed_today: 0,
-                    borrowed_week: 0
+                    total_missing: 0,
+                    pending_missing: 0,
+                    reclaimed_missing: 0,
+                    cancelled_missing: 0
                 };
 
                 // === UTILITY FUNCTIONS ===
@@ -288,9 +321,10 @@
 
                     Object.keys(stats).forEach(key => {
                         const elementMap = {
-                            'total_borrowed': '#total-borrowed',
-                            'borrowed_today': '#borrowed-today',
-                            'borrowed_week': '#borrowed-week'
+                            'total_missing': '#total-missing',
+                            'pending_missing': '#pending-missing',
+                            'reclaimed_missing': '#reclaimed-missing',
+                            'cancelled_missing': '#cancelled-missing'
                         };
 
                         const element = elementMap[key];
@@ -320,7 +354,7 @@
 
                 function checkForUpdates() {
                     $.ajax({
-                        url: "{{ route('user.storage.data') }}",
+                        url: "{{ route('user.missing-tools.data') }}",
                         type: 'GET',
                         timeout: 10000,
                         data: {
@@ -347,11 +381,11 @@
                 }
 
                 // Initialize DataTable
-                const table = $('#storageTable').DataTable({
+                const table = $('#missingToolsTable').DataTable({
                     processing: true,
                     serverSide: true,
                     ajax: {
-                        url: "{{ route('user.storage.data') }}",
+                        url: "{{ route('user.missing-tools.data') }}",
                         type: 'GET',
                         dataSrc: function(json) {
                             updateStats(json.stats || {});
@@ -380,8 +414,7 @@
                                     '<span class="avatar avatar-sm me-2 bg-secondary text-white">' +
                                     '<i class="ti ti-qrcode"></i>' +
                                     '</span>' +
-                                    '<code class="bg-light px-2 py-1 rounded">' + (data || 'N/A') +
-                                    '</code>' +
+                                    '<code class="bg-light px-2 py-1 rounded">' + data + '</code>' +
                                     '</div>';
                             }
                         },
@@ -389,16 +422,25 @@
                             data: 'nama_barang',
                             name: 'nama_barang',
                             render: function(data, type, row) {
-                                return '<div class="text-wrap fw-bold">' + (data || 'Unknown Tool') +
-                                    '</div>';
+                                return '<div class="text-wrap fw-bold">' + data + '</div>';
                             }
                         },
                         {
-                            data: 'borrowed_at_formatted',
-                            name: 'updated_at',
+                            data: 'reported_at_formatted',
+                            name: 'reported_at',
                             className: 'text-center',
                             render: function(data, type, row) {
-                                return '<div class="text-muted small">' + (data || '-') + '</div>';
+                                return '<div class="text-muted small">' + data + '</div>';
+                            }
+                        },
+                        {
+                            data: 'status_badge',
+                            name: 'status',
+                            className: 'text-center',
+                            render: function(data, type, row) {
+                                return '<span class="badge ' + data.class + '">' +
+                                    '<i class="ti ti-alert-triangle me-1"></i>' + data.text +
+                                    '</span>';
                             }
                         },
                         {
@@ -406,16 +448,14 @@
                             name: 'duration_days',
                             className: 'text-center',
                             render: function(data, type, row) {
-                                const days = Math.floor(data || 0);
-                                let badgeClass = 'normal';
-                                let text = days + ' days';
+                                const days = parseInt(data);
+                                let badgeClass = 'short';
+                                let text = row.duration_text;
 
-                                if (days > 7) {
-                                    badgeClass = 'overdue';
-                                    text = days + ' days (Overdue)';
-                                } else if (days >= 5) {
-                                    badgeClass = 'warning';
-                                    text = days + ' days (Due Soon)';
+                                if (days > 30) {
+                                    badgeClass = 'long';
+                                } else if (days > 7) {
+                                    badgeClass = 'medium';
                                 }
 
                                 return '<span class="badge badge-duration ' + badgeClass + '">' + text +
@@ -423,37 +463,35 @@
                             }
                         },
                         {
-                            data: 'status',
-                            name: 'status',
+                            data: 'action_date',
+                            name: 'action_date',
                             className: 'text-center',
                             render: function(data, type, row) {
-                                return '<span class="badge bg-warning">' +
-                                    '<i class="ti ti-user me-1"></i>Borrowed' +
-                                    '</span>';
+                                return '<div class="text-muted small">' + (data || '-') + '</div>';
                             }
                         }
                     ],
                     order: [
                         [3, 'desc']
-                    ], // Order by borrowed_at descending
+                    ], // Order by reported_at descending
                     dom: '<"d-flex justify-content-between align-items-center mb-3"<"d-flex align-items-center"l><"d-flex"f>>t<"d-flex justify-content-between align-items-center mt-3"<"text-muted"i><"d-flex"p>>',
                     language: {
                         search: '',
-                        searchPlaceholder: 'Search borrowed items...',
+                        searchPlaceholder: 'Search missing tools...',
                         lengthMenu: '_MENU_ entries per page',
-                        processing: "Loading borrowed items...",
+                        processing: "Loading missing tools...",
                         emptyTable: `
                             <div class="empty-state">
                                 <div class="empty-state-icon">
-                                    <i class="ti ti-package"></i>
+                                    <i class="ti ti-check-circle"></i>
                                 </div>
-                                <h3>No Borrowed Items</h3>
-                                <p class="text-muted">You haven't borrowed any tools yet. Use the RFID system to borrow tools.</p>
+                                <h3>No Missing Tools</h3>
+                                <p class="text-muted">Great! You don't have any tools marked as missing.</p>
                             </div>
                         `,
-                        info: "Showing _START_ to _END_ of _TOTAL_ borrowed items",
-                        infoEmpty: "No borrowed items to show",
-                        infoFiltered: "(filtered from _MAX_ total items)",
+                        info: "Showing _START_ to _END_ of _TOTAL_ missing tools",
+                        infoEmpty: "No missing tools to show",
+                        infoFiltered: "(filtered from _MAX_ total tools)",
                         paginate: {
                             first: "First",
                             last: "Last",
@@ -479,6 +517,12 @@
                         $btn.html('<i class="ti ti-refresh me-1"></i>Refresh');
                         showToast('Data refreshed successfully!', 'success');
                     });
+                });
+
+                // Status filter
+                $('#status-filter').on('change', function() {
+                    const selectedStatus = $(this).val();
+                    table.column(4).search(selectedStatus).draw();
                 });
 
                 // === PAGE VISIBILITY HANDLING ===
@@ -512,13 +556,13 @@
                 @endif
 
                 // === GLOBAL FUNCTIONS ===
-                window.refreshStorageTable = function() {
-                    if ($('#storageTable').DataTable()) {
-                        $('#storageTable').DataTable().ajax.reload(null, false);
+                window.refreshMissingToolsTable = function() {
+                    if ($('#missingToolsTable').DataTable()) {
+                        $('#missingToolsTable').DataTable().ajax.reload(null, false);
                     }
                 };
 
-                console.log('Storage view initialized with live updates');
+                console.log('Missing Tools view initialized with live updates');
             });
         </script>
     @endpush

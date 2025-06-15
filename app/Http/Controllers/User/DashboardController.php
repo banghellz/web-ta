@@ -232,24 +232,44 @@ class DashboardController extends Controller
 
     /**
      * Get recent activities with better formatting
+     * Fixed to accept $user parameter and return proper activity data
      */
-    //      * Get recent activities (private method untuk dashboard data)
-    //  */
-    private function getRecentActivities()
+    private function getRecentActivities($user)
     {
         try {
-            // Cek apakah ActivityLog model exists
-            if (!class_exists('App\Models\ActivityLog')) {
-                return collect(); // Return empty collection jika model tidak ada
+            // Get recent activities from LogPeminjaman untuk user yang sedang login
+            $activities = LogPeminjaman::where('user_id', $user->id)
+                ->with(['user', 'item']) // Load relasi jika ada
+                ->orderBy('timestamp', 'desc')
+                ->limit(10)
+                ->get();
+
+            $formattedActivities = [];
+
+            foreach ($activities as $log) {
+                $activity = [
+                    'type' => $log->activity_type, // 'pinjam' atau 'kembali'
+                    'date' => Carbon::parse($log->timestamp)->format('M d'),
+                    'time' => Carbon::parse($log->timestamp)->format('H:i'),
+                    'timestamp' => $log->timestamp
+                ];
+
+                // Format message berdasarkan activity type
+                if ($log->activity_type === 'pinjam') {
+                    $activity['message'] = 'Borrowed: ' . ($log->nama_barang ?? 'Item');
+                } elseif ($log->activity_type === 'kembali') {
+                    $activity['message'] = 'Returned: ' . ($log->nama_barang ?? 'Item');
+                } else {
+                    $activity['message'] = 'Activity: ' . ($log->nama_barang ?? 'Item');
+                }
+
+                $formattedActivities[] = $activity;
             }
 
-            return \App\Models\ActivityLog::with('user')
-                ->latest()
-                ->limit(5)
-                ->get();
+            return $formattedActivities;
         } catch (\Exception $e) {
-            Log::error('Failed to get recent activities for dashboard: ' . $e->getMessage());
-            return collect(); // Return empty collection jika error
+            Log::error('Failed to get recent activities for user dashboard: ' . $e->getMessage());
+            return []; // Return empty array jika error
         }
     }
 

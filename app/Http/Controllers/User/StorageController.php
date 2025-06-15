@@ -20,28 +20,34 @@ class StorageController extends Controller
         $user = Auth::user();
         $userDetail = UserDetail::where('user_id', $user->id)->first();
 
+        // Sync koin untuk memastikan data terbaru
+        if ($userDetail) {
+            $userDetail->syncKoin();
+        }
+
         return view('user.storage.index', compact('userDetail', 'user'));
     }
 
     /**
-     * Get data for DataTables
+     * Get data for DataTables - Only borrowed items by current user
      */
     public function getData(Request $request)
     {
         try {
             $user = Auth::user();
 
-            // Query untuk mendapatkan item yang dipinjam oleh user ini
+            // Query untuk mendapatkan HANYA item yang sedang dipinjam oleh user ini
             $query = Item::select([
                 'id',
                 'epc',
                 'nama_barang',
-                'available',
                 'user_id',
+                'status',
                 'created_at',
                 'updated_at'
             ])
-                ->where('user_id', $user->id); // Hanya item yang dipinjam user ini
+                ->where('user_id', $user->id)    // Hanya item yang dipinjam user ini
+                ->where('status', 'borrowed');    // Hanya item dengan status borrowed
 
             return DataTables::of($query)
                 ->addIndexColumn()
@@ -50,37 +56,26 @@ class StorageController extends Controller
                     return $item->updated_at ? $item->updated_at->format('d M Y, H:i') : '-';
                 })
                 ->addColumn('duration_days', function ($item) {
-                    // Menghitung durasi dari updated_at (waktu peminjaman) dan bulatkan ke bawah
-                    return $item->updated_at ? floor($item->updated_at->diffInDays(now())) : 0;
+                    // Menghitung durasi dari updated_at (waktu peminjaman)
+                    return $item->updated_at ? $item->updated_at->diffInDays(now()) : 0;
                 })
-                ->addColumn('status', function ($item) {
-                    // Menentukan status berdasarkan durasi peminjaman
-                    $daysBorrowed = $item->updated_at ? $item->updated_at->diffInDays(now()) : 0;
-
-                    if ($daysBorrowed > 30) {
-                        return 'overdue';
-                    }
-
-                    return 'Borrowed'; // Status default untuk item yang dipinjam
-                })
-                ->addColumn('actions', function ($item) {
-                    $showUrl = route('user.storage.show', $item->id);
-
-                    return '
-                        <div class="btn-group" role="group">
-                            <a href="' . $showUrl . '" class="btn btn-sm btn-info" title="View Details">
-                                <i class="ti ti-eye"></i>
-                            </a>
-                        </div>
-                    ';
+                ->addColumn('status_text', function ($item) {
+                    // Status selalu 'Borrowed' karena kita filter hanya borrowed items
+                    return 'Borrowed';
                 })
                 ->filter(function ($query) use ($request) {
-                    // Filter berdasarkan pencarian global saja
+                    // Search in EPC and item name
+                    if ($request->has('search') && $request->search['value']) {
+                        $searchValue = $request->search['value'];
+                        $query->where(function ($q) use ($searchValue) {
+                            $q->where('epc', 'like', "%{$searchValue}%")
+                                ->orWhere('nama_barang', 'like', "%{$searchValue}%");
+                        });
+                    }
                 })
                 ->with([
                     'stats' => $this->getStatsData()
                 ])
-                ->rawColumns([])
                 ->make(true);
         } catch (\Exception $e) {
             Log::error('Storage DataTables Error: ' . $e->getMessage());
@@ -96,37 +91,46 @@ class StorageController extends Controller
     }
 
     /**
-     * Get statistics data
+     * Get statistics data for current user
+     */
+    /**
+     * Get statistics data for current user
      */
     private function getStatsData()
     {
         $user = Auth::user();
 
         return [
-            'total_borrowed' => Item::where('user_id', $user->id)->count(),
+            // Currently borrowed items count
+            'total_borrowed' => Item::where('user_id', $user->id)
+                ->where('status', 'borrowed')
+                ->count(),
+
+            // Items borrowed today
             'borrowed_today' => Item::where('user_id', $user->id)
+                ->where('status', 'borrowed')
                 ->whereDate('updated_at', today())
                 ->count(),
-            'borrowed_this_week' => Item::where('user_id', $user->id)
+
+            // Items borrowed this week (matches borrowed_week in JS)
+            'borrowed_week' => Item::where('user_id', $user->id)
+                ->where('status', 'borrowed')
                 ->whereBetween('updated_at', [now()->startOfWeek(), now()->endOfWeek()])
-                ->count(),
-            'borrowed_this_month' => Item::where('user_id', $user->id)
-                ->whereMonth('updated_at', now()->month)
-                ->whereYear('updated_at', now()->year)
                 ->count(),
         ];
     }
 
     /**
-     * Show the form for showing item details.
+     * Show the form for showing item details (simplified view).
      */
     public function show($id)
     {
         $user = Auth::user();
 
+        // Pastikan item yang ditampilkan adalah milik user dan sedang dipinjam
         $item = Item::where('user_id', $user->id)
             ->where('id', $id)
-            ->with(['borrower', 'borrowerDetail'])
+            ->where('status', 'borrowed')
             ->firstOrFail();
 
         return view('user.storage.show', compact('item'));
@@ -137,7 +141,19 @@ class StorageController extends Controller
      */
     public function getStats()
     {
-        return response()->json($this->getStatsData());
+        try {
+            return response()->json([
+                'success' => true,
+                'stats' => $this->getStatsData()
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Get storage stats error: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to get stats'
+            ], 500);
+        }
     }
 
     /**
@@ -145,33 +161,50 @@ class StorageController extends Controller
      */
     public function search(Request $request)
     {
-        $user = Auth::user();
-        $search = $request->get('q');
+        try {
+            $user = Auth::user();
+            $search = $request->get('q');
 
-        $items = Item::where('user_id', $user->id)
-            ->where(function ($query) use ($search) {
-                $query->where('epc', 'like', "%{$search}%")
-                    ->orWhere('nama_barang', 'like', "%{$search}%");
-            })
-            ->with(['borrower', 'borrowerDetail'])
-            ->limit(10)
-            ->get();
+            if (!$search || strlen($search) < 2) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Search query must be at least 2 characters'
+                ], 400);
+            }
 
-        return response()->json([
-            'success' => true,
-            'data' => $items->map(function ($item) {
-                $daysBorrowed = $item->updated_at ? floor($item->updated_at->diffInDays(now())) : 0;
+            $items = Item::where('user_id', $user->id)
+                ->where('status', 'borrowed')
+                ->where(function ($query) use ($search) {
+                    $query->where('epc', 'like', "%{$search}%")
+                        ->orWhere('nama_barang', 'like', "%{$search}%");
+                })
+                ->limit(10)
+                ->get();
 
-                return [
-                    'id' => $item->id,
-                    'epc' => $item->epc,
-                    'nama_barang' => $item->nama_barang,
-                    'borrowed_at' => $item->updated_at ? $item->updated_at->format('d M Y H:i') : '-',
-                    'duration_days' => $daysBorrowed,
-                    'url' => route('user.storage.show', $item->id)
-                ];
-            })
-        ]);
+            return response()->json([
+                'success' => true,
+                'data' => $items->map(function ($item) {
+                    $daysBorrowed = $item->updated_at ? $item->updated_at->diffInDays(now()) : 0;
+
+                    return [
+                        'id' => $item->id,
+                        'epc' => $item->epc,
+                        'nama_barang' => $item->nama_barang,
+                        'borrowed_at' => $item->updated_at ? $item->updated_at->format('d M Y H:i') : '-',
+                        'duration_days' => $daysBorrowed,
+                        'url' => route('user.storage.show', $item->id)
+                    ];
+                }),
+                'count' => $items->count()
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Search borrowed items error: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to search borrowed items'
+            ], 500);
+        }
     }
 
     /**
@@ -179,46 +212,89 @@ class StorageController extends Controller
      */
     public function export(Request $request)
     {
-        $user = Auth::user();
+        try {
+            $user = Auth::user();
 
-        $items = Item::where('user_id', $user->id)
-            ->with(['borrower', 'borrowerDetail'])
-            ->get();
+            $items = Item::where('user_id', $user->id)
+                ->where('status', 'borrowed')
+                ->orderBy('updated_at', 'desc')
+                ->get();
 
-        $filename = 'my_borrowed_items_' . date('Y-m-d_H-i-s') . '.csv';
+            $filename = 'my_borrowed_items_' . date('Y-m-d_H-i-s') . '.csv';
 
-        $headers = [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
-        ];
+            $headers = [
+                'Content-Type' => 'text/csv',
+                'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+            ];
 
-        $callback = function () use ($items) {
-            $file = fopen('php://output', 'w');
+            $callback = function () use ($items) {
+                $file = fopen('php://output', 'w');
 
-            // CSV Header
-            fputcsv($file, [
-                'EPC',
-                'Nama Barang',
-                'Tanggal Pinjam',
-                'Lama Pinjam (Hari)'
-            ]);
-
-            // CSV Data
-            foreach ($items as $item) {
-                $borrowedDate = $item->updated_at;
-                $daysBorrowed = $borrowedDate ? floor($borrowedDate->diffInDays(now())) : 0;
-
+                // CSV Header
                 fputcsv($file, [
-                    $item->epc,
-                    $item->nama_barang,
-                    $borrowedDate ? $borrowedDate->format('d/m/Y H:i') : '-',
-                    $daysBorrowed
+                    'EPC Code',
+                    'Tool Name',
+                    'Borrowed Date',
+                    'Duration (Days)',
+                    'Status'
                 ]);
+
+                // CSV Data
+                foreach ($items as $item) {
+                    $borrowedDate = $item->updated_at;
+                    $daysBorrowed = $borrowedDate ? $borrowedDate->diffInDays(now()) : 0;
+
+                    fputcsv($file, [
+                        $item->epc,
+                        $item->nama_barang,
+                        $borrowedDate ? $borrowedDate->format('d/m/Y H:i') : '-',
+                        $daysBorrowed,
+                        'Borrowed'
+                    ]);
+                }
+
+                fclose($file);
+            };
+
+            return response()->stream($callback, 200, $headers);
+        } catch (\Exception $e) {
+            Log::error('Export borrowed items error: ' . $e->getMessage());
+
+            return redirect()->back()->with('error', 'Failed to export data. Please try again.');
+        }
+    }
+
+    /**
+     * Get user's coin information
+     */
+    public function getCoinInfo()
+    {
+        try {
+            $user = Auth::user();
+            $userDetail = UserDetail::where('user_id', $user->id)->first();
+
+            if ($userDetail) {
+                $userDetail->syncKoin(); // Sync latest coin info
             }
 
-            fclose($file);
-        };
+            $currentBorrowed = Item::where('user_id', $user->id)
+                ->where('status', 'borrowed')
+                ->count();
 
-        return response()->stream($callback, 200, $headers);
+            return response()->json([
+                'success' => true,
+                'available_coins' => $userDetail ? $userDetail->koin : 10,
+                'used_coins' => $currentBorrowed,
+                'total_coins' => 10,
+                'current_borrowed' => $currentBorrowed
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Get coin info error: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to get coin information'
+            ], 500);
+        }
     }
 }
