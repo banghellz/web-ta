@@ -87,16 +87,25 @@
             border-left: 4px solid var(--tblr-info);
         }
 
-        /* Lucide icons styling */
-        [data-lucide] {
+        /* Tabler icons styling */
+        .ti {
             width: 1.25rem;
             height: 1.25rem;
-            stroke-width: 2;
+            font-size: 1.25rem;
         }
 
-        .icon[data-lucide] {
+        .icon.ti {
             width: 1.25rem;
             height: 1.25rem;
+        }
+
+        /* Fix dropdown z-index */
+        .dropdown-menu {
+            z-index: 1050;
+        }
+
+        .navbar .dropdown-menu {
+            z-index: 1051;
         }
     </style>
 </head>
@@ -106,7 +115,7 @@
     <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1070;">
         <div id="notificationToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
             <div class="toast-header">
-                <i id="toastIcon" data-lucide="bell" class="me-2"></i>
+                <i id="toastIcon" class="ti ti-bell me-2"></i>
                 <strong id="toastTitle" class="me-auto">Notification</strong>
                 <small id="toastTime" class="text-muted">just now</small>
                 <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
@@ -133,17 +142,17 @@
                     <div class="d-none d-md-flex">
                         <!-- Theme Toggle -->
                         <a href="?theme=dark" class="nav-link px-0 hide-theme-dark" title="Enable dark mode">
-                            <i data-lucide="moon" class="icon"></i>
+                            <i class="ti ti-moon icon"></i>
                         </a>
                         <a href="?theme=light" class="nav-link px-0 hide-theme-light" title="Enable light mode">
-                            <i data-lucide="sun" class="icon"></i>
+                            <i class="ti ti-sun icon"></i>
                         </a>
 
                         <!-- Notification Dropdown -->
                         <div class="nav-item dropdown d-none d-md-flex me-3">
                             <a href="#" class="nav-link px-0 position-relative" data-bs-toggle="dropdown"
-                                id="notificationButton">
-                                <i data-lucide="bell" class="icon"></i>
+                                id="notificationButton" aria-expanded="false">
+                                <i class="ti ti-bell icon"></i>
                                 <span id="notificationBadge"
                                     class="badge bg-red badge-pill position-absolute top-0 start-100 translate-middle"
                                     style="display: none;">0</span>
@@ -156,7 +165,7 @@
                                         <div class="card-actions">
                                             <button type="button" class="btn btn-sm btn-outline-danger"
                                                 onclick="clearAllNotifications()">
-                                                <i data-lucide="trash-2"></i> Clear all
+                                                <i class="ti ti-trash"></i> Clear all
                                             </button>
                                         </div>
                                     </div>
@@ -174,7 +183,8 @@
 
                     <!-- User dropdown -->
                     <div class="nav-item dropdown">
-                        <a href="#" class="nav-link d-flex lh-1 text-reset p-0" data-bs-toggle="dropdown">
+                        <a href="#" class="nav-link d-flex lh-1 text-reset p-0" data-bs-toggle="dropdown"
+                            aria-expanded="false">
                             @php
                                 $user = auth()->user();
                                 $photo = $user->detail?->pict
@@ -239,18 +249,13 @@
     </div>
 
     <!-- Scripts -->
-    <script src="{{ asset('assets/js/lucide.min.js') }}"></script>
+    <script src="{{ asset('assets/js/tabler.min.js') }}"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta17/dist/js/tabler.min.js"></script>
 
-    <!-- Enhanced Unified Toast System -->
+    <!-- Enhanced Unified Toast System dengan Tabler Icons -->
     <script>
-        window.addEventListener('DOMContentLoaded', () => {
-            lucide.createIcons();
-        });
-
-        // Enhanced Unified Toast System - Global
+        // Enhanced Unified Toast System - Global dengan Tabler Icons
         window.UnifiedToastSystem = {
             // Initialize toast system
             init: function() {
@@ -260,7 +265,7 @@
                 this.toastMessage = document.getElementById('toastMessage');
                 this.toastTime = document.getElementById('toastTime');
 
-                console.log('Unified Toast System initialized');
+                console.log('Unified Toast System with Tabler Icons initialized');
             },
 
             // Main show function
@@ -329,31 +334,26 @@
                 return titles[type] || 'Notification';
             },
 
-            // Set toast styling based on type
+            // Set toast styling based on type (MENGGUNAKAN TABLER ICONS)
             setToastStyle: function(type) {
                 // Reset classes
                 this.toastElement.className = 'toast';
 
-                // Set icon using Lucide data-lucide attribute
+                // Set icon menggunakan Tabler Icons
                 const icons = {
-                    'success': 'check-circle',
-                    'error': 'alert-circle',
-                    'warning': 'alert-triangle',
-                    'info': 'info'
+                    'success': 'ti ti-circle-check',
+                    'error': 'ti ti-alert-circle',
+                    'warning': 'ti ti-alert-triangle',
+                    'info': 'ti ti-info-circle'
                 };
 
-                this.toastIcon.setAttribute('data-lucide', icons[type] || icons.info);
-                this.toastIcon.className = 'me-2';
+                // Set icon class langsung (Tabler Icons menggunakan CSS class)
+                this.toastIcon.className = `${icons[type] || icons.info} me-2`;
 
                 // Add color class
                 if (type !== 'info') {
                     const colorClass = type === 'error' ? 'text-danger' : `text-${type}`;
                     this.toastElement.classList.add(colorClass);
-                }
-
-                // Re-initialize Lucide icons for the toast icon
-                if (typeof lucide !== 'undefined') {
-                    lucide.createIcons();
                 }
             },
 
@@ -417,10 +417,15 @@
                 loadNotifications();
             });
 
-            console.log('Layout and notification system ready');
+            // Fix dropdown closing issue - prevent dropdown from closing when clicking inside
+            $('.dropdown-menu').on('click', function(e) {
+                e.stopPropagation();
+            });
+
+            console.log('Layout and notification system ready with Tabler Icons');
         });
 
-        // Notification system functions
+        // Notification system functions (MENGGUNAKAN TABLER ICONS)
         function displayNotifications(notifications) {
             const container = $('#notificationsList');
 
@@ -442,20 +447,20 @@
             <div class="notification-item border-bottom p-3" data-id="${notification.id}">
                 <div class="d-flex align-items-start">
                     <div class="notification-icon ${notification.type} me-3">
-                        <i data-lucide="${icon}"></i>
+                        <i class="ti ti-${icon}"></i>
                     </div>
                     <div class="flex-grow-1">
                         <div class="fw-bold">${escapeHtml(decodedTitle)}</div>
                         <div class="text-muted small">${escapeHtml(decodedMessage)}</div>
                         <div class="text-muted small mt-1">
-                            <i data-lucide="clock"></i> ${timeAgo}
+                            <i class="ti ti-clock"></i> ${timeAgo}
                         </div>
                     </div>
                     <div class="ms-auto">
                         <button type="button" class="btn btn-sm btn-ghost-secondary" 
                                 onclick="deleteNotification(${notification.id})" 
                                 title="Delete">
-                            <i data-lucide="x"></i>
+                            <i class="ti ti-x"></i>
                         </button>
                     </div>
                 </div>
@@ -464,11 +469,6 @@
             });
 
             container.html(html);
-
-            // Re-initialize Lucide icons for new content
-            if (typeof lucide !== 'undefined') {
-                lucide.createIcons();
-            }
         }
 
         function escapeHtml(text) {
@@ -530,11 +530,12 @@
             });
         }
 
+        // ICON MAPPING UNTUK TABLER ICONS
         function getNotificationIcon(type) {
             const icons = {
                 'user_registered': 'user-plus',
                 'tool_added': 'plus',
-                'tool_deleted': 'trash-2',
+                'tool_deleted': 'trash',
                 'tool_missing': 'alert-triangle',
                 'tool_reclaimed': 'check'
             };

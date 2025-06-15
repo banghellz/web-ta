@@ -12,14 +12,13 @@
                         Overview
                     </div>
                     <h2 class="page-title">
-                        <i data-lucide="layout-dashboard"
-                            class="me-2 text-blue"></i>{{ $title ?? 'Master Admin Dashboard' }}
+                        <i class="ti ti-dashboard me-2 text-blue"></i>{{ $title ?? 'Master Admin Dashboard' }}
                     </h2>
                 </div>
                 <div class="col-auto ms-auto d-print-none">
                     <div class="btn-list">
                         <button type="button" class="btn btn-primary" onclick="refreshDashboard()">
-                            <i data-lucide="refresh-cw" class="me-1"></i>
+                            <i class="ti ti-refresh me-1"></i>
                             Refresh Data
                         </button>
                     </div>
@@ -45,7 +44,7 @@
                                 <div class="me-auto">
                                     <span class="text-green d-inline-flex align-items-center lh-1">
                                         {{ $userCountPercentage ?? '0%' }}
-                                        <i data-lucide="trending-up" class="ms-1"></i>
+                                        <i class="ti ti-trending-up ms-1"></i>
                                     </span>
                                 </div>
                             </div>
@@ -59,7 +58,7 @@
                                 </div>
                             </div>
                             <div class="text-muted">
-                                <i data-lucide="users" class="me-1"></i>
+                                <i class="ti ti-users me-1"></i>
                                 System users
                             </div>
                         </div>
@@ -78,7 +77,7 @@
                                 <div class="me-auto">
                                     <span class="text-blue d-inline-flex align-items-center lh-1">
                                         {{ $recentToolsPercentage ?? '0%' }}
-                                        <i data-lucide="trending-up" class="ms-1"></i>
+                                        <i class="ti ti-trending-up ms-1"></i>
                                     </span>
                                 </div>
                             </div>
@@ -91,7 +90,7 @@
                                 </div>
                             </div>
                             <div class="text-muted">
-                                <i data-lucide="package" class="me-1"></i>
+                                <i class="ti ti-package me-1"></i>
                                 Available: {{ $availableTools ?? 0 }}
                             </div>
                         </div>
@@ -110,7 +109,7 @@
                                 <div class="me-auto">
                                     <span class="text-yellow d-inline-flex align-items-center lh-1">
                                         {{ $borrowedToolsPercentage ?? '0%' }}
-                                        <i data-lucide="trending-up" class="ms-1"></i>
+                                        <i class="ti ti-trending-up ms-1"></i>
                                     </span>
                                 </div>
                             </div>
@@ -123,7 +122,7 @@
                                 </div>
                             </div>
                             <div class="text-muted">
-                                <i data-lucide="hand" class="me-1"></i>
+                                <i class="ti ti-hand-grab me-1"></i>
                                 Currently borrowed
                             </div>
                         </div>
@@ -152,7 +151,7 @@
                                 </div>
                             </div>
                             <div class="text-muted">
-                                <i data-lucide="credit-card" class="me-1"></i>
+                                <i class="ti ti-id-badge me-1"></i>
                                 Available: {{ $availableRfidTags ?? 0 }} | Used: {{ $usedRfidTags ?? 0 }}
                             </div>
                         </div>
@@ -167,19 +166,19 @@
                     <div class="card h-100">
                         <div class="card-header">
                             <h3 class="card-title">
-                                <i data-lucide="layout-dashboard" class="me-2 text-blue"></i>System Overview
+                                <i class="ti ti-dashboard me-2 text-blue"></i>System Overview
                             </h3>
                             <div class="card-actions">
                                 <div class="dropdown">
                                     <a href="#" class="btn-action dropdown-toggle" data-bs-toggle="dropdown">
-                                        <i data-lucide="more-vertical"></i>
+                                        <i class="ti ti-dots-vertical"></i>
                                     </a>
                                     <div class="dropdown-menu dropdown-menu-end">
                                         <a href="#" class="dropdown-item">
-                                            <i data-lucide="refresh-cw" class="me-2"></i>Refresh
+                                            <i class="ti ti-refresh me-2"></i>Refresh
                                         </a>
                                         <a href="#" class="dropdown-item">
-                                            <i data-lucide="download" class="me-2"></i>Export
+                                            <i class="ti ti-download me-2"></i>Export
                                         </a>
                                     </div>
                                 </div>
@@ -199,7 +198,7 @@
                                         <div class="card-body">
                                             <div class="d-flex align-items-center">
                                                 <span class="avatar bg-primary-lt me-3">
-                                                    <i data-lucide="user-plus"></i>
+                                                    <i class="ti ti-user-plus"></i>
                                                 </span>
                                                 <div>
                                                     <div class="font-weight-medium">User Management</div>
@@ -209,7 +208,7 @@
                                             <div class="mt-3">
                                                 <a href="{{ route('superadmin.users.index') }}"
                                                     class="btn btn-primary btn-sm">
-                                                    <i data-lucide="arrow-right" class="me-1"></i>Manage Users
+                                                    <i class="ti ti-arrow-right me-1"></i>Manage Users
                                                 </a>
                                             </div>
                                         </div>
@@ -221,7 +220,7 @@
                                         <div class="card-body">
                                             <div class="d-flex align-items-center">
                                                 <span class="avatar bg-success-lt me-3">
-                                                    <i data-lucide="bar-chart-3"></i>
+                                                    <i class="ti ti-chart-bar"></i>
                                                 </span>
                                                 <div>
                                                     <div class="font-weight-medium">Analytics & Reports</div>
@@ -230,7 +229,7 @@
                                             </div>
                                             <div class="mt-3">
                                                 <a href="#" class="btn btn-success btn-sm">
-                                                    <i data-lucide="arrow-right" class="me-1"></i>View Reports
+                                                    <i class="ti ti-arrow-right me-1"></i>View Reports
                                                 </a>
                                             </div>
                                         </div>
@@ -246,7 +245,7 @@
                     <div class="card h-100">
                         <div class="card-header">
                             <h3 class="card-title">
-                                <i data-lucide="clock" class="me-2 text-blue"></i>Recent Activity
+                                <i class="ti ti-clock me-2 text-blue"></i>Recent Activity
                             </h3>
                         </div>
                         <div class="card-body p-0">
@@ -259,7 +258,7 @@
                                                     @if (isset($activity->user) && $activity->user)
                                                         {{ substr($activity->user->name, 0, 1) }}
                                                     @else
-                                                        <i data-lucide="user"></i>
+                                                        <i class="ti ti-user"></i>
                                                     @endif
                                                 </span>
                                             </div>
@@ -317,7 +316,7 @@
                     <div class="card">
                         <div class="card-header">
                             <h3 class="card-title">
-                                <i data-lucide="credit-card" class="me-2 text-azure"></i>Add RFID Tag
+                                <i class="ti ti-id-badge me-2 text-azure"></i>Add RFID Tag
                             </h3>
                         </div>
                         <div class="card-body">
@@ -327,7 +326,7 @@
                                     <label class="form-label required">RFID UID</label>
                                     <div class="input-group">
                                         <span class="input-group-text">
-                                            <i data-lucide="tag"></i>
+                                            <i class="ti ti-tag"></i>
                                         </span>
                                         <input type="text" class="form-control @error('uid') is-invalid @enderror"
                                             name="uid" placeholder="Enter RFID UID" value="{{ old('uid') }}"
@@ -361,10 +360,10 @@
 
                                 <div class="d-flex justify-content-end gap-2">
                                     <a href="{{ route('superadmin.rfid-tags.index') }}" class="btn">
-                                        <i data-lucide="arrow-right" class="me-1"></i>Go to RFID
+                                        <i class="ti ti-arrow-right me-1"></i>Go to RFID
                                     </a>
                                     <button type="submit" class="btn btn-primary">
-                                        <i data-lucide="plus" class="me-1"></i>Add RFID Tag
+                                        <i class="ti ti-plus me-1"></i>Add RFID Tag
                                     </button>
                                 </div>
                             </form>
@@ -377,7 +376,7 @@
                     <div class="card">
                         <div class="card-header">
                             <h3 class="card-title">
-                                <i data-lucide="package" class="me-2 text-success"></i>Add Item
+                                <i class="ti ti-package me-2 text-success"></i>Add Item
                             </h3>
                         </div>
                         <div class="card-body">
@@ -387,7 +386,7 @@
                                     <label class="form-label required">EPC Code</label>
                                     <div class="input-group">
                                         <span class="input-group-text">
-                                            <i data-lucide="qr-code"></i>
+                                            <i class="ti ti-qrcode"></i>
                                         </span>
                                         <input type="text" class="form-control @error('epc') is-invalid @enderror"
                                             name="epc" placeholder="Enter EPC code" value="{{ old('epc') }}"
@@ -402,7 +401,7 @@
                                     <label class="form-label required">Item Name</label>
                                     <div class="input-group">
                                         <span class="input-group-text">
-                                            <i data-lucide="package"></i>
+                                            <i class="ti ti-package"></i>
                                         </span>
                                         <input type="text"
                                             class="form-control @error('nama_barang') is-invalid @enderror"
@@ -416,10 +415,10 @@
 
                                 <div class="d-flex justify-content-end gap-2">
                                     <a href="{{ route('superadmin.items.index') }}" class="btn">
-                                        <i data-lucide="arrow-right" class="me-1"></i>Go to Items
+                                        <i class="ti ti-arrow-right me-1"></i>Go to Items
                                     </a>
                                     <button type="submit" class="btn btn-success">
-                                        <i data-lucide="plus" class="me-1"></i>Add Item
+                                        <i class="ti ti-plus me-1"></i>Add Item
                                     </button>
                                 </div>
                             </form>
@@ -433,11 +432,6 @@
     <!-- JavaScript untuk Form Handling dengan Toast System yang Diperbaiki -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Initialize Lucide icons after DOM content loaded
-            if (typeof lucide !== 'undefined') {
-                lucide.createIcons();
-            }
-
             // Get CSRF token from meta tag
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
 
@@ -497,15 +491,6 @@
                     console.warn('No toast system available, using alert fallback');
                     alert(`${type.toUpperCase()}: ${message}`);
                 }
-            }
-
-            // Function to re-initialize icons after dynamic content updates
-            function refreshIcons() {
-                setTimeout(() => {
-                    if (typeof lucide !== 'undefined') {
-                        lucide.createIcons();
-                    }
-                }, 100);
             }
 
             // Handle Item form submission
@@ -627,7 +612,6 @@
                         .finally(() => {
                             submitButton.innerHTML = originalText;
                             submitButton.disabled = false;
-                            refreshIcons(); // Re-initialize icons
                         });
                 });
             }
@@ -738,7 +722,6 @@
                         .finally(() => {
                             submitButton.innerHTML = originalText;
                             submitButton.disabled = false;
-                            refreshIcons(); // Re-initialize icons
                         });
                 });
             }
