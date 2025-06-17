@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\File;
 
 class CompleteProfileController extends Controller
 {
@@ -33,17 +34,34 @@ class CompleteProfileController extends Controller
 
         // Validasi form
         $request->validate([
-            'nim' => 'required|integer|min:0|unique:user_details,nim', // Tambahkan unique validation
+            'nim' => 'required|integer|min:0|unique:user_details,nim',
             'no_koin' => 'required|numeric',
             'prodi' => 'required|string|max:50',
             'pict' => 'required|image|mimes:jpg,jpeg,png|max:10480',
         ]);
 
         try {
+            // Tentukan direktori upload
+            $uploadPath = public_path('profile_pictures');
+
+            // Pastikan direktori ada dan dapat ditulis
+            if (!File::exists($uploadPath)) {
+                File::makeDirectory($uploadPath, 0755, true);
+            }
+
+            // Cek apakah direktori dapat ditulis
+            if (!is_writable($uploadPath)) {
+                throw new \Exception('Direktori upload tidak dapat ditulis. Silakan hubungi administrator.');
+            }
+
             // Upload gambar
             $file = $request->file('pict');
             $namaFileFoto = uniqid() . '.' . $file->getClientOriginalExtension();
-            $file->move(public_path('profile_pictures'), $namaFileFoto);
+
+            // Pindahkan file
+            if (!$file->move($uploadPath, $namaFileFoto)) {
+                throw new \Exception('Gagal mengupload file gambar.');
+            }
 
             DB::beginTransaction();
 
@@ -64,7 +82,7 @@ class CompleteProfileController extends Controller
                 'no_koin' => $request->no_koin,
                 'prodi' => $request->prodi,
                 'pict' => $namaFileFoto,
-                'rfid_uid' => $rfidUid, // Simpan RFID UID atau null jika tidak ada yang tersedia
+                'rfid_uid' => $rfidUid,
             ]);
 
             DB::commit();
@@ -80,16 +98,10 @@ class CompleteProfileController extends Controller
                 Notification::userRegistered($user);
                 Mail::to($user->email)->send(new AccountRegistrationSuccess($user));
 
-                // Log sukses pengiriman email
                 Log::info('Registration success email sent to: ' . $user->email);
-
-                // Set flash message untuk memberitahu user bahwa email telah dikirim
                 session()->flash('email_sent', 'A confirmation email has been sent to your email address.');
             } catch (\Exception $emailException) {
-                // Jika pengiriman email gagal, log error tapi tetap lanjutkan proses
                 Log::error('Failed to send registration email to: ' . $user->email . '. Error: ' . $emailException->getMessage());
-
-                // Set flash message untuk memberitahu user bahwa email gagal dikirim
                 session()->flash('email_failed', 'Registration successful, but we couldn\'t send the confirmation email. Please contact support if needed.');
             }
 
@@ -101,24 +113,31 @@ class CompleteProfileController extends Controller
         } catch (QueryException $e) {
             DB::rollBack();
 
-            // Tangkap error database
-            if ($e->errorInfo[1] == 1062) { // 1062 adalah error code untuk duplikasi
+            // Hapus file yang sudah diupload jika ada error
+            if (isset($namaFileFoto) && File::exists($uploadPath . '/' . $namaFileFoto)) {
+                File::delete($uploadPath . '/' . $namaFileFoto);
+            }
+
+            if ($e->errorInfo[1] == 1062) {
                 return back()
                     ->withInput()
                     ->withErrors(['nim' => 'NIM sudah digunakan oleh pengguna lain.']);
             }
 
-            // Error database lainnya
             return back()
                 ->withInput()
-                ->withErrors(['error' => 'Terjadi kesalahan: ' . $e->getMessage()]);
+                ->withErrors(['error' => 'Terjadi kesalahan database: ' . $e->getMessage()]);
         } catch (\Exception $e) {
             DB::rollBack();
 
-            // Error umum lainnya
+            // Hapus file yang sudah diupload jika ada error
+            if (isset($namaFileFoto) && File::exists($uploadPath . '/' . $namaFileFoto)) {
+                File::delete($uploadPath . '/' . $namaFileFoto);
+            }
+
             return back()
                 ->withInput()
-                ->withErrors(['error' => 'Terjadi kesalahan: ' . $e->getMessage()]);
+                ->withErrors(['error' => $e->getMessage()]);
         }
     }
 }
