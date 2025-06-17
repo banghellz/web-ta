@@ -159,7 +159,7 @@
                     processing: true,
                     serverSide: true,
                     ajax: {
-                        url: "{{ route('superadmin.activity-logs.data') }}",
+                        url: "/superadmin/activity-logs/data",
                         dataSrc: function(json) {
                             updateStats(json.stats || {});
                             return json.data;

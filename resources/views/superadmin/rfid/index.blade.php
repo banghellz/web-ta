@@ -380,7 +380,7 @@
                     processing: true,
                     serverSide: true,
                     ajax: {
-                        url: "{{ route('superadmin.rfid-tags.data') }}",
+                        url: "/superadmin/rfid-tags/data",
                         type: 'GET',
                         dataSrc: function(json) {
                             // Update statistics if provided in response

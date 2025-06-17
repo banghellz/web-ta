@@ -193,7 +193,7 @@
                     processing: true,
                     serverSide: true,
                     ajax: {
-                        url: "{{ route('superadmin.log_peminjaman.data') }}",
+                        url: "/superadmin/log_peminjaman/data",
                         type: 'GET',
                         data: function(d) {
                             d.date = $('#date-filter').val();

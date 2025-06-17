@@ -343,7 +343,7 @@
                     processing: true,
                     serverSide: true,
                     ajax: {
-                        url: "{{ route('superadmin.users.data') }}",
+                        url: "/superadmin/users/data",
                         type: 'GET',
                         dataSrc: function(json) {
                             // Update statistics if provided in response

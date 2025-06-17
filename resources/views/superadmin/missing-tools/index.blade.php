@@ -267,7 +267,7 @@
                     processing: true,
                     serverSide: true,
                     ajax: {
-                        url: "{{ route('superadmin.missing-tools.data') }}",
+                        url: "/superadmin/missing-tools/data",
                         data: function(d) {
                             d.status = currentFilter;
                         }
