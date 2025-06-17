@@ -697,6 +697,14 @@
                     }
                 }
 
+                // Tambahkan juga function untuk ensure HTTPS pada semua request
+                function ensureHttpsUrl(url) {
+                    if (url.startsWith('http://')) {
+                        return url.replace('http://', 'https://');
+                    }
+                    return url;
+                }
+
                 function checkLeadership() {
                     const currentLeader = localStorage.getItem(LEADER_KEY);
                     const lastHeartbeat = parseInt(localStorage.getItem(HEARTBEAT_KEY) || '0');
@@ -796,6 +804,10 @@
 
                 // === OPTIMIZED AJAX WITH BETTER ERROR HANDLING ===
                 function makeOptimizedRequest(url, options = {}) {
+
+                    // Ensure HTTPS if it's an absolute URL
+                    url = ensureHttpsUrl(url);
+
                     const defaultOptions = {
                         timeout: 8000,
                         retries: 2,
@@ -914,7 +926,7 @@
                     setConnectionStatus('connecting');
                     isCheckingUpdates = true;
 
-                    makeOptimizedRequest("{{ route('superadmin.items.check-updates') }}", {
+                    makeOptimizedRequest("/superadmin/items/check-updates", {
                             ajaxOptions: {
                                 type: 'GET',
                                 data: {
@@ -977,7 +989,7 @@
                     setStatusRefreshIndicator('refreshing');
                     isRefreshing = true;
 
-                    makeOptimizedRequest("{{ route('superadmin.items.data') }}", {
+                    makeOptimizedRequest("/superadmin/items/data/items", {
                             timeout: 6000,
                             ajaxOptions: {
                                 type: 'GET',
