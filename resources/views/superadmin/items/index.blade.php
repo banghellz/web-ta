@@ -1295,7 +1295,7 @@
                     processing: true,
                     serverSide: true,
                     ajax: {
-                        url: "{{ route('superadmin.items.data') }}",
+                        url: "/superadmin/items/data/items",
                         type: 'GET',
                         timeout: 15000,
                         dataSrc: function(json) {
