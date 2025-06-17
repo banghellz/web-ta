@@ -4,11 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes; // TAMBAH INI
 use Illuminate\Support\Facades\Log;
 
 class Item extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes; // TAMBAH SoftDeletes
 
     protected $fillable = [
         'epc',
@@ -20,13 +21,17 @@ class Item extends Model
     protected $casts = [
         'user_id' => 'integer',
         'created_at' => 'datetime',
-        'updated_at' => 'datetime'
+        'updated_at' => 'datetime',
+        'deleted_at' => 'datetime' // TAMBAH INI
     ];
 
     // Default attributes
     protected $attributes = [
         'status' => 'available'
     ];
+
+    // TAMBAH: Dates untuk soft delete
+    protected $dates = ['deleted_at'];
 
     // Relasi dengan User yang meminjam
     public function borrower()
@@ -52,40 +57,46 @@ class Item extends Model
         return $this->hasOne(MissingTools::class, 'item_id')->where('status', 'pending');
     }
 
-    // Scope untuk item yang tersedia
+    // EXISTING SCOPES - hanya akan menampilkan item yang tidak di-soft delete
     public function scopeAvailable($query)
     {
         return $query->where('status', 'available');
     }
 
-    // Scope untuk item yang sedang dipinjam
     public function scopeBorrowed($query)
     {
         return $query->where('status', 'borrowed');
     }
 
-    // Scope untuk item yang tidak dipinjam (available atau out_of_stock)
     public function scopeNotBorrowed($query)
     {
         return $query->whereIn('status', ['available', 'out_of_stock']);
     }
 
-    // Scope untuk item yang hilang
     public function scopeMissing($query)
     {
         return $query->where('status', 'missing');
     }
 
-    // Scope untuk item yang tidak hilang
     public function scopeNotMissing($query)
     {
         return $query->where('status', '!=', 'missing');
     }
 
-    // Scope untuk item yang out of stock
     public function scopeOutOfStock($query)
     {
         return $query->where('status', 'out_of_stock');
+    }
+
+    // NEW SCOPES untuk soft delete
+    public function scopeWithTrashed($query)
+    {
+        return $query->withTrashed();
+    }
+
+    public function scopeOnlyTrashed($query)
+    {
+        return $query->onlyTrashed();
     }
 
     // Accessor untuk status text yang readable
@@ -115,7 +126,7 @@ class Item extends Model
     // Method untuk check apakah item bisa dipinjam
     public function canBeBorrowed()
     {
-        return $this->status === 'available';
+        return $this->status === 'available' && !$this->trashed();
     }
 
     // Method untuk check apakah item sedang hilang
@@ -133,7 +144,7 @@ class Item extends Model
     // Method untuk check apakah item tersedia
     public function isAvailable()
     {
-        return $this->status === 'available';
+        return $this->status === 'available' && !$this->trashed();
     }
 
     // Method untuk check apakah item out of stock
@@ -150,13 +161,11 @@ class Item extends Model
             return true;
         }
 
-        // Pastikan user memiliki role
         if (!isset($user->role) || empty($user->role)) {
             Log::warning('userNeedsKoin: User role is empty', ['user_id' => $user->id]);
             return true;
         }
 
-        // EXPANDED: Admin roles - lebih comprehensive
         $adminRoles = [
             'admin',
             'superadmin',
@@ -170,7 +179,7 @@ class Item extends Model
         ];
 
         $userRole = trim($user->role);
-        $isAdmin = in_array($userRole, $adminRoles, true); // strict comparison
+        $isAdmin = in_array($userRole, $adminRoles, true);
 
         Log::info('userNeedsKoin check', [
             'user_id' => $user->id,
@@ -195,7 +204,6 @@ class Item extends Model
             return false;
         }
 
-        // EXPANDED: Admin roles - lebih comprehensive  
         $adminRoles = [
             'admin',
             'superadmin',
@@ -209,7 +217,7 @@ class Item extends Model
         ];
 
         $userRole = trim($user->role);
-        $isAdmin = in_array($userRole, $adminRoles, true); // strict comparison
+        $isAdmin = in_array($userRole, $adminRoles, true);
 
         Log::info('isUserAdmin check', [
             'user_id' => $user->id,
@@ -245,7 +253,6 @@ class Item extends Model
                 throw new \Exception('Koin tidak mencukupi untuk meminjam item.');
             }
 
-            // Kurangi koin jika bukan admin/superadmin
             $oldKoin = $userDetail->koin;
             $userDetail->decrement('koin', 1);
 
@@ -380,14 +387,80 @@ class Item extends Model
     }
 
     // ================================
-    // IMPROVED BOOT METHOD - UNTUK RASPBERRY PI
+    // SOFT DELETE OVERRIDE METHODS
+    // ================================
+
+    /**
+     * Override delete method untuk memastikan item tidak sedang dipinjam
+     */
+    public function delete()
+    {
+        // Cek apakah item sedang dipinjam atau hilang
+        if ($this->status === 'borrowed' || $this->status === 'missing' || $this->user_id) {
+            $message = match ($this->status) {
+                'borrowed' => 'Cannot delete item that is currently borrowed.',
+                'missing' => 'Cannot delete item that is missing.',
+                default => 'Cannot delete item that is currently in use.'
+            };
+
+            Log::warning('Attempted to delete item in use', [
+                'item_id' => $this->id,
+                'status' => $this->status,
+                'user_id' => $this->user_id
+            ]);
+
+            throw new \Exception($message);
+        }
+
+        Log::info('Soft deleting item', [
+            'item_id' => $this->id,
+            'item_name' => $this->nama_barang,
+            'status' => $this->status
+        ]);
+
+        return parent::delete(); // Soft delete
+    }
+
+    /**
+     * Method untuk force delete (permanent delete)
+     */
+    public function forceDeleteItem()
+    {
+        Log::warning('Force deleting item permanently', [
+            'item_id' => $this->id,
+            'item_name' => $this->nama_barang
+        ]);
+
+        return $this->forceDelete();
+    }
+
+    /**
+     * Method untuk restore soft deleted item
+     */
+    public function restoreItem()
+    {
+        Log::info('Restoring soft deleted item', [
+            'item_id' => $this->id,
+            'item_name' => $this->nama_barang
+        ]);
+
+        return $this->restore();
+    }
+
+    // ================================
+    // IMPROVED BOOT METHOD - DENGAN SOFT DELETE SUPPORT
     // ================================
     protected static function boot()
     {
         parent::boot();
 
-        // Event listener untuk update dari Raspberry Pi
+        // Event listener untuk update dari Raspberry Pi (HANYA untuk item yang tidak di-soft delete)
         static::updated(function ($item) {
+            // Skip jika item sudah di-soft delete
+            if ($item->trashed()) {
+                return;
+            }
+
             if ($item->isDirty('user_id') || $item->isDirty('status')) {
                 $originalUserId = $item->getOriginal('user_id');
                 $newUserId = $item->user_id;
@@ -412,11 +485,9 @@ class Item extends Model
 
                     $user = User::find($newUserId);
                     if ($user) {
-                        // IMPROVED: Use static method untuk konsistensi
                         $isAdmin = static::isUserAdmin($user);
 
                         if (!$isAdmin) {
-                            // User biasa - kurangi koin
                             $userDetail = UserDetail::where('user_id', $newUserId)->first();
                             if ($userDetail && $userDetail->koin > 0) {
                                 $oldKoin = $userDetail->koin;
@@ -461,11 +532,9 @@ class Item extends Model
 
                     $oldUser = User::find($originalUserId);
                     if ($oldUser) {
-                        // IMPROVED: Use static method untuk konsistensi
                         $isAdmin = static::isUserAdmin($oldUser);
 
                         if (!$isAdmin) {
-                            // User biasa - kembalikan koin
                             $userDetail = UserDetail::where('user_id', $originalUserId)->first();
                             if ($userDetail) {
                                 $oldKoin = $userDetail->koin;
@@ -500,7 +569,7 @@ class Item extends Model
                     }
                 }
 
-                // ADDITIONAL: Log any other status changes for debugging
+                // Log any other status changes for debugging
                 if ($originalStatus !== $newStatus && !in_array($newStatus, ['borrowed', 'available'])) {
                     Log::info('Boot method: Other status change detected', [
                         'item_id' => $item->id,
@@ -510,6 +579,33 @@ class Item extends Model
                     ]);
                 }
             }
+        });
+
+        // Event untuk soft delete
+        static::deleting(function ($item) {
+            Log::info('Item being soft deleted', [
+                'item_id' => $item->id,
+                'item_name' => $item->nama_barang,
+                'status' => $item->status,
+                'user_id' => $item->user_id
+            ]);
+        });
+
+        // Event untuk restore
+        static::restored(function ($item) {
+            Log::info('Item restored from soft delete', [
+                'item_id' => $item->id,
+                'item_name' => $item->nama_barang,
+                'status' => $item->status
+            ]);
+        });
+
+        // Event untuk force delete
+        static::forceDeleted(function ($item) {
+            Log::warning('Item permanently deleted', [
+                'item_id' => $item->id,
+                'item_name' => $item->nama_barang
+            ]);
         });
     }
 }

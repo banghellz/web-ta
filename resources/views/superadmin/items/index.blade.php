@@ -147,7 +147,7 @@
             <div class="card mt-3">
                 <div class="card-header">
                     <h3 class="card-title">Items List</h3>
-                    <!-- Optimized status indicators for multi-tab support -->
+                    <!-- Simplified status indicators -->
                     <div class="card-actions">
                         <div class="row g-2 align-items-center">
                             <div class="col">
@@ -165,27 +165,7 @@
                                 </div>
                             </div>
 
-                            <!-- Multi-Tab Status Indicator -->
-                            <div class="col-auto">
-                                <div id="tab-status-indicator" class="d-flex align-items-center me-3">
-                                    <div id="tab-status-dot" class="bg-info rounded-circle me-2"
-                                        style="width: 6px; height: 6px;" title="Tab Status"></div>
-                                    <small class="text-muted">Tab: <span id="tab-status-text">Syncing</span></small>
-                                </div>
-                            </div>
-
-                            <!-- Status Refresh Indicator (Leader Only) -->
-                            <div class="col-auto">
-                                <div id="status-refresh-indicator" class="d-flex align-items-center me-3"
-                                    style="display: none !important;">
-                                    <div id="status-refresh-dot" class="bg-success rounded-circle me-2"
-                                        style="width: 6px; height: 6px;" title="Auto-Refresh"></div>
-                                    <small class="text-muted">Auto: <span
-                                            id="status-refresh-text">Active</span></small>
-                                </div>
-                            </div>
-
-                            <!-- Connection Status Indicator -->
+                            <!-- Simplified Connection Status Indicator -->
                             <div class="col-auto">
                                 <div id="connection-status" class="d-flex align-items-center">
                                     <div id="connection-indicator" class="bg-success rounded-circle me-2"
@@ -238,22 +218,22 @@
         <div class="modal-dialog modal-dialog-centered" role="document">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Delete Item</h5>
+                    <h5 class="modal-title">Move Item to Trash</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <div class="text-center">
-                        <i class="ti ti-alert-triangle text-danger" style="font-size: 3rem;"></i>
-                        <h3 class="mt-3">Are you sure?</h3>
-                        <p>Are you sure you want to delete the item <span id="item-to-delete" class="fw-bold"></span>?
-                        </p>
-                        <p class="text-danger">This action cannot be undone.</p>
+                        <i class="ti ti-trash text-warning" style="font-size: 3rem;"></i>
+                        <h3 class="mt-3">Move to Trash?</h3>
+                        <p>Are you sure you want to move the item <span id="item-to-delete" class="fw-bold"></span> to
+                            trash?</p>
+                        <p class="text-muted">You can restore it later from the trash if needed.</p>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-danger ms-auto" id="btn-confirm-delete">
-                        <i class="ti ti-trash me-1"></i>Delete
+                    <button type="button" class="btn btn-warning ms-auto" id="btn-confirm-delete">
+                        <i class="ti ti-trash me-1"></i>Move to Trash
                     </button>
                 </div>
             </div>
@@ -292,28 +272,7 @@
 
     @push('styles')
         <style>
-            /* Multi-tab indicators */
-            #tab-status-indicator {
-                display: flex;
-                align-items: center;
-            }
-
-            #tab-status-indicator.leader #tab-status-dot {
-                background-color: var(--tblr-blue) !important;
-                animation: pulse 2s infinite;
-            }
-
-            #tab-status-indicator.follower #tab-status-dot {
-                background-color: var(--tblr-green) !important;
-                animation: pulse 3s infinite;
-            }
-
-            #tab-status-indicator.syncing #tab-status-dot {
-                background-color: var(--tblr-yellow) !important;
-                animation: pulse 1s infinite;
-            }
-
-            /* Connection status with better visual feedback */
+            /* Simplified connection status with better visual feedback */
             #connection-status.connected #connection-indicator {
                 background-color: var(--tblr-green) !important;
                 animation: pulse 3s infinite;
@@ -332,30 +291,6 @@
             #connection-status.limited #connection-indicator {
                 background-color: var(--tblr-orange) !important;
                 animation: pulse 2s infinite;
-            }
-
-            /* Status refresh indicator (only visible for leader) */
-            #status-refresh-indicator {
-                display: none;
-            }
-
-            #status-refresh-indicator.active {
-                display: flex !important;
-            }
-
-            #status-refresh-indicator.active #status-refresh-dot {
-                background-color: var(--tblr-green) !important;
-                animation: pulse 4s infinite;
-            }
-
-            #status-refresh-indicator.refreshing #status-refresh-dot {
-                background-color: var(--tblr-blue) !important;
-                animation: spin 1s linear infinite;
-            }
-
-            #status-refresh-indicator.paused #status-refresh-dot {
-                background-color: var(--tblr-gray-600) !important;
-                animation: none;
             }
 
             /* Improved animations */
@@ -447,9 +382,7 @@
             /* Performance optimization for animations */
             .status-updating,
             .stat-updating,
-            #connection-indicator,
-            #tab-status-dot,
-            #status-refresh-dot {
+            #connection-indicator {
                 will-change: transform, opacity;
             }
 
@@ -492,21 +425,13 @@
 
                 .status-updating,
                 .stat-updating,
-                #connection-indicator,
-                #tab-status-dot,
-                #status-refresh-dot {
+                #connection-indicator {
                     animation: none !important;
                 }
             }
 
             /* Mobile responsiveness */
             @media (max-width: 768px) {
-
-                #tab-status-indicator,
-                #status-refresh-indicator {
-                    display: none !important;
-                }
-
                 #connection-status small {
                     font-size: 0.7rem;
                 }
@@ -554,18 +479,6 @@
 
             /* Dark mode compatibility */
             @media (prefers-color-scheme: dark) {
-                #tab-status-indicator.leader #tab-status-dot {
-                    background-color: #4dabf7 !important;
-                }
-
-                #tab-status-indicator.follower #tab-status-dot {
-                    background-color: #51cf66 !important;
-                }
-
-                #tab-status-indicator.syncing #tab-status-dot {
-                    background-color: #ffd43b !important;
-                }
-
                 #connection-status.connected #connection-indicator {
                     background-color: #51cf66 !important;
                 }
@@ -585,10 +498,7 @@
 
             /* High contrast mode */
             @media (prefers-contrast: high) {
-
-                #tab-status-dot,
-                #connection-indicator,
-                #status-refresh-dot {
+                #connection-indicator {
                     border: 1px solid currentColor;
                 }
 
@@ -606,35 +516,16 @@
                 let itemToDelete = null;
                 let itemToMarkMissing = null;
 
-                // === MULTI-TAB SUPPORT CONFIGURATION ===
-                const TAB_ID = `items_tab_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-                const STORAGE_KEY = 'items_realtime_data';
-                const LEADER_KEY = 'items_leader_tab';
-                const HEARTBEAT_KEY = 'items_heartbeat';
-
-                let isLeaderTab = false;
-                let heartbeatInterval = null;
-                let leaderCheckInterval = null;
-
-                // === OPTIMIZED POLLING CONFIGURATION ===
+                // === SIMPLIFIED REAL-TIME CONFIGURATION ===
                 let pollingInterval = null;
-                let statusRefreshInterval = null;
                 let clientLastUpdate = null;
                 let isPollingEnabled = true;
-                let isStatusRefreshEnabled = true;
                 let pollingFailureCount = 0;
-                let statusRefreshFailureCount = 0;
 
-                // Debouncing and rate limiting
-                let isRefreshing = false;
-                let isCheckingUpdates = false;
-                let lastRequestTime = 0;
-
-                // Adaptive intervals
-                let currentPollingInterval = 15000; // Start with 15 seconds
-                let currentStatusInterval = 12000; // Start with 12 seconds
-                const maxPollingInterval = 60000; // Max 60 seconds
-                const minPollingInterval = 10000; // Min 10 seconds
+                // OPTIMIZED: Faster intervals for better responsiveness
+                const POLLING_INTERVAL = 3000; // 3 seconds instead of 15
+                const MAX_FAILURES = 3; // Reduced from 5
+                const RETRY_DELAY = 2000; // 2 seconds
 
                 let currentStats = {
                     total_items: {{ $totalItems ?? 0 }},
@@ -643,174 +534,11 @@
                     missing_items: {{ $missingItems ?? 0 }}
                 };
 
-                // === MULTI-TAB LEADERSHIP SYSTEM ===
-                function becomeLeader() {
-                    if (isLeaderTab) return;
-
-                    console.log(`Tab ${TAB_ID} becoming leader`);
-                    isLeaderTab = true;
-                    localStorage.setItem(LEADER_KEY, TAB_ID);
-
-                    // Update UI indicators
-                    updateTabIndicator('leader');
-                    setConnectionStatus('connected');
-                    setStatusRefreshIndicator('active');
-
-                    // Start leader responsibilities
-                    startPollingAsLeader();
-                    startHeartbeat();
-
-                    showItemsToast('This tab is now managing real-time updates', 'info', true);
-                }
-
-                function resignLeadership() {
-                    if (!isLeaderTab) return;
-
-                    console.log(`Tab ${TAB_ID} resigning leadership`);
-                    isLeaderTab = false;
-
-                    // Stop leader activities
-                    stopPolling();
-                    stopHeartbeat();
-
-                    // Update UI
-                    updateTabIndicator('follower');
-
-                    // Hide leader-only indicators
-                    $('#status-refresh-indicator').hide();
-                }
-
-                function startHeartbeat() {
-                    if (heartbeatInterval) clearInterval(heartbeatInterval);
-
-                    heartbeatInterval = setInterval(() => {
-                        if (isLeaderTab) {
-                            localStorage.setItem(HEARTBEAT_KEY, Date.now());
-                        }
-                    }, 3000); // Heartbeat every 3 seconds
-                }
-
-                function stopHeartbeat() {
-                    if (heartbeatInterval) {
-                        clearInterval(heartbeatInterval);
-                        heartbeatInterval = null;
-                    }
-                }
-
-                // Tambahkan juga function untuk ensure HTTPS pada semua request
-                function ensureHttpsUrl(url) {
-                    if (url.startsWith('http://')) {
-                        return url.replace('http://', 'https://');
-                    }
-                    return url;
-                }
-
-                function checkLeadership() {
-                    const currentLeader = localStorage.getItem(LEADER_KEY);
-                    const lastHeartbeat = parseInt(localStorage.getItem(HEARTBEAT_KEY) || '0');
-                    const now = Date.now();
-
-                    // Check if leader is still alive (heartbeat within 10 seconds)
-                    const leaderAlive = (now - lastHeartbeat) < 10000;
-
-                    if (!currentLeader || currentLeader === TAB_ID) {
-                        if (!isLeaderTab) becomeLeader();
-                    } else if (!leaderAlive) {
-                        // Leader is dead, try to become leader
-                        if (isLeaderTab) {
-                            resignLeadership();
-                        }
-
-                        // Random delay to avoid conflicts
-                        setTimeout(() => {
-                            const newLeader = localStorage.getItem(LEADER_KEY);
-                            if (!newLeader || newLeader === currentLeader) {
-                                becomeLeader();
-                            }
-                        }, Math.random() * 2000);
-                    } else if (currentLeader !== TAB_ID && isLeaderTab) {
-                        // Another tab became leader
-                        resignLeadership();
-                    }
-                }
-
-                // === STORAGE EVENT LISTENER FOR CROSS-TAB COMMUNICATION ===
-                window.addEventListener('storage', function(e) {
-                    if (e.key === STORAGE_KEY && e.newValue) {
-                        try {
-                            const data = JSON.parse(e.newValue);
-                            if (data.from !== TAB_ID) { // Don't process own messages
-                                handleCrossTabUpdate(data);
-                            }
-                        } catch (error) {
-                            console.warn('Failed to parse cross-tab data:', error);
-                        }
-                    } else if (e.key === LEADER_KEY) {
-                        setTimeout(checkLeadership, 100); // Small delay to avoid race conditions
-                    }
-                });
-
-                function handleCrossTabUpdate(data) {
-                    if (isLeaderTab) return; // Leader doesn't need to sync from storage
-
-                    console.log('Received cross-tab update:', data.type);
-
-                    switch (data.type) {
-                        case 'stats_update':
-                            if (data.stats) {
-                                updateStats(data.stats);
-                            }
-                            break;
-                        case 'table_refresh':
-                            performSilentRefresh();
-                            break;
-                        case 'status_update':
-                            if (data.items && Array.isArray(data.items)) {
-                                data.items.forEach(item => {
-                                    const $statusBadge = $(`.badge[data-item-id="${item.id}"]`);
-                                    if ($statusBadge.length > 0) {
-                                        updateStatusBadge($statusBadge, item.status);
-                                    }
-                                });
-                            }
-                            break;
-                        case 'item_added':
-                        case 'item_updated':
-                        case 'item_deleted':
-                            performSilentRefresh();
-                            if (data.stats) {
-                                updateStats(data.stats);
-                            }
-                            break;
-                    }
-
-                    updateLastRefreshTime();
-                    setConnectionStatus('connected');
-                }
-
-                function broadcastToOtherTabs(data) {
-                    if (!isLeaderTab) return;
-
-                    try {
-                        localStorage.setItem(STORAGE_KEY, JSON.stringify({
-                            ...data,
-                            timestamp: Date.now(),
-                            from: TAB_ID
-                        }));
-                    } catch (error) {
-                        console.warn('Failed to broadcast to other tabs:', error);
-                    }
-                }
-
                 // === OPTIMIZED AJAX WITH BETTER ERROR HANDLING ===
                 function makeOptimizedRequest(url, options = {}) {
-
-                    // Ensure HTTPS if it's an absolute URL
-                    url = ensureHttpsUrl(url);
-
                     const defaultOptions = {
-                        timeout: 8000,
-                        retries: 2,
+                        timeout: 5000, // Reduced from 8000
+                        retries: 1, // Reduced from 2
                         retryDelay: 1000
                     };
 
@@ -819,15 +547,8 @@
                         ...options
                     };
 
-                    // Rate limiting - prevent too frequent requests
-                    const now = Date.now();
-                    if (now - lastRequestTime < 2000) {
-                        return Promise.reject(new Error('Rate limited'));
-                    }
-                    lastRequestTime = now;
-
                     // Circuit breaker
-                    if (pollingFailureCount >= 5) {
+                    if (pollingFailureCount >= MAX_FAILURES) {
                         return Promise.reject(new Error('Circuit breaker open'));
                     }
 
@@ -846,7 +567,6 @@
                                         error
                                     });
 
-                                    // Don't retry on client errors (4xx)
                                     if (attempt < config.retries && xhr.status >= 500) {
                                         setTimeout(() => {
                                             attemptRequest(attempt + 1).then(resolve).catch(reject);
@@ -861,51 +581,16 @@
                     return attemptRequest();
                 }
 
-                // === ADAPTIVE POLLING SYSTEM ===
-                function adjustPollingInterval(success) {
-                    const oldInterval = currentPollingInterval;
+                // === SIMPLIFIED POLLING SYSTEM ===
+                function startPolling() {
+                    if (pollingInterval) clearInterval(pollingInterval);
 
-                    if (success) {
-                        // Gradually decrease interval on success (faster polling)
-                        currentPollingInterval = Math.max(minPollingInterval, currentPollingInterval - 2000);
-                        pollingFailureCount = Math.max(0, pollingFailureCount - 1);
-                    } else {
-                        // Increase interval on failure (slower polling)
-                        currentPollingInterval = Math.min(maxPollingInterval, currentPollingInterval + 5000);
-                        pollingFailureCount++;
-                    }
+                    console.log(`Starting optimized polling - interval: ${POLLING_INTERVAL}ms`);
 
-                    if (oldInterval !== currentPollingInterval) {
-                        console.log(
-                            `Polling interval adjusted to ${currentPollingInterval}ms (failures: ${pollingFailureCount})`
-                        );
-                        // Restart polling with new interval
-                        if (isLeaderTab) {
-                            startPollingAsLeader();
-                        }
-                    }
-                }
-
-                function startPollingAsLeader() {
-                    if (!isLeaderTab) return;
-
-                    stopPolling(); // Clear any existing intervals
-
-                    console.log(
-                        `Starting leader polling - DB check: ${currentPollingInterval}ms, Status: ${currentStatusInterval}ms`
-                    );
-
-                    // Start database update polling
                     pollingInterval = setInterval(() => {
-                        if (!isLeaderTab || !isPollingEnabled || document.hidden) return;
+                        if (!isPollingEnabled || document.hidden) return;
                         checkForDatabaseUpdates();
-                    }, currentPollingInterval);
-
-                    // Start status refresh polling
-                    statusRefreshInterval = setInterval(() => {
-                        if (!isLeaderTab || !isStatusRefreshEnabled || document.hidden) return;
-                        refreshStatusOnly();
-                    }, currentStatusInterval);
+                    }, POLLING_INTERVAL);
                 }
 
                 function stopPolling() {
@@ -913,18 +598,11 @@
                         clearInterval(pollingInterval);
                         pollingInterval = null;
                     }
-                    if (statusRefreshInterval) {
-                        clearInterval(statusRefreshInterval);
-                        statusRefreshInterval = null;
-                    }
                 }
 
                 function checkForDatabaseUpdates() {
-                    if (isCheckingUpdates || !isLeaderTab) return;
-
-                    console.log('Leader checking for database updates...');
+                    console.log('Checking for database updates...');
                     setConnectionStatus('connecting');
-                    isCheckingUpdates = true;
 
                     makeOptimizedRequest("/superadmin/items/check-updates", {
                             ajaxOptions: {
@@ -937,27 +615,15 @@
                         .then(response => {
                             console.log('Update check response:', response);
 
-                            adjustPollingInterval(true);
+                            pollingFailureCount = 0;
                             setConnectionStatus('connected');
 
                             if (response.has_updates) {
-                                console.log('Changes detected - broadcasting to other tabs');
-
-                                // Broadcast to other tabs
-                                broadcastToOtherTabs({
-                                    type: 'table_refresh',
-                                    updates: response.updates
-                                });
-
-                                // Refresh leader tab
+                                console.log('Changes detected - refreshing table');
                                 performSilentRefresh();
 
                                 if (response.stats) {
                                     updateStats(response.stats);
-                                    broadcastToOtherTabs({
-                                        type: 'stats_update',
-                                        stats: response.stats
-                                    });
                                 }
                             }
 
@@ -967,84 +633,22 @@
                             }
                         })
                         .catch(xhr => {
-                            adjustPollingInterval(false);
+                            pollingFailureCount++;
+                            console.error('Update check failed:', xhr.status);
 
-                            if (pollingFailureCount >= 5) {
+                            if (pollingFailureCount >= MAX_FAILURES) {
                                 setConnectionStatus('disconnected');
-                                showItemsToast('Connection issues detected. Reducing polling frequency.', 'warning',
-                                    true);
+                                showItemsToast('Connection lost. Auto-refresh disabled.', 'warning');
+                                stopPolling();
+
+                                // Retry after delay
+                                setTimeout(() => {
+                                    pollingFailureCount = 0;
+                                    startPolling();
+                                }, RETRY_DELAY * 3);
                             } else {
                                 setConnectionStatus('limited');
                             }
-                        })
-                        .finally(() => {
-                            isCheckingUpdates = false;
-                        });
-                }
-
-                function refreshStatusOnly() {
-                    if (isRefreshing || !isLeaderTab) return;
-
-                    console.log('Leader refreshing status fields...');
-                    setStatusRefreshIndicator('refreshing');
-                    isRefreshing = true;
-
-                    makeOptimizedRequest("/superadmin/items/data/items", {
-                            timeout: 6000,
-                            ajaxOptions: {
-                                type: 'GET',
-                                data: {
-                                    status_only: true,
-                                    _: Date.now()
-                                }
-                            }
-                        })
-                        .then(response => {
-                            if (response.data && Array.isArray(response.data)) {
-                                let updatedItems = [];
-
-                                response.data.forEach(item => {
-                                    const $statusBadge = $(`.badge[data-item-id="${item.id}"]`);
-                                    if ($statusBadge.length > 0) {
-                                        const currentStatus = $statusBadge.data('status');
-                                        if (currentStatus !== item.status) {
-                                            updateStatusBadge($statusBadge, item.status);
-                                            updatedItems.push({
-                                                id: item.id,
-                                                status: item.status
-                                            });
-                                        }
-                                    }
-                                });
-
-                                // Broadcast status updates to other tabs
-                                if (updatedItems.length > 0) {
-                                    broadcastToOtherTabs({
-                                        type: 'status_update',
-                                        items: updatedItems
-                                    });
-                                }
-
-                                if (response.stats) {
-                                    updateStats(response.stats);
-                                    broadcastToOtherTabs({
-                                        type: 'stats_update',
-                                        stats: response.stats
-                                    });
-                                }
-                            }
-
-                            statusRefreshFailureCount = 0;
-                            setStatusRefreshIndicator('active');
-                        })
-                        .catch(xhr => {
-                            statusRefreshFailureCount++;
-                            if (statusRefreshFailureCount >= 3) {
-                                setStatusRefreshIndicator('paused');
-                            }
-                        })
-                        .finally(() => {
-                            isRefreshing = false;
                         });
                 }
 
@@ -1070,45 +674,6 @@
                     }
                 }
 
-                function updateTabIndicator(role) {
-                    const $indicator = $('#tab-status-indicator');
-                    const $text = $('#tab-status-text');
-                    const $refreshIndicator = $('#status-refresh-indicator');
-
-                    $indicator.removeClass('leader follower syncing').addClass(role);
-
-                    const config = {
-                        'leader': {
-                            text: 'Leader',
-                            title: 'This tab is managing real-time updates for all tabs',
-                            showRefresh: true
-                        },
-                        'follower': {
-                            text: 'Synced',
-                            title: 'This tab is receiving updates from the leader tab',
-                            showRefresh: false
-                        },
-                        'syncing': {
-                            text: 'Syncing',
-                            title: 'Synchronizing with leader tab...',
-                            showRefresh: false
-                        }
-                    };
-
-                    const roleConfig = config[role];
-                    if (roleConfig) {
-                        $text.text(roleConfig.text);
-                        $indicator.attr('title', roleConfig.title);
-
-                        // Show/hide refresh indicator based on leadership
-                        if (roleConfig.showRefresh) {
-                            $refreshIndicator.show();
-                        } else {
-                            $refreshIndicator.hide();
-                        }
-                    }
-                }
-
                 function setConnectionStatus(status) {
                     const $indicator = $('#connection-indicator');
                     const $statusContainer = $('#connection-status');
@@ -1118,8 +683,8 @@
 
                     const statusConfig = {
                         'connected': {
-                            title: isLeaderTab ? 'Leader tab - Managing live updates' : 'Syncing with leader tab',
-                            text: isLeaderTab ? 'Live (Leader)' : 'Live (Sync)'
+                            title: 'Live updates active',
+                            text: 'Live'
                         },
                         'connecting': {
                             title: 'Checking for updates...',
@@ -1132,37 +697,6 @@
                         'limited': {
                             title: 'Limited connection - Reduced frequency',
                             text: 'Limited'
-                        }
-                    };
-
-                    const config = statusConfig[status];
-                    if (config) {
-                        $indicator.attr('title', config.title);
-                        $text.text(config.text);
-                    }
-                }
-
-                function setStatusRefreshIndicator(status) {
-                    if (!isLeaderTab) return;
-
-                    const $indicator = $('#status-refresh-dot');
-                    const $container = $('#status-refresh-indicator');
-                    const $text = $('#status-refresh-text');
-
-                    $container.removeClass('active refreshing paused').addClass(status);
-
-                    const statusConfig = {
-                        'active': {
-                            title: 'Status auto-refresh active',
-                            text: 'Active'
-                        },
-                        'refreshing': {
-                            title: 'Refreshing status data...',
-                            text: 'Updating...'
-                        },
-                        'paused': {
-                            title: 'Status auto-refresh paused',
-                            text: 'Paused'
                         }
                     };
 
@@ -1271,35 +805,12 @@
                         if (json && (json.refresh_timestamp || json.last_db_update)) {
                             clientLastUpdate = json.refresh_timestamp || json.last_db_update;
                         }
-
-                        // Broadcast to other tabs if leader
-                        if (isLeaderTab) {
-                            broadcastToOtherTabs({
-                                type: 'table_refresh',
-                                manual: true
-                            });
-                        }
                     }, false);
                 }
 
                 function triggerImmediateUpdate() {
                     console.log('Triggering immediate update...');
-
-                    if (isLeaderTab) {
-                        performSilentRefresh();
-                        setTimeout(() => {
-                            if (!isRefreshing) refreshStatusOnly();
-                        }, 1000);
-
-                        // Broadcast to other tabs
-                        broadcastToOtherTabs({
-                            type: 'table_refresh',
-                            immediate: true
-                        });
-                    } else {
-                        // Non-leader tabs just refresh themselves
-                        performSilentRefresh();
-                    }
+                    performSilentRefresh();
                 }
 
                 // === DATATABLE INITIALIZATION ===
@@ -1309,7 +820,7 @@
                     ajax: {
                         url: "/superadmin/items/data/items",
                         type: 'GET',
-                        timeout: 15000,
+                        timeout: 10000, // Reduced timeout
                         dataSrc: function(json) {
                             console.log('DataTable loaded successfully');
 
@@ -1335,7 +846,7 @@
                             setConnectionStatus('disconnected');
                             pollingFailureCount++;
 
-                            if (pollingFailureCount >= 3) {
+                            if (pollingFailureCount >= MAX_FAILURES) {
                                 showItemsToast('Connection lost. Please refresh manually.', 'warning');
                             }
                         }
@@ -1460,7 +971,7 @@
                                    data-item-id="${row.id}" 
                                    data-item-name="${row.nama_barang}"
                                    data-item-status="${row.status}">
-                                    <i class="ti ti-trash me-2"></i>Delete
+                                    <i class="ti ti-trash me-2"></i>Move to Trash
                                 </a>
                             </li>
                         </ul>
@@ -1503,27 +1014,17 @@
                     if (document.hidden) {
                         console.log('Page hidden - pausing activities');
                         isPollingEnabled = false;
-                        isStatusRefreshEnabled = false;
-                        if (isLeaderTab) {
-                            setStatusRefreshIndicator('paused');
-                        }
                     } else {
                         console.log('Page visible - resuming activities');
                         isPollingEnabled = true;
-                        isStatusRefreshEnabled = true;
                         pollingFailureCount = Math.max(0, pollingFailureCount - 1);
-                        statusRefreshFailureCount = 0;
 
                         setConnectionStatus('connecting');
-                        if (isLeaderTab) {
-                            setStatusRefreshIndicator('active');
 
-                            // Resume polling after a short delay
-                            setTimeout(() => {
-                                if (!isCheckingUpdates) checkForDatabaseUpdates();
-                                if (!isRefreshing) refreshStatusOnly();
-                            }, 2000);
-                        }
+                        // Resume polling after a short delay
+                        setTimeout(() => {
+                            checkForDatabaseUpdates();
+                        }, 1000);
                     }
                 });
 
@@ -1581,18 +1082,12 @@
                     });
                 });
 
-                // Delete item
+                // Delete item (SOFT DELETE)
                 $(document).on('click', '.delete-item', function(e) {
                     e.preventDefault();
                     const itemId = $(this).data('item-id');
                     const itemName = $(this).data('item-name');
                     const itemStatus = $(this).data('item-status');
-
-                    if (itemStatus === 'borrowed' || itemStatus === 'missing') {
-                        const statusText = itemStatus === 'borrowed' ? 'borrowed' : 'missing';
-                        showItemsToast(`Cannot delete item that is ${statusText}.`, 'error');
-                        return;
-                    }
 
                     itemToDelete = {
                         id: itemId,
@@ -1616,13 +1111,13 @@
                     $('#modal-mark-missing').modal('show');
                 });
 
-                // Confirm delete
+                // Confirm delete (SOFT DELETE)
                 $('#btn-confirm-delete').on('click', function() {
                     if (!itemToDelete) return;
 
                     const $btn = $(this);
                     const originalText = $btn.html();
-                    $btn.prop('disabled', true).html('<i class="ti ti-loader-2 me-1 spinning"></i>Deleting...');
+                    $btn.prop('disabled', true).html('<i class="ti ti-loader-2 me-1 spinning"></i>Moving...');
 
                     $.ajax({
                         url: `/superadmin/items/${itemToDelete.id}`,
@@ -1630,32 +1125,28 @@
                         data: {
                             _token: csrfToken
                         },
-                        timeout: 15000,
+                        timeout: 10000,
                         success: function(response) {
                             if (response.success) {
-                                showItemsToast(response.message || 'Item deleted successfully!',
-                                    'success');
+                                showItemsToast(response.message ||
+                                    'Item moved to trash successfully!', 'success');
                                 refreshNotifications();
 
-                                if (response.trigger_refresh) {
+                                if (response.force_update || response.trigger_refresh) {
                                     triggerImmediateUpdate();
+                                }
 
-                                    // Broadcast deletion to other tabs
-                                    if (isLeaderTab) {
-                                        broadcastToOtherTabs({
-                                            type: 'item_deleted',
-                                            item_id: itemToDelete.id,
-                                            stats: response.stats
-                                        });
-                                    }
+                                // Update stats immediately
+                                if (response.stats) {
+                                    updateStats(response.stats);
                                 }
                             } else {
-                                showItemsToast(response.message || 'Failed to delete item.',
+                                showItemsToast(response.message || 'Failed to move item to trash.',
                                     'error');
                             }
                         },
                         error: function(xhr, status, error) {
-                            let errorMessage = 'Failed to delete item. Please try again.';
+                            let errorMessage = 'Failed to move item to trash. Please try again.';
                             if (xhr.responseJSON && xhr.responseJSON.message) {
                                 errorMessage = xhr.responseJSON.message;
                             }
@@ -1683,7 +1174,7 @@
                         data: {
                             _token: csrfToken
                         },
-                        timeout: 15000,
+                        timeout: 10000,
                         success: function(response) {
                             if (response.success) {
                                 showItemsToast(response.message ||
@@ -1691,13 +1182,9 @@
                                 refreshNotifications();
                                 triggerImmediateUpdate();
 
-                                // Broadcast to other tabs
-                                if (isLeaderTab) {
-                                    broadcastToOtherTabs({
-                                        type: 'item_updated',
-                                        item_id: itemToMarkMissing.id,
-                                        stats: response.stats
-                                    });
+                                // Update stats immediately
+                                if (response.stats) {
+                                    updateStats(response.stats);
                                 }
                             } else {
                                 showItemsToast(response.message ||
@@ -1730,37 +1217,23 @@
                     console.log('Item added event received:', data);
                     triggerImmediateUpdate();
 
-                    // Broadcast to other tabs
-                    if (isLeaderTab) {
-                        broadcastToOtherTabs({
-                            type: 'item_added',
-                            item: data,
-                            stats: data.stats
-                        });
+                    // Update stats immediately
+                    if (data.stats) {
+                        updateStats(data.stats);
                     }
                 });
 
                 // === WINDOW UNLOAD HANDLING ===
                 window.addEventListener('beforeunload', function() {
-                    resignLeadership();
                     stopPolling();
-                    stopHeartbeat();
-
-                    if (leaderCheckInterval) {
-                        clearInterval(leaderCheckInterval);
-                    }
                 });
 
                 // === INITIALIZATION ===
                 updateLastRefreshTime();
-
-                // Initialize tab indicator
-                updateTabIndicator('syncing');
                 setConnectionStatus('connecting');
 
-                // Start leadership system
-                leaderCheckInterval = setInterval(checkLeadership, 5000);
-                checkLeadership(); // Initial check
+                // Start optimized polling immediately
+                startPolling();
 
                 // Show Laravel session messages
                 @if (session('success'))
@@ -1786,26 +1259,16 @@
                     }
                 };
 
-                window.debugRealTimeMultiTab = function() {
-                    console.log('=== MULTI-TAB REAL-TIME DEBUG INFO ===');
-                    console.log('Tab ID:', TAB_ID);
-                    console.log('Is Leader:', isLeaderTab);
-                    console.log('Leader in Storage:', localStorage.getItem(LEADER_KEY));
-                    console.log('Last Heartbeat:', new Date(parseInt(localStorage.getItem(HEARTBEAT_KEY) || '0')));
+                window.debugItemsRealTime = function() {
+                    console.log('=== OPTIMIZED REAL-TIME DEBUG INFO ===');
                     console.log('Client Last Update:', clientLastUpdate);
-                    console.log('Polling Interval:', currentPollingInterval);
-                    console.log('Failure Counts:', {
-                        polling: pollingFailureCount,
-                        status: statusRefreshFailureCount
-                    });
-                    console.log('Active Intervals:', {
-                        polling: !!pollingInterval,
-                        status: !!statusRefreshInterval,
-                        heartbeat: !!heartbeatInterval
-                    });
+                    console.log('Polling Interval:', POLLING_INTERVAL);
+                    console.log('Failure Count:', pollingFailureCount);
+                    console.log('Active Polling:', !!pollingInterval);
+                    console.log('Polling Enabled:', isPollingEnabled);
                 };
 
-                console.log(`Multi-tab real-time system initialized for tab ${TAB_ID}`);
+                console.log(`Optimized real-time system initialized with ${POLLING_INTERVAL}ms interval`);
             });
         </script>
     @endpush

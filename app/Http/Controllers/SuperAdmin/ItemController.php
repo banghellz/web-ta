@@ -24,6 +24,7 @@ class ItemController extends Controller
      */
     public function index()
     {
+        // HANYA tampilkan item yang tidak di-soft delete
         $totalItems = Item::count();
         $availableItems = Item::available()->count();
         $borrowedItems = Item::borrowed()->count();
@@ -75,32 +76,27 @@ class ItemController extends Controller
         try {
             DB::beginTransaction();
 
-            // Set status as available by default (handled by model default attributes)
             $item = Item::create($validated);
-
-            // Get current authenticated user
             $currentUser = Auth::user();
 
-            // Create notification for tool added - wrap in try-catch
+            // Create notification
             try {
                 if ($currentUser && class_exists('App\Models\Notification')) {
                     Notification::toolAdded($item, $currentUser);
                 }
             } catch (\Exception $notifError) {
-                // Log notification error but don't fail the whole process
                 Log::warning('Failed to create notification for item creation: ' . $notifError->getMessage());
             }
 
             DB::commit();
 
-            // Clear any output buffers that might interfere
-            if (ob_get_level()) {
-                ob_clean();
-            }
+            // IMPROVED: Force immediate cache clear
+            $this->clearStatsCache();
+            $this->updateGlobalTimestamp();
 
             $successMessage = "Item '{$item->nama_barang}' has been added successfully!";
+            $stats = $this->getCurrentStats();
 
-            // AJAX Response with explicit status code
             if ($request->expectsJson() || $request->ajax()) {
                 return response()->json([
                     'success' => true,
@@ -111,13 +107,13 @@ class ItemController extends Controller
                         'nama_barang' => $item->nama_barang,
                         'status' => $item->status
                     ],
-                    'trigger_refresh' => true // Signal for real-time refresh
+                    'stats' => $stats,
+                    'trigger_refresh' => true,
+                    'force_update' => true
                 ], 200);
             }
 
-            return redirect()
-                ->route('superadmin.items.index')
-                ->with('success', $successMessage);
+            return redirect()->route('superadmin.items.index')->with('success', $successMessage);
         } catch (ValidationException $e) {
             DB::rollBack();
 
@@ -129,10 +125,7 @@ class ItemController extends Controller
                 ], 422);
             }
 
-            return redirect()
-                ->back()
-                ->withErrors($e->errors())
-                ->withInput();
+            return redirect()->back()->withErrors($e->errors())->withInput();
         } catch (\Exception $e) {
             DB::rollBack();
 
@@ -151,39 +144,29 @@ class ItemController extends Controller
                 ], 500);
             }
 
-            return redirect()
-                ->back()
-                ->with('error', $errorMessage)
-                ->withInput();
+            return redirect()->back()->with('error', $errorMessage)->withInput();
         }
     }
 
     /**
      * Display the specified item.
      */
-    /**
-     * Show item details for superadmin
-     * 
-     * @param Item $item
-     * @return \Illuminate\Http\JsonResponse
-     */
     public function show(Item $item)
     {
         try {
             // Load semua relasi yang dibutuhkan untuk detail view
             $item->load([
-                'borrower',              // User yang meminjam
-                'borrower.detail',       // Detail user yang meminjam  
-                'borrowerDetail',        // Direct relation ke UserDetail
-                'missingTools',          // Semua missing tools records
-                'activeMissingTool'      // Missing tool yang sedang pending
+                'borrower',
+                'borrower.detail',
+                'borrowerDetail',
+                'missingTools',
+                'activeMissingTool'
             ]);
 
             // Sync koin untuk user yang meminjam item (jika ada)
             if ($item->user_id && $item->borrower) {
                 $borrowerDetail = $item->borrower->detail;
                 if ($borrowerDetail) {
-                    // Check if borrower is admin (tidak perlu sync koin)
                     $adminRoles = [
                         'admin',
                         'superadmin',
@@ -198,7 +181,6 @@ class ItemController extends Controller
 
                     $isAdminUser = in_array(trim($item->borrower->role ?? ''), $adminRoles, true);
 
-                    // Sync koin hanya jika bukan admin
                     if (!$isAdminUser) {
                         $oldKoin = $borrowerDetail->koin;
                         $borrowerDetail->syncKoin();
@@ -289,54 +271,50 @@ class ItemController extends Controller
 
             $oldName = $item->nama_barang;
             $oldStatus = $item->status;
-            // Get current authenticated user
             $currentUser = Auth::user();
 
-            // Create notification for tool added - wrap in try-catch
+            // Create notification
             try {
                 if ($currentUser && class_exists('App\Models\Notification')) {
                     Notification::toolEdited($item, $currentUser);
                 }
             } catch (\Exception $notifError) {
-                // Log notification error but don't fail the whole process
-                Log::warning('Failed to create notification for item creation: ' . $notifError->getMessage());
+                Log::warning('Failed to create notification for item update: ' . $notifError->getMessage());
             }
-
 
             // Special handling for status changes
             if ($validated['status'] !== $oldStatus) {
-                // If changing from borrowed to available/out_of_stock, clear user_id
                 if ($oldStatus === 'borrowed' && in_array($validated['status'], ['available', 'out_of_stock'])) {
                     $validated['user_id'] = null;
-                }
-                // If changing to borrowed but no user_id assigned, don't allow
-                elseif ($validated['status'] === 'borrowed' && !$item->user_id) {
+                } elseif ($validated['status'] === 'borrowed' && !$item->user_id) {
                     throw new \Exception('Cannot set status to borrowed without assigning a borrower.');
-                }
-                // If changing from missing to available, clear user_id
-                elseif ($oldStatus === 'missing' && $validated['status'] === 'available') {
+                } elseif ($oldStatus === 'missing' && $validated['status'] === 'available') {
                     $validated['user_id'] = null;
                 }
             }
 
             $item->update($validated);
-
             DB::commit();
 
+            // IMPROVED: Force immediate update
+            $this->clearStatsCache();
+            $this->updateGlobalTimestamp();
+
             $successMessage = "Item '{$oldName}' has been updated successfully!";
+            $stats = $this->getCurrentStats();
 
             if ($request->expectsJson() || $request->ajax()) {
                 return response()->json([
                     'success' => true,
                     'message' => $successMessage,
                     'item' => $item->fresh(),
-                    'trigger_refresh' => true // Signal for real-time refresh
+                    'stats' => $stats,
+                    'trigger_refresh' => true,
+                    'force_update' => true
                 ]);
             }
 
-            return redirect()
-                ->route('superadmin.items.index')
-                ->with('success', $successMessage);
+            return redirect()->route('superadmin.items.index')->with('success', $successMessage);
         } catch (\Exception $e) {
             DB::rollBack();
 
@@ -350,96 +328,271 @@ class ItemController extends Controller
                 ], 500);
             }
 
-            return redirect()
-                ->back()
-                ->with('error', $errorMessage)
-                ->withInput();
+            return redirect()->back()->with('error', $errorMessage)->withInput();
         }
     }
 
     /**
-     * Remove the specified item from storage.
+     * SOFT DELETE: Remove the specified item from storage (soft delete)
      */
     public function destroy(Item $item)
     {
         try {
-            // Check if item is currently borrowed or missing
-            if ($item->status === 'borrowed' || $item->status === 'missing' || $item->user_id) {
-                $message = match ($item->status) {
-                    'borrowed' => 'Cannot delete item that is currently borrowed. Please return the item first.',
-                    'missing' => 'Cannot delete item that is missing. Please reclaim the item first or wait for resolution.',
-                    default => 'Cannot delete item that is currently in use.'
-                };
-
-                if (request()->expectsJson()) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => $message
-                    ], 400);
-                }
-
-                return redirect()
-                    ->back()
-                    ->with('error', $message);
-            }
-
             DB::beginTransaction();
 
             $itemName = $item->nama_barang;
+            $itemId = $item->id;
             $currentUser = Auth::user();
 
-            // Create notification before deleting - wrap in try-catch
+            // Create notification before deleting
             try {
                 if ($currentUser && class_exists('App\Models\Notification')) {
                     Notification::toolDeleted($item, $currentUser);
                 }
             } catch (\Exception $notifError) {
-                // Log notification error but don't fail the deletion
                 Log::warning('Failed to create notification for item deletion: ' . $notifError->getMessage());
             }
 
-            $item->delete();
+            // SOFT DELETE - menggunakan method delete() dari model yang sudah di-override
+            $item->delete(); // Ini akan throw exception jika item sedang dipinjam/missing
 
             DB::commit();
 
-            $successMessage = "Item '{$itemName}' has been deleted successfully!";
+            // IMPROVED: Force immediate cache clear dan timestamp update
+            $this->clearStatsCache();
+            $this->updateGlobalTimestamp();
+
+            $successMessage = "Item '{$itemName}' has been moved to trash successfully!";
+            $stats = $this->getCurrentStats();
+
+            Log::info('Item soft deleted successfully', [
+                'item_id' => $itemId,
+                'item_name' => $itemName,
+                'deleted_by' => $currentUser->id ?? 'unknown',
+                'new_stats' => $stats
+            ]);
 
             if (request()->expectsJson()) {
                 return response()->json([
                     'success' => true,
                     'message' => $successMessage,
-                    'trigger_refresh' => true // Signal for real-time refresh
-                ]);
+                    'stats' => $stats,
+                    'trigger_refresh' => true,
+                    'force_update' => true,
+                    'deleted_item_id' => $itemId
+                ], 200);
             }
 
-            return redirect()
-                ->route('superadmin.items.index')
-                ->with('success', $successMessage);
+            return redirect()->route('superadmin.items.index')->with('success', $successMessage);
         } catch (\Exception $e) {
             DB::rollBack();
 
-            Log::error('Failed to delete item: ' . $e->getMessage());
-            $errorMessage = 'Failed to delete item. Please try again.';
+            Log::error('Failed to soft delete item: ' . $e->getMessage(), [
+                'item_id' => $item->id,
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            // Pesan error yang lebih spesifik
+            $errorMessage = $e->getMessage();
+            if (strpos($errorMessage, 'borrowed') !== false || strpos($errorMessage, 'missing') !== false) {
+                // Gunakan pesan error dari model
+                $errorMessage = $e->getMessage();
+            } else {
+                $errorMessage = 'Failed to delete item. Please try again.';
+            }
 
             if (request()->expectsJson()) {
                 return response()->json([
                     'success' => false,
                     'message' => $errorMessage
-                ], 500);
+                ], 400);
             }
 
-            return redirect()
-                ->back()
-                ->with('error', $errorMessage);
+            return redirect()->back()->with('error', $errorMessage);
         }
     }
 
     /**
-     * Get items data for DataTables AJAX
+     * NEW: Restore soft deleted item
+     */
+    public function restore($id)
+    {
+        try {
+            $item = Item::onlyTrashed()->findOrFail($id);
+
+            DB::beginTransaction();
+
+            $item->restore();
+            $currentUser = Auth::user();
+
+            // Create notification for restore
+            try {
+                if ($currentUser && class_exists('App\Models\Notification')) {
+                    // Anda bisa membuat method baru di Notification untuk restore
+                    // Notification::toolRestored($item, $currentUser);
+                }
+            } catch (\Exception $notifError) {
+                Log::warning('Failed to create notification for item restore: ' . $notifError->getMessage());
+            }
+
+            DB::commit();
+
+            $this->clearStatsCache();
+            $this->updateGlobalTimestamp();
+
+            $successMessage = "Item '{$item->nama_barang}' has been restored successfully!";
+            $stats = $this->getCurrentStats();
+
+            Log::info('Item restored successfully', [
+                'item_id' => $item->id,
+                'item_name' => $item->nama_barang,
+                'restored_by' => $currentUser->id ?? 'unknown'
+            ]);
+
+            if (request()->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => $successMessage,
+                    'stats' => $stats,
+                    'trigger_refresh' => true,
+                    'force_update' => true
+                ]);
+            }
+
+            return redirect()->route('superadmin.items.index')->with('success', $successMessage);
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            Log::error('Failed to restore item: ' . $e->getMessage());
+
+            if (request()->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to restore item. Please try again.'
+                ], 500);
+            }
+
+            return redirect()->back()->with('error', 'Failed to restore item. Please try again.');
+        }
+    }
+
+    /**
+     * NEW: Force delete (permanent delete)
+     */
+    public function forceDestroy($id)
+    {
+        try {
+            $item = Item::onlyTrashed()->findOrFail($id);
+
+            DB::beginTransaction();
+
+            $itemName = $item->nama_barang;
+            $itemId = $item->id;
+            $currentUser = Auth::user();
+
+            // Force delete permanently
+            $item->forceDelete();
+
+            DB::commit();
+
+            $this->clearStatsCache();
+            $this->updateGlobalTimestamp();
+
+            $successMessage = "Item '{$itemName}' has been permanently deleted!";
+
+            Log::warning('Item permanently deleted', [
+                'item_id' => $itemId,
+                'item_name' => $itemName,
+                'deleted_by' => $currentUser->id ?? 'unknown'
+            ]);
+
+            if (request()->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => $successMessage,
+                    'trigger_refresh' => true,
+                    'force_update' => true
+                ]);
+            }
+
+            return redirect()->route('superadmin.items.index')->with('success', $successMessage);
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            Log::error('Failed to force delete item: ' . $e->getMessage());
+
+            if (request()->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to permanently delete item. Please try again.'
+                ], 500);
+            }
+
+            return redirect()->back()->with('error', 'Failed to permanently delete item. Please try again.');
+        }
+    }
+
+    /**
+     * NEW: Get deleted items data for DataTables AJAX
+     */
+    public function getDeletedData(Request $request)
+    {
+        try {
+            $query = Item::onlyTrashed()->select([
+                'id',
+                'epc',
+                'nama_barang',
+                'user_id',
+                'status',
+                'created_at',
+                'updated_at',
+                'deleted_at'
+            ]);
+
+            return DataTables::of($query)
+                ->addIndexColumn()
+                ->addColumn('deleted_at_formatted', function ($item) {
+                    return $item->deleted_at->format('d M Y, H:i');
+                })
+                ->addColumn('actions', function ($item) {
+                    return '
+                        <div class="btn-group" role="group">
+                            <button type="button" class="btn btn-sm btn-success restore-item" 
+                                    data-item-id="' . $item->id . '" 
+                                    data-item-name="' . e($item->nama_barang) . '"
+                                    title="Restore Item">
+                                <i class="ti ti-arrow-back-up"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-danger force-delete-item" 
+                                    data-item-id="' . $item->id . '" 
+                                    data-item-name="' . e($item->nama_barang) . '"
+                                    title="Permanently Delete">
+                                <i class="ti ti-trash-x"></i>
+                            </button>
+                        </div>';
+                })
+                ->rawColumns(['actions'])
+                ->make(true);
+        } catch (\Exception $e) {
+            Log::error('DataTables Deleted Items Error: ' . $e->getMessage());
+
+            return response()->json([
+                'draw' => intval($request->get('draw')),
+                'recordsTotal' => 0,
+                'recordsFiltered' => 0,
+                'data' => [],
+                'error' => 'Error loading deleted items: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * OPTIMIZED: Get items data for DataTables AJAX with better performance
      */
     public function getData(Request $request)
     {
         try {
+            // HANYA tampilkan item yang tidak di-soft delete
             $query = Item::select([
                 'id',
                 'epc',
@@ -450,14 +603,17 @@ class ItemController extends Controller
                 'updated_at'
             ]);
 
+            // IMPROVED: Add better caching for status-only requests
+            if ($request->get('status_only')) {
+                $query->select(['id', 'status', 'updated_at']);
+            }
+
             return DataTables::of($query)
                 ->addIndexColumn()
                 ->addColumn('status_text', function ($item) {
-                    // Get human-readable status text
                     return $item->status_text;
                 })
                 ->addColumn('status_badge_class', function ($item) {
-                    // Get bootstrap badge class for status
                     return $item->status_badge_class;
                 })
                 ->addColumn('created_at_formatted', function ($item) {
@@ -465,49 +621,44 @@ class ItemController extends Controller
                 })
                 ->addColumn('actions', function ($item) {
                     $editUrl = route('superadmin.items.edit', $item->id);
-                    $deleteUrl = route('superadmin.items.destroy', $item->id);
 
                     $actions = '
-                        <div class="btn-group" role="group">
-                            <a href="' . $editUrl . '" class="btn btn-sm btn-primary">
-                                <i class="ti ti-edit"></i>
-                            </a>';
+                        <div class="d-flex justify-content-center align-items-center">
+                            <div class="dropdown">
+                                <button class="btn btn-actions" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="ti ti-dots-vertical"></i>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end dropdown-menu-actions">
+                                    <li>
+                                        <a class="dropdown-item" href="' . $editUrl . '">
+                                            <i class="ti ti-edit me-2"></i>Edit
+                                        </a>
+                                    </li>';
 
-                    // Add mark as missing button if item is borrowed
                     if ($item->status === 'borrowed') {
                         $actions .= '
-                            <button type="button" class="btn btn-sm btn-warning mark-missing" 
-                                    data-item-id="' . $item->id . '" 
-                                    data-item-name="' . e($item->nama_barang) . '"
-                                    title="Mark as Missing">
-                                <i class="ti ti-alert-triangle"></i>
-                            </button>';
-                    }
-
-                    // Only show delete button if item is not borrowed or missing
-                    if ($item->status !== 'borrowed' && $item->status !== 'missing') {
-                        $actions .= '
-                            <form method="POST" action="' . $deleteUrl . '" style="display: inline;">
-                                ' . csrf_field() . '
-                                ' . method_field('DELETE') . '
-                                <button type="button" class="btn btn-sm btn-danger delete-item" 
-                                        data-item-name="' . e($item->nama_barang) . '">
-                                    <i class="ti ti-trash"></i>
-                                </button>
-                            </form>';
-                    } else {
-                        // Show disabled delete button for borrowed/missing items
-                        $disabledReason = $item->status === 'borrowed' ? 'Cannot delete borrowed item' : 'Cannot delete missing item';
-                        $actions .= '
-                            <button type="button" class="btn btn-sm btn-secondary" disabled 
-                                    title="' . $disabledReason . '">
-                                <i class="ti ti-trash"></i>
-                            </button>';
+                            <li>
+                                <a class="dropdown-item text-warning mark-missing" href="#" 
+                                   data-item-id="' . $item->id . '" 
+                                   data-item-name="' . e($item->nama_barang) . '">
+                                    <i class="ti ti-alert-triangle me-2"></i>Mark as Missing
+                                </a>
+                            </li>';
                     }
 
                     $actions .= '
-                        </div>
-                    ';
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <a class="dropdown-item text-danger delete-item" href="#" 
+                                   data-item-id="' . $item->id . '" 
+                                   data-item-name="' . e($item->nama_barang) . '"
+                                   data-item-status="' . $item->status . '">
+                                    <i class="ti ti-trash me-2"></i>Move to Trash
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>';
 
                     return $actions;
                 })
@@ -522,13 +673,9 @@ class ItemController extends Controller
                     }
                 })
                 ->with([
-                    'stats' => [
-                        'total_items' => Item::count(),
-                        'available_items' => Item::available()->count(),
-                        'borrowed_items' => Item::borrowed()->count(),
-                        'missing_items' => Item::missing()->count(),
-                    ],
-                    'last_db_update' => $this->getLastDatabaseUpdate()
+                    'stats' => $this->getCurrentStats(),
+                    'last_db_update' => $this->getLastDatabaseUpdate(),
+                    'refresh_timestamp' => now()->toISOString() // IMPROVED: Add explicit refresh timestamp
                 ])
                 ->rawColumns(['actions'])
                 ->make(true);
@@ -546,76 +693,7 @@ class ItemController extends Controller
     }
 
     /**
-     * Change item status (for borrowing/returning/marking missing)
-     */
-    public function changeStatus(Request $request, Item $item)
-    {
-        $validated = $request->validate([
-            'status' => 'required|in:available,borrowed,missing,out_of_stock',
-            'user_id' => 'nullable|exists:users,id'
-        ]);
-
-        try {
-            DB::beginTransaction();
-
-            $oldStatus = $item->status;
-
-            // Handle status transitions
-            $updateData = ['status' => $validated['status']];
-
-            // Set user_id based on status
-            if ($validated['status'] === 'borrowed') {
-                if (!isset($validated['user_id'])) {
-                    throw new \Exception('User ID is required when setting status to borrowed.');
-                }
-                $updateData['user_id'] = $validated['user_id'];
-            } else {
-                // For available, missing, or out_of_stock, clear user_id
-                $updateData['user_id'] = null;
-            }
-
-            // Update item
-            $item->update($updateData);
-
-            DB::commit();
-
-            $statusText = match ($validated['status']) {
-                'available' => 'available',
-                'borrowed' => 'borrowed',
-                'missing' => 'missing',
-                'out_of_stock' => 'out of stock'
-            };
-
-            $message = "Item '{$item->nama_barang}' status changed from {$oldStatus} to {$statusText}.";
-
-            return response()->json([
-                'success' => true,
-                'message' => $message,
-                'item' => $item->fresh(),
-                'trigger_refresh' => true // Signal for real-time refresh
-            ]);
-        } catch (ValidationException $e) {
-            DB::rollBack();
-
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage(),
-                'errors' => $e->errors()
-            ], 422);
-        } catch (\Exception $e) {
-            DB::rollBack();
-
-            Log::error('Failed to change item status: ' . $e->getMessage());
-
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage() ?: 'Failed to change item status.'
-            ], 500);
-        }
-    }
-
-    /**
-     * IMPROVED: Check for updates dengan database timestamp detection
+     * OPTIMIZED: Check for updates dengan database timestamp detection
      */
     public function checkUpdates(Request $request)
     {
@@ -624,31 +702,17 @@ class ItemController extends Controller
             $hasUpdates = false;
             $updateInfo = [];
 
-            // NEW: Get latest database update timestamp
             $latestDbUpdate = $this->getLastDatabaseUpdate();
             $currentTime = now()->toISOString();
 
-            // Log untuk debugging
-            Log::info('CheckUpdates called', [
-                'client_last_update' => $clientLastUpdate,
-                'latest_db_update' => $latestDbUpdate,
-                'current_time' => $currentTime
-            ]);
-
-            // Compare client timestamp dengan database timestamp
+            // IMPROVED: Better comparison logic
             if ($latestDbUpdate && $clientLastUpdate) {
                 try {
                     $dbTime = Carbon::parse($latestDbUpdate);
                     $clientTime = Carbon::parse($clientLastUpdate);
 
-                    // Ada update jika database timestamp lebih baru dari client
-                    $hasUpdates = $dbTime->greaterThan($clientTime);
-
-                    Log::info('Database vs Client time comparison', [
-                        'db_time' => $dbTime->toISOString(),
-                        'client_time' => $clientTime->toISOString(),
-                        'has_updates' => $hasUpdates
-                    ]);
+                    // Add a small buffer to avoid false positives (1 second)
+                    $hasUpdates = $dbTime->greaterThan($clientTime->addSecond());
 
                     if ($hasUpdates) {
                         // Get recent changes for context
@@ -676,26 +740,15 @@ class ItemController extends Controller
                     $hasUpdates = false;
                 }
             } elseif ($latestDbUpdate && !$clientLastUpdate) {
-                // Jika client belum ada timestamp, ada update
                 $hasUpdates = true;
-                Log::info('Client has no timestamp, forcing update');
             } else {
-                // Tidak ada update
                 $hasUpdates = false;
-                Log::info('No database update or both empty, no updates');
             }
 
-            // Get stats jika ada update
+            // Get stats hanya jika ada update
             $currentStats = null;
             if ($hasUpdates) {
-                $currentStats = [
-                    'total_items' => Item::count(),
-                    'available_items' => Item::available()->count(),
-                    'borrowed_items' => Item::borrowed()->count(),
-                    'missing_items' => Item::missing()->count(),
-                ];
-
-                Log::info('Database changes detected, sending new stats', $currentStats);
+                $currentStats = $this->getCurrentStats();
             }
 
             return response()->json([
@@ -751,19 +804,15 @@ class ItemController extends Controller
     }
 
     /**
-     * NEW: Get last database update timestamp dari actual database
-     * Ini akan mendeteksi perubahan langsung di database (bukan hanya dari controller)
+     * OPTIMIZED: Get last database update timestamp
      */
     private function getLastDatabaseUpdate()
     {
         try {
-            // Get latest updated_at dari tabel items
+            // HANYA consider item yang tidak di-soft delete
             $latestUpdate = Item::max('updated_at');
-
-            // Get latest created_at juga untuk item baru
             $latestCreated = Item::max('created_at');
 
-            // Ambil yang paling baru
             $latest = null;
             if ($latestUpdate && $latestCreated) {
                 $latest = Carbon::parse($latestUpdate)->greaterThan(Carbon::parse($latestCreated))
@@ -775,15 +824,7 @@ class ItemController extends Controller
                 $latest = $latestCreated;
             }
 
-            $timestamp = $latest ? Carbon::parse($latest)->toISOString() : null;
-
-            Log::info('Database timestamp check', [
-                'latest_updated_at' => $latestUpdate,
-                'latest_created_at' => $latestCreated,
-                'final_timestamp' => $timestamp
-            ]);
-
-            return $timestamp;
+            return $latest ? Carbon::parse($latest)->toISOString() : null;
         } catch (\Exception $e) {
             Log::error('Failed to get database timestamp: ' . $e->getMessage());
             return null;
@@ -791,21 +832,19 @@ class ItemController extends Controller
     }
 
     /**
-     * Force refresh all connected clients
+     * IMPROVED: Force refresh all connected clients
      */
     public function forceRefresh(Request $request)
     {
         try {
-            // Force update dengan mengubah updated_at salah satu item
-            $latestItem = Item::latest('updated_at')->first();
-            if ($latestItem) {
-                $latestItem->touch(); // Update updated_at timestamp
-            }
+            $this->clearStatsCache();
+            $this->updateGlobalTimestamp();
 
             return response()->json([
                 'success' => true,
                 'message' => 'Refresh signal sent to all clients',
-                'timestamp' => $this->getLastDatabaseUpdate()
+                'timestamp' => $this->getLastDatabaseUpdate(),
+                'stats' => $this->getCurrentStats()
             ]);
         } catch (\Exception $e) {
             Log::error('Force refresh error: ' . $e->getMessage());
@@ -818,20 +857,12 @@ class ItemController extends Controller
     }
 
     /**
-     * Get current system stats
+     * OPTIMIZED: Get current system stats with caching
      */
     public function getStats()
     {
         try {
-            $stats = [
-                'total_items' => Item::count(),
-                'available_items' => Item::available()->count(),
-                'borrowed_items' => Item::borrowed()->count(),
-                'missing_items' => Item::missing()->count(),
-                'out_of_stock_items' => Item::outOfStock()->count(),
-                'last_db_update' => $this->getLastDatabaseUpdate(),
-                'timestamp' => now()->toISOString()
-            ];
+            $stats = $this->getCurrentStats();
 
             return response()->json([
                 'success' => true,
@@ -844,6 +875,47 @@ class ItemController extends Controller
                 'success' => false,
                 'message' => 'Failed to get stats'
             ], 500);
+        }
+    }
+
+    /**
+     * HELPER: Get current stats with caching
+     */
+    private function getCurrentStats()
+    {
+        return Cache::remember('items_stats', 30, function () {
+            return [
+                'total_items' => Item::count(),
+                'available_items' => Item::available()->count(),
+                'borrowed_items' => Item::borrowed()->count(),
+                'missing_items' => Item::missing()->count(),
+                'out_of_stock_items' => Item::outOfStock()->count(),
+                'last_db_update' => $this->getLastDatabaseUpdate(),
+                'timestamp' => now()->toISOString()
+            ];
+        });
+    }
+
+    /**
+     * HELPER: Clear stats cache
+     */
+    private function clearStatsCache()
+    {
+        Cache::forget('items_stats');
+        Cache::forget('global_items_timestamp');
+    }
+
+    /**
+     * HELPER: Update global timestamp for immediate refresh
+     */
+    private function updateGlobalTimestamp()
+    {
+        Cache::put('global_items_timestamp', now()->toISOString(), 300); // 5 minutes
+
+        // Optional: Touch a random item to trigger database timestamp update
+        $randomItem = Item::inRandomOrder()->first();
+        if ($randomItem) {
+            $randomItem->touch();
         }
     }
 }
