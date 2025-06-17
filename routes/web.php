@@ -127,11 +127,6 @@ Route::prefix('superadmin')
             Route::get('/data', [UserController::class, 'getData'])->name('data');
             Route::get('/create', [UserController::class, 'create'])->name('create');
             Route::post('/', [UserController::class, 'store'])->name('store');
-            Route::get('/{uuid}', [UserController::class, 'show'])->name('show');
-            Route::get('/{uuid}/edit', [UserController::class, 'edit'])->name('edit');
-            Route::put('/{uuid}', [UserController::class, 'update'])->name('update');
-            Route::delete('/{uuid}', [UserController::class, 'destroy'])->name('destroy');
-
             // AJAX endpoints
             Route::patch('/update-role', [UserController::class, 'updateRole'])->name('update-role');
             Route::post('/{uuid}/unassign-rfid', [UserController::class, 'unassignRfid'])->name('unassign-rfid');
@@ -139,6 +134,10 @@ Route::prefix('superadmin')
             Route::get('/stats', [UserController::class, 'getStats'])->name('stats');
             Route::get('/{uuid}/coin-info', [UserController::class, 'getCoinInfo']);
             Route::post('/{uuid}/sync-koin', [UserController::class, 'syncKoin']);
+            Route::get('/{uuid}', [UserController::class, 'show'])->name('show');
+            Route::get('/{uuid}/edit', [UserController::class, 'edit'])->name('edit');
+            Route::put('/{uuid}', [UserController::class, 'update'])->name('update');
+            Route::delete('/{uuid}', [UserController::class, 'destroy'])->name('destroy');
         });
         // Activity logs routes
         Route::get('/activity-logs', [App\Http\Controllers\SuperAdmin\ActivityLogController::class, 'index'])
@@ -160,12 +159,12 @@ Route::prefix('superadmin')
             Route::get('/stats', [RfidTagController::class, 'getStats'])->name('stats');
             Route::get('/available', [RfidTagController::class, 'getAvailable'])->name('available');
             Route::post('/', [RfidTagController::class, 'store'])->name('store');
+            Route::post('/release/{rfidTag}', [RfidTagController::class, 'releaseFromUser'])->name('release');
+            Route::post('/bulk-status', [RfidTagController::class, 'bulkUpdateStatus'])->name('bulk-status');
             Route::get('/{rfidTag}', [RfidTagController::class, 'show'])->name('show');
             Route::get('/{rfidTag}/edit', [RfidTagController::class, 'edit'])->name('edit');
             Route::put('/{rfidTag}', [RfidTagController::class, 'update'])->name('update');
             Route::delete('/{rfidTag}', [RfidTagController::class, 'destroy'])->name('destroy');
-            Route::post('/release/{rfidTag}', [RfidTagController::class, 'releaseFromUser'])->name('release');
-            Route::post('/bulk-status', [RfidTagController::class, 'bulkUpdateStatus'])->name('bulk-status');
         });
 
         // Items management routes
@@ -173,9 +172,7 @@ Route::prefix('superadmin')
             Route::get('/', [ItemController::class, 'index'])->name('index');
             Route::get('/create', [ItemController::class, 'create'])->name('create');
             Route::post('/', [ItemController::class, 'store'])->name('store');
-            Route::get('/{item}', [ItemController::class, 'show'])->name('show');
-            Route::get('/{item}/edit', [ItemController::class, 'edit'])->name('edit');
-            Route::put('/{item}', [ItemController::class, 'update'])->name('update');
+
 
             // Soft delete (default delete route)
             Route::delete('/{item}', [ItemController::class, 'destroy'])->name('destroy');
@@ -191,11 +188,15 @@ Route::prefix('superadmin')
             // Status and validation endpoints
             Route::post('/{item}/change-status', [ItemController::class, 'changeStatus'])->name('change-status');
             Route::get('/check-epc', [ItemController::class, 'checkEpc'])->name('check-epc');
+            Route::get('/check-updates', [ItemController::class, 'checkUpdates'])->name('check-updates');
 
             // Real-time endpoints
-            Route::get('/check-updates', [ItemController::class, 'checkUpdates'])->name('check-updates');
             Route::post('/force-refresh', [ItemController::class, 'forceRefresh'])->name('force-refresh');
             Route::get('/stats', [ItemController::class, 'getStats'])->name('stats');
+
+            Route::get('/{item}', [ItemController::class, 'show'])->name('show');
+            Route::get('/{item}/edit', [ItemController::class, 'edit'])->name('edit');
+            Route::put('/{item}', [ItemController::class, 'update'])->name('update');
         });
 
         Route::prefix('log_peminjaman')->name('log_peminjaman.')->group(function () {
@@ -212,8 +213,7 @@ Route::prefix('superadmin')
             Route::get('/', [App\Http\Controllers\SuperAdmin\MissingToolsController::class, 'index'])->name('index');
             // Get missing tools data for DataTables AJAX
             Route::get('/data', [App\Http\Controllers\SuperAdmin\MissingToolsController::class, 'getData'])->name('data');
-            // Show missing tool details
-            Route::get('/{id}', [App\Http\Controllers\SuperAdmin\MissingToolsController::class, 'show'])->name('show');
+
             // Mark item as missing (called from Items management)
             Route::post('/mark-missing/{itemId}', [App\Http\Controllers\SuperAdmin\MissingToolsController::class, 'markAsMissing'])->name('mark-missing');
             // Reclaim missing tool (mark as completed)
@@ -222,6 +222,8 @@ Route::prefix('superadmin')
             Route::post('/{id}/cancel', [App\Http\Controllers\SuperAdmin\MissingToolsController::class, 'cancelMissingTool'])->name('cancel');
             // Get all missing tools (API endpoint)
             Route::get('/api/all', [App\Http\Controllers\SuperAdmin\MissingToolsController::class, 'getAllMissingTools'])->name('api.all');
+            // Show missing tool details
+            Route::get('/{id}', [App\Http\Controllers\SuperAdmin\MissingToolsController::class, 'show'])->name('show');
         });
 
         Route::prefix('notifications')->name('notifications.')->group(function () {
