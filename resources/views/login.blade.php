@@ -162,36 +162,19 @@
                 signInButton.classList.add('hidden');
                 // console.log(response.credential);
                 // window.location.href = "{{ route('login.google') }}?id_token=" + response.credential;
-                var xhr = new XMLHttpRequest();
-                xhr.open("POST", `/auth/google/callback`, true);
-                xhr.withCredentials = true;
-                xhr.setRequestHeader("Content-Type", "application/json");
-
-                xhr.onload = function() {
-                    if (xhr.status >= 200 && xhr.status < 300) {
-                        alert(xhr.responseURL);
-                        if (xhr.responseURL.indexOf('http://') == 0 && xhr.responseURL.indexOf('localhost') == -1) {
-                            window.location.href = xhr.responseURL.replace('http://', 'https://');
-                        } else {
-
-                            window.location.href = xhr.responseURL;
-                        }
-                    } else {
-                        alert("Request failed: " + xhr.status);
-                        console.error("Error:", xhr.statusText);
-                        buttonLoading.classList.add('hidden');
-                        signInButton.classList.remove('hidden');
-                    }
-                };
-
-                xhr.onerror = function() {
-                    alert("Request error");
-                    console.error("Error:", xhr.statusText);
+                fetch(`${window.location.origin}/auth/google/callback`, {
+                    credentials: 'include',
+                    method: 'POST',
+                    body: JSON.stringify(response)
+                }).then((response) => {
+                    alert(response.url)
+                    window.location.href = response.url;
+                }).catch((error) => {
+                    alert(error)
+                    console.error('Error:', error);
                     buttonLoading.classList.add('hidden');
                     signInButton.classList.remove('hidden');
-                };
-
-                xhr.send(JSON.stringify(response));
+                });
             } else {
                 buttonLoading.classList.add('hidden');
                 signInButton.classList.remove('hidden');
