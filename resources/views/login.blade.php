@@ -165,12 +165,10 @@
                     method: 'POST',
                     body: JSON.stringify(response)
                 }).then((response) => {
-                    if (response.redirected) {
-                        window.location.href = response.url;
-                    } else {
-                        window.location.reload()
-                    }
+                    alert(response.url)
+                    window.location.href = response.url;
                 }).catch((error) => {
+                    alert('error')
                     console.error('Error:', error);
                     buttonLoading.classList.add('hidden');
                     signInButton.classList.remove('hidden');
