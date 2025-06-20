@@ -94,7 +94,7 @@ class AuthController extends Controller
             $client->addScope("email");
             $payload = $client->verifyIdToken($request->credential);
             // return response()->json(['payload' => $payload]);
-            var_dump($payload);
+            // var_dump($payload);
             if ($payload) {
                 $googleUser = $payload;
                 $email = strtolower($googleUser['email']);
@@ -120,15 +120,16 @@ class AuthController extends Controller
 
                 $user->save();
 
-                Auth::login($user);
-                var_dump(Auth::user());
+                Auth::guard("web")->login($user, $remember = true);
+                // var_dump(Auth::user());
                 // Log the activity
                 $this->logActivity($user, $isNewUser ? 'register' : 'login');
 
 
 
 
-                return response()->json(['message' => 'Login berhasil', 'user' => $user]);
+                // return response()->json(['message' => 'Login berhasil', 'user' => $user]);
+                return redirect()->route('superadmin.dashboard.index');
                 // Redirect logic berdasarkan role
                 // if ($user->role === 'guest') {
                 //     // Guest langsung ke dashboard tanpa complete profile
