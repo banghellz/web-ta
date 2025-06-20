@@ -152,6 +152,7 @@ class AuthController extends Controller
                 };
             } else {
                 // Invalid ID token
+                return response()->json(['payload' => $payload]);
             }
         } catch (\Exception $e) {
             return response()->json(['error' => 'Login gagal: ' . $e->getMessage()], 500);
