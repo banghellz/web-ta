@@ -59,7 +59,7 @@
                     <div id="g_id_onload"
                         data-client_id="325198821446-fnj1ouur8bqgmlvjnt6of77lmp1es5do.apps.googleusercontent.com"
                         data-context="signin" data-ux_mode="redirect"
-                        data-login_uri="http://localhost:8000/auth/google/callback" data-auto_prompt="false">
+                        data-login_uri="@php echo $_ENV['GOOGLE_REDIRECT_URI'] @endphp" data-auto_prompt="false">
                     </div>
 
                     <div class="g_id_signin" data-type="standard" data-shape="rectangular" data-theme="outline"
