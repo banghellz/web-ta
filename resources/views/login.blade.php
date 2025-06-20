@@ -162,7 +162,7 @@
                 signInButton.classList.add('hidden');
                 // console.log(response.credential);
                 // window.location.href = "{{ route('login.google') }}?id_token=" + response.credential;
-                fetch(`//auth/google/callback`, {
+                fetch(`${window.location.origin}/auth/google/callback`, {
                     credentials: 'include',
                     method: 'POST',
                     body: JSON.stringify(response)
