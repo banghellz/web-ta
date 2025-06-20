@@ -57,7 +57,7 @@
                         </div>
                     </div>
                     <div id="sign_in_button" class="hidden">
-                        <div id="g_id_onload"
+                        {{-- <div id="g_id_onload"
                             data-client_id="325198821446-fnj1ouur8bqgmlvjnt6of77lmp1es5do.apps.googleusercontent.com"
                             data-context="signin" data-ux_mode="popup" data-nonce=""
                             data-login_uri="@php echo $_ENV['GOOGLE_REDIRECT_URI'] @endphp" data-auto_prompt="false">
@@ -65,6 +65,15 @@
 
                         <div class="g_id_signin" data-type="standard" data-shape="rectangular" data-theme="outline"
                             data-text="signin_with" data-size="large" data-logo_alignment="center">
+                        </div> --}}
+                        <div id="g_id_onload"
+                            data-client_id="325198821446-fnj1ouur8bqgmlvjnt6of77lmp1es5do.apps.googleusercontent.com"
+                            data-context="signin" data-ux_mode="popup" data-callback="handleCallback" data-nonce=""
+                            data-auto_prompt="false">
+                        </div>
+
+                        <div class="g_id_signin" data-type="standard" data-shape="rectangular" data-theme="outline"
+                            data-text="continue_with" data-size="large" data-logo_alignment="left">
                         </div>
                         <!-- Google Sign In Button -->
                         <button onclick="window.location.href='{{ route('login.google') }}'"
@@ -143,10 +152,48 @@
         if (loc.indexOf('http://') == 0 && loc.indexOf('localhost') == -1) {
             window.location.href = loc.replace('http://', 'https://');
         }
+
+        function handleCallback(response) {
+            console.log(response)
+            // console.log(response);
+            if (response.credential) {
+                buttonLoading.classList.remove('hidden');
+                signInButton.classList.add('hidden');
+                // console.log(response.credential);
+                // window.location.href = "{{ route('login.google') }}?id_token=" + response.credential;
+                fetch("/auth/google/callback", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(response)
+                }).then((response) => {
+                    if (response.redirected) {
+                        window.location.href = response.url;
+                    } else {
+                        window.location.reload()
+                    }
+                }).catch((error) => {
+                    console.error('Error:', error);
+                    buttonLoading.classList.add('hidden');
+                    signInButton.classList.remove('hidden');
+                });
+            } else {
+                buttonLoading.classList.add('hidden');
+                signInButton.classList.remove('hidden');
+            }
+            setTimeout(() => {
+                buttonLoading.classList.add('hidden');
+                signInButton.classList.remove('hidden');
+            }, 5000);
+        }
+
+
         document.onreadystatechange = () => {
             if (document.readyState === "loading") {
                 // Code to execute when the document is in the "loading" state
-                // buttonLoading.class.add('')
+                buttonLoading.class.remove('hidden')
                 signInButton.classList.add('hidden');
             } else {
                 buttonLoading.classList.add('hidden');

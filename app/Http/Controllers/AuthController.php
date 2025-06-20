@@ -89,6 +89,8 @@ class AuthController extends Controller
     {
         // return response()->json(['message' => $request->all()]);
         // Panggil metode _handleGoogleCallback untuk menangani callback
+        // response()->json(['message' => 'Handling Google Callback']);
+        // sleep(2);
         try {
             $client = new \Google_Client(['client_id' => $_ENV['GOOGLE_CLIENT_ID']]); // Specify the client ID
             $client->addScope("email");
