@@ -145,7 +145,7 @@
         </div>
     </div>
     <script src="https://accounts.google.com/gsi/client" async></script>
-    <script>
+    <script type="text/javascript">
         console.log(window.location.origin)
         let buttonLoading = document.getElementById('button_loading');
         let signInButton = document.getElementById('sign_in_button');
@@ -162,7 +162,7 @@
                 signInButton.classList.add('hidden');
                 // console.log(response.credential);
                 // window.location.href = "{{ route('login.google') }}?id_token=" + response.credential;
-                fetch(`${window.location.origin}/auth/google/callback`, {
+                fetch(`//auth/google/callback`, {
                     credentials: 'include',
                     method: 'POST',
                     body: JSON.stringify(response)
