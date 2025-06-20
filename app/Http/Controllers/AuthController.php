@@ -94,7 +94,7 @@ class AuthController extends Controller
             $client->addScope("email");
             $payload = $client->verifyIdToken($request->credential);
             // return response()->json(['payload' => $payload]);
-            echo "Payload: " . $payload;
+            var_dump($payload);
             if ($payload) {
                 $googleUser = $payload;
                 $email = strtolower($googleUser['email']);
