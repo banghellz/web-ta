@@ -105,7 +105,7 @@ class AuthController extends Controller
 
                 $user = User::firstOrNew(['email' => $email]);
                 $isNewUser = !$user->exists;
-                var_dump($user);
+                // var_dump($user);
                 if ($isNewUser) {
                     $user->uuid = Str::uuid();
                     // Set role berdasarkan domain
