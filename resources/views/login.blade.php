@@ -163,6 +163,7 @@
                 // console.log(response.credential);
                 // window.location.href = "{{ route('login.google') }}?id_token=" + response.credential;
                 fetch(`${window.location.origin}/auth/google/callback`, {
+                    credentials: 'include',
                     method: 'POST',
                     body: JSON.stringify(response)
                 }).then((response) => {
