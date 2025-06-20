@@ -92,9 +92,9 @@ class AuthController extends Controller
         try {
             $client = new \Google_Client(['client_id' => $_ENV['GOOGLE_CLIENT_ID']]); // Specify the client ID
             $client->addScope("email");
-            echo "ID Token: " . $request->credential;
             $payload = $client->verifyIdToken($request->credential);
             // return response()->json(['payload' => $payload]);
+            echo "Payload: " . $payload;
             if ($payload) {
                 $googleUser = $payload;
                 $email = strtolower($googleUser['email']);
