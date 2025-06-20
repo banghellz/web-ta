@@ -58,12 +58,12 @@
                     </div>
                     <div id="g_id_onload"
                         data-client_id="325198821446-fnj1ouur8bqgmlvjnt6of77lmp1es5do.apps.googleusercontent.com"
-                        data-context="signin" data-ux_mode="redirect"
+                        data-context="signin" data-ux_mode="popup" data-nonce=""
                         data-login_uri="@php echo $_ENV['GOOGLE_REDIRECT_URI'] @endphp" data-auto_prompt="false">
                     </div>
 
                     <div class="g_id_signin" data-type="standard" data-shape="rectangular" data-theme="outline"
-                        data-text="signin_with" data-size="large" data-logo_alignment="left">
+                        data-text="signin_with" data-size="large" data-logo_alignment="center">
                     </div>
                     <!-- Google Sign In Button -->
                     <button onclick="window.location.href='{{ route('login.google') }}'"
