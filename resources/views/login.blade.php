@@ -163,10 +163,6 @@
                 // window.location.href = "{{ route('login.google') }}?id_token=" + response.credential;
                 fetch("/auth/google/callback", {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    },
                     body: JSON.stringify(response)
                 }).then((response) => {
                     if (response.redirected) {
