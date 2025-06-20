@@ -17,13 +17,13 @@ class AuthController extends Controller
 
     public function redirectToGoogle()
     {
-        return Socialite::driver('google')->redirect();
+        return Socialite::driver('google')->redirect($_ENV['GOOGLE_REDIRECT_URI']);
     }
 
     public function handleGoogleCallback(Request $request)
     {
         try {
-            $googleUser = Socialite::driver('google')->user();
+            $googleUser = Socialite::driver('google')->redirectUrl($_ENV['GOOGLE_REDIRECT_URI'])->stateless()->user();;
             $email = strtolower($googleUser->email);
 
             // Cek domain email
