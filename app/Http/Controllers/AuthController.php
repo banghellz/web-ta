@@ -128,30 +128,30 @@ class AuthController extends Controller
 
 
 
-
+                return response()->json(['message' => 'Login berhasil', 'user' => $user]);
                 // Redirect logic berdasarkan role
-                if ($user->role === 'guest') {
-                    // Guest langsung ke dashboard tanpa complete profile
-                    return redirect()->route('guest.dashboard.index');
-                }
+                // if ($user->role === 'guest') {
+                //     // Guest langsung ke dashboard tanpa complete profile
+                //     return redirect()->route('guest.dashboard.index');
+                // }
 
-                // Untuk user dengan domain yang diizinkan
-                if ($user->role === 'user' && !$user->detail) {
-                    // Jika NIM berhasil diekstrak, tambahkan ke session untuk digunakan di form
-                    if ($nim) {
-                        session(['extracted_nim' => $nim]);
-                    }
-                    return redirect()->route('user.complete-profile');
-                }
+                // // Untuk user dengan domain yang diizinkan
+                // if ($user->role === 'user' && !$user->detail) {
+                //     // Jika NIM berhasil diekstrak, tambahkan ke session untuk digunakan di form
+                //     if ($nim) {
+                //         session(['extracted_nim' => $nim]);
+                //     }
+                //     return redirect()->route('user.complete-profile');
+                // }
 
-                // Redirect berdasarkan role dengan nama route
-                return match ($user->role) {
-                    'superadmin' => redirect()->route('superadmin.dashboard.index'),
-                    'admin' => redirect()->route('admin.dashboard.index'),
-                    'user' => redirect()->route('user.dashboard.index'),
-                    'guest' => redirect()->route('guest.dashboard.index'),
-                    default => redirect()->route('user.dashboard.index'),
-                };
+                // // Redirect berdasarkan role dengan nama route
+                // return match ($user->role) {
+                //     'superadmin' => redirect()->route('superadmin.dashboard.index'),
+                //     'admin' => redirect()->route('admin.dashboard.index'),
+                //     'user' => redirect()->route('user.dashboard.index'),
+                //     'guest' => redirect()->route('guest.dashboard.index'),
+                //     default => redirect()->route('user.dashboard.index'),
+                // };
             } else {
                 // Invalid ID token
                 return response()->json(['payload' => $payload]);
