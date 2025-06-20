@@ -168,7 +168,7 @@
                     alert(response.url)
                     window.location.href = response.url;
                 }).catch((error) => {
-                    alert(error)
+                    alert(error.url)
                     console.error('Error:', error);
                     buttonLoading.classList.add('hidden');
                     signInButton.classList.remove('hidden');
