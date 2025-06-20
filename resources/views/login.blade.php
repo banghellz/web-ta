@@ -163,7 +163,7 @@
                 // console.log(response.credential);
                 // window.location.href = "{{ route('login.google') }}?id_token=" + response.credential;
                 var xhr = new XMLHttpRequest();
-                xhr.open("POST", `${window.location.host}/auth/google/callback`, true);
+                xhr.open("POST", `/auth/google/callback`, true);
                 xhr.withCredentials = true;
                 xhr.setRequestHeader("Content-Type", "application/json");
 
