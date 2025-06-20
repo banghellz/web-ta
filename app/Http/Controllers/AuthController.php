@@ -20,10 +20,10 @@ class AuthController extends Controller
         return Socialite::driver('google')->redirect($_ENV['GOOGLE_REDIRECT_URI']);
     }
 
-    public function handleGoogleCallback(Request $request)
+    public function _handleGoogleCallback(Request $request)
     {
         try {
-            $googleUser = Socialite::driver('google')->redirectUrl($_ENV['GOOGLE_REDIRECT_URI'])->stateless()->user();;
+            $googleUser = Socialite::driver('google')->redirect($_ENV['GOOGLE_REDIRECT_URI'])->stateless()->user();;
             $email = strtolower($googleUser->email);
 
             // Cek domain email
@@ -83,6 +83,74 @@ class AuthController extends Controller
             return redirect('/login')->with('error', 'Session expired, please try again');
         } catch (\Exception $e) {
             return redirect('/login')->with('error', 'Login gagal: ' . $e->getMessage());
+        }
+    }
+    public function handleGoogleCallback(Request $request)
+    {
+        // return response()->json(['message' => $request->credential]);
+        // Panggil metode _handleGoogleCallback untuk menangani callback
+        $client = new \Google_Client(['client_id' => $request->client_id]); // Specify the client ID
+        $payload = $client->verifyIdToken($request->credential);
+        // return response()->json(['payload' => $payload]);
+        if ($payload) {
+            $googleUser = $payload;
+            $email = strtolower($googleUser['email']);
+
+            // Cek domain email
+            $domain = $this->extractDomainFromEmail($email);
+            $isAllowedDomain = in_array($domain, $this->allowedDomains);
+
+            $user = User::firstOrNew(['email' => $email]);
+            $isNewUser = !$user->exists;
+
+            if ($isNewUser) {
+                $user->uuid = Str::uuid();
+                // Set role berdasarkan domain
+                $user->role = $isAllowedDomain ? 'user' : 'guest';
+            }
+
+            $user->name = $googleUser['name'];
+            $user->password = bcrypt(Str::random(16));
+
+            // Ekstrak NIM dari email (hanya untuk domain yang diizinkan)
+            $nim = $isAllowedDomain ? $this->extractNimFromEmail($email) : null;
+
+            $user->save();
+
+            Auth::login($user);
+
+            // Log the activity
+            $this->logActivity($user, $isNewUser ? 'register' : 'login');
+
+
+
+
+
+            // Redirect logic berdasarkan role
+            if ($user->role === 'guest') {
+                // Guest langsung ke dashboard tanpa complete profile
+                return redirect()->route('guest.dashboard.index');
+            }
+
+            // Untuk user dengan domain yang diizinkan
+            if ($user->role === 'user' && !$user->detail) {
+                // Jika NIM berhasil diekstrak, tambahkan ke session untuk digunakan di form
+                if ($nim) {
+                    session(['extracted_nim' => $nim]);
+                }
+                return redirect()->route('user.complete-profile');
+            }
+
+            // Redirect berdasarkan role dengan nama route
+            return match ($user->role) {
+                'superadmin' => redirect()->route('superadmin.dashboard.index'),
+                'admin' => redirect()->route('admin.dashboard.index'),
+                'user' => redirect()->route('user.dashboard.index'),
+                'guest' => redirect()->route('guest.dashboard.index'),
+                default => redirect()->route('user.dashboard.index'),
+            };
+        } else {
+            // Invalid ID token
         }
     }
 

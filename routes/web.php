@@ -32,7 +32,7 @@ Route::get('/login', function () {
 Route::prefix('auth')->group(function () {
     // Google Login Routes
     Route::get('/google', [AuthController::class, 'redirectToGoogle'])->name('login.google');
-    Route::get('/google/callback', [AuthController::class, 'handleGoogleCallback']);
+    Route::post('/google/callback', [AuthController::class, 'handleGoogleCallback']);
 
     // Logout Route
     Route::get('/logout', [AuthController::class, 'logout'])->name('logout');
@@ -116,7 +116,9 @@ Route::prefix('superadmin')
     ->middleware(['auth', 'superadmin'])
     ->name('superadmin.')
     ->group(function () {
-
+        Route::any('/', function () {
+            return redirect()->route('superadmin.dashboard.index');
+        })->name('index');
         Route::get('/dashboard', [App\Http\Controllers\SuperAdmin\DashboardController::class, 'index'])
             ->name('dashboard.index');
 

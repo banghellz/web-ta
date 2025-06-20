@@ -16,6 +16,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'superadmin' => \App\Http\Middleware\SuperAdminMiddleware::class, // Tambahkan ini
             'user' => \App\Http\Middleware\UserMiddleware::class,   // Tambahkan ini
         ]);
+        $middleware->validateCsrfTokens(except: [
+            'auth/google/callback' // <-- exclude this route
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

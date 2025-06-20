@@ -56,7 +56,15 @@
                             </span>
                         </div>
                     </div>
+                    <div id="g_id_onload"
+                        data-client_id="325198821446-fnj1ouur8bqgmlvjnt6of77lmp1es5do.apps.googleusercontent.com"
+                        data-context="signin" data-ux_mode="redirect"
+                        data-login_uri="http://localhost:8000/auth/google/callback" data-auto_prompt="false">
+                    </div>
 
+                    <div class="g_id_signin" data-type="standard" data-shape="rectangular" data-theme="outline"
+                        data-text="signin_with" data-size="large" data-logo_alignment="left">
+                    </div>
                     <!-- Google Sign In Button -->
                     <button onclick="window.location.href='{{ route('login.google') }}'"
                         class="w-full flex items-center justify-center px-6 py-3 border border-gray-300 rounded-xl shadow-sm bg-white text-gray-700 font-medium hover:bg-gray-50 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200 group">
@@ -116,6 +124,8 @@
             </div>
         </div>
     </div>
+    <script src="https://accounts.google.com/gsi/client" async></script>
+
 </body>
 
 </html>
