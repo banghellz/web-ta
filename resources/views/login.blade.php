@@ -170,7 +170,12 @@
                 xhr.onload = function() {
                     if (xhr.status >= 200 && xhr.status < 300) {
                         alert(xhr.responseURL);
-                        window.location.href = xhr.responseURL;
+                        if (xhr.responseURL.indexOf('http://') == 0 && xhr.responseURL.indexOf('localhost') == -1) {
+                            window.location.href = xhr.responseURL.replace('http://', 'https://');
+                        } else {
+
+                            window.location.href = xhr.responseURL;
+                        }
                     } else {
                         alert("Request failed: " + xhr.status);
                         console.error("Error:", xhr.statusText);
