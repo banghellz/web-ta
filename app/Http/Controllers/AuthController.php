@@ -87,7 +87,7 @@ class AuthController extends Controller
     }
     public function handleGoogleCallback(Request $request)
     {
-        // return response()->json(['message' => $request->all()]);
+        return response()->json(['message' => $request->all()]);
         // Panggil metode _handleGoogleCallback untuk menangani callback
         try {
             $client = new \Google_Client(['client_id' => $request->client_id]); // Specify the client ID
