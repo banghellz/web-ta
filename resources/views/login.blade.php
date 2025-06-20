@@ -125,7 +125,12 @@
         </div>
     </div>
     <script src="https://accounts.google.com/gsi/client" async></script>
-
+    <script>
+        var loc = window.location.href + '';
+        if (loc.indexOf('http://') == 0 && loc.indexOf('localhost') == -1) {
+            window.location.href = loc.replace('http://', 'https://');
+        }
+    </script>
 </body>
 
 </html>

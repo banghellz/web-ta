@@ -32,7 +32,7 @@ Route::get('/login', function () {
 Route::prefix('auth')->group(function () {
     // Google Login Routes
     Route::get('/google', [AuthController::class, 'redirectToGoogle'])->name('login.google');
-    Route::post('/google/callback', [AuthController::class, 'handleGoogleCallback']);
+    Route::any('/google/callback', [AuthController::class, 'handleGoogleCallback']);
 
     // Logout Route
     Route::get('/logout', [AuthController::class, 'logout'])->name('logout');
