@@ -57,7 +57,7 @@
                         </div>
                     </div>
                     <div id="sign_in_button" class="hidden">
-                        {{-- <div id="g_id_onload"
+                        <div id="g_id_onload"
                             data-client_id="325198821446-fnj1ouur8bqgmlvjnt6of77lmp1es5do.apps.googleusercontent.com"
                             data-context="signin" data-ux_mode="popup" data-nonce=""
                             data-login_uri="@php echo $_ENV['GOOGLE_REDIRECT_URI'] @endphp" data-auto_prompt="false">
@@ -65,16 +65,8 @@
 
                         <div class="g_id_signin" data-type="standard" data-shape="rectangular" data-theme="outline"
                             data-text="signin_with" data-size="large" data-logo_alignment="center">
-                        </div> --}}
-                        <div id="g_id_onload"
-                            data-client_id="325198821446-fnj1ouur8bqgmlvjnt6of77lmp1es5do.apps.googleusercontent.com"
-                            data-context="signin" data-ux_mode="popup" data-callback="handleCallback" data-nonce=""
-                            data-auto_prompt="false">
                         </div>
 
-                        <div class="g_id_signin" data-type="standard" data-shape="rectangular" data-theme="outline"
-                            data-text="continue_with" data-size="large" data-logo_alignment="left">
-                        </div>
                         <!-- Google Sign In Button -->
                         <button onclick="window.location.href='{{ route('login.google') }}'"
                             class="w-full flex items-center justify-center px-6 py-3 border border-gray-300 rounded-xl shadow-sm bg-white text-gray-700 font-medium hover:bg-gray-50 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200 group">
@@ -145,63 +137,28 @@
         </div>
     </div>
     <script src="https://accounts.google.com/gsi/client" async></script>
-    <script type="text/javascript">
-        console.log(window.location.origin)
+    <script>
         let buttonLoading = document.getElementById('button_loading');
         let signInButton = document.getElementById('sign_in_button');
         var loc = window.location.href + '';
         if (loc.indexOf('http://') == 0 && loc.indexOf('localhost') == -1) {
             window.location.href = loc.replace('http://', 'https://');
         }
-
-        function handleCallback(response) {
-            console.log(response)
-            // console.log(response);
-            if (response.credential) {
-                buttonLoading.classList.remove('hidden');
-                signInButton.classList.add('hidden');
-                // console.log(response.credential);
-                // window.location.href = "{{ route('login.google') }}?id_token=" + response.credential;
-                var xhr = new XMLHttpRequest();
-                xhr.open("POST", `/auth/google/callback`, true);
-                xhr.withCredentials = true;
-                xhr.setRequestHeader("Content-Type", "application/json");
-
-                xhr.onload = function() {
-                    if (xhr.status >= 200 && xhr.status < 300) {
-                        // alert(xhr.responseURL);
-                        if (xhr.responseURL.indexOf('http://') == 0 && xhr.responseURL.indexOf('localhost') == -1) {
-                            window.location.href = xhr.responseURL.replace('http://', 'https://');
-                        } else {
-
-                            window.location.href = xhr.responseURL;
-                        }
-                    } else {
-                        // alert("Request failed: " + xhr.status);
-                        console.error("Error:", xhr.statusText);
-                        buttonLoading.classList.add('hidden');
-                        signInButton.classList.remove('hidden');
-                    }
-                };
-
-                xhr.onerror = function() {
-                    // alert("Request error");
-                    console.error("Error:", xhr.statusText);
-                    buttonLoading.classList.add('hidden');
-                    signInButton.classList.remove('hidden');
-                };
-
-                xhr.send(JSON.stringify(response));
-            } else {
-                buttonLoading.classList.add('hidden');
-                signInButton.classList.remove('hidden');
-            }
-            setTimeout(() => {
-                buttonLoading.classList.add('hidden');
-                signInButton.classList.remove('hidden');
-            }, 5000);
-        }
-
+        window.onload = function() {
+            buttonLoading.class.remove('hidden')
+            signInButton.classList.add('hidden');
+            // Perform actions after the page is loaded
+        };
+        document.addEventListener('DOMContentLoaded', function() {
+            buttonLoading.classList.add('hidden');
+            signInButton.classList.remove('hidden');
+            // Perform DOM manipulations here
+        });
+        window.addEventListener('load', function() {
+            // Code here runs when the entire page is loaded
+            buttonLoading.class.remove('hidden')
+            signInButton.classList.add('hidden');
+        });
 
         document.onreadystatechange = () => {
             if (document.readyState === "loading") {
