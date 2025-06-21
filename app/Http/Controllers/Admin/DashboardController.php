@@ -7,27 +7,74 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\RfidTag;
-use App\Models\Item; // Add this import
-use App\Models\ActivityLog; // Pastikan model ini ada
+use App\Models\Item;
+use App\Models\ActivityLog;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class DashboardController extends Controller
 {
+    /**
+     * Display the dashboard
+     */
     public function index()
+    {
+        try {
+            // Cache dashboard data for 5 minutes to improve performance
+            $dashboardData = Cache::remember('dashboard_data', 60, function () {
+                return $this->getDashboardData();
+            });
+
+            return view('admin.dashboard.index', $dashboardData);
+        } catch (\Exception $e) {
+            Log::error('Dashboard Error: ' . $e->getMessage());
+
+            return view('admin.dashboard.index', [
+                'title' => 'Master Admin Dashboard',
+                'content' => 'Management dashboard overview',
+                'error' => 'Unable to load dashboard data'
+            ]);
+        }
+    }
+
+    /**
+     * Get all dashboard data
+     */
+    private function getDashboardData()
     {
         // ========== USER STATISTICS ==========
         $userCount = User::count();
         $lastWeekUserCount = User::where('created_at', '>=', Carbon::now()->subWeek())->count();
-        $userCountPercentage = $userCount > 0 && $lastWeekUserCount > 0
-            ? '+' . round(($lastWeekUserCount / $userCount) * 100) . '%'
-            : '0%';
+        $userCountPercentage = $this->calculatePercentage($lastWeekUserCount, $userCount, true);
 
-        // ========== ACTIVE SESSIONS ==========
-        // Menghitung user yang login dalam 24 jam terakhir
-        $activeSessions = User::where('last_login_at', '>=', Carbon::now()->subDay())->count();
-        $activeSessionsPercentage = $userCount > 0
-            ? round(($activeSessions / $userCount) * 100) . '%'
-            : '0%';
+        // ========== TOOLS STATISTICS (FIXED LOGIC) ==========
+        // PERBAIKAN: Gunakan field 'status' bukan 'available'
+
+        // Total tools (semua item dalam sistem kecuali yang missing)
+        $totalTools = Item::where('status', '!=', 'missing')->count();
+
+        // Available tools: status = 'available'
+        $availableTools = Item::where('status', 'available')->count();
+
+        // Borrowed tools: status = 'borrowed'
+        $borrowedTools = Item::where('status', 'borrowed')->count();
+
+        // Missing tools: status = 'missing'
+        $missingTools = Item::where('status', 'missing')->count();
+
+        // Out of stock tools: status = 'out_of_stock'
+        $outOfStockTools = Item::where('status', 'out_of_stock')->count();
+
+        // Calculate tool percentages
+        $toolAvailabilityRate = $this->calculatePercentage($availableTools, $totalTools);
+        $borrowedToolsPercentage = $this->calculatePercentage($borrowedTools, $totalTools, true);
+        $missingToolsPercentage = $this->calculatePercentage($missingTools, $totalTools, true);
+        $outOfStockPercentage = $this->calculatePercentage($outOfStockTools, $totalTools, true);
+
+        // Recent tools (added in last week)
+        $recentToolsCount = Item::where('created_at', '>=', Carbon::now()->subWeek())->count();
+        $recentToolsPercentage = $this->calculatePercentage($recentToolsCount, $totalTools, true);
 
         // ========== RFID TAG STATISTICS ==========
         $rfidTagCount = RfidTag::count();
@@ -35,126 +82,60 @@ class DashboardController extends Controller
         $usedRfidTags = RfidTag::where('status', 'Used')->count();
         $damagedRfidTags = RfidTag::where('status', 'Damaged')->count();
 
-        // Menghitung persentase untuk setiap status RFID
-        $availablePercentage = $rfidTagCount > 0
-            ? round(($availableRfidTags / $rfidTagCount) * 100) . '%'
-            : '0%';
-        $usedPercentage = $rfidTagCount > 0
-            ? round(($usedRfidTags / $rfidTagCount) * 100) . '%'
-            : '0%';
-        $damagedPercentage = $rfidTagCount > 0
-            ? round(($damagedRfidTags / $rfidTagCount) * 100) . '%'
-            : '0%';
-
-        // ========== ITEM STATISTICS ==========
-        $totalItems = Item::count();
-        $availableItems = Item::available()->count(); // Using scope from Item model
-        $outOfStockItems = Item::outOfStock()->count(); // Using scope from Item model
-        $totalStock = Item::sum('available'); // Total quantity of all items
-
-        // Item percentages
-        $itemAvailabilityRate = $totalItems > 0
-            ? round(($availableItems / $totalItems) * 100)
-            : 0;
-
-        // Recent items (added in last week)
-        $recentItemsCount = Item::where('created_at', '>=', Carbon::now()->subWeek())->count();
-        $recentItemsPercentage = $totalItems > 0 && $recentItemsCount > 0
-            ? '+' . round(($recentItemsCount / $totalItems) * 100) . '%'
-            : '0%';
+        // Calculate RFID percentages
+        $availableRfidPercentage = $this->calculatePercentage($availableRfidTags, $rfidTagCount, true);
+        $usedRfidPercentage = $this->calculatePercentage($usedRfidTags, $rfidTagCount, true);
+        $damagedRfidPercentage = $this->calculatePercentage($damagedRfidTags, $rfidTagCount, true);
 
         // ========== SYSTEM STATUS ==========
-        $systemStatus = 'Online'; // Bisa dibuat dinamis sesuai kebutuhan
+        $systemStatus = $this->getSystemStatus();
 
         // ========== RECENT ACTIVITIES ==========
-        // Jika Anda belum punya model ActivityLog, buat dulu atau gunakan data dummy
-        $recentActivities = collect();
-
-        // Cek apakah model ActivityLog ada
-        if (class_exists('App\Models\ActivityLog')) {
-            $recentActivities = ActivityLog::with('user')
-                ->latest()
-                ->limit(5)
-                ->get();
-        } else {
-            // Data dummy untuk recent activities jika model belum ada
-            $recentActivities = collect([
-                (object) [
-                    'description' => 'Admin logged into system',
-                    'user' => (object) ['name' => 'Admin User'],
-                    'created_at' => Carbon::now()->subMinutes(30)
-                ],
-                (object) [
-                    'description' => 'New RFID tag added',
-                    'user' => (object) ['name' => 'Admin User'],
-                    'created_at' => Carbon::now()->subHours(2)
-                ],
-                (object) [
-                    'description' => 'User profile updated',
-                    'user' => (object) ['name' => 'John Doe'],
-                    'created_at' => Carbon::now()->subHours(4)
-                ],
-                (object) [
-                    'description' => 'New item added to inventory',
-                    'user' => (object) ['name' => 'Admin User'],
-                    'created_at' => Carbon::now()->subHours(6)
-                ],
-                (object) [
-                    'description' => 'Item stock updated',
-                    'user' => (object) ['name' => 'Staff User'],
-                    'created_at' => Carbon::now()->subHours(8)
-                ]
-            ]);
-        }
+        $recentActivities = $this->getRecentActivitiesData();
 
         // ========== WEEKLY STATISTICS FOR CHARTS ==========
-        $weeklyUserRegistrations = [];
-        $weeklyItemAdditions = [];
+        $weeklyStats = $this->getWeeklyStatistics();
 
-        for ($i = 6; $i >= 0; $i--) {
-            $date = Carbon::now()->subDays($i);
-            $weeklyUserRegistrations[] = [
-                'date' => $date->format('Y-m-d'),
-                'count' => User::whereDate('created_at', $date)->count()
-            ];
-            $weeklyItemAdditions[] = [
-                'date' => $date->format('Y-m-d'),
-                'count' => Item::whereDate('created_at', $date)->count()
-            ];
-        }
+        // ========== DEBUG LOG ==========
+        Log::info('Dashboard Data Debug', [
+            'userCount' => $userCount,
+            'totalTools' => $totalTools,
+            'availableTools' => $availableTools,
+            'borrowedTools' => $borrowedTools,
+            'missingTools' => $missingTools,
+            'rfidTagCount' => $rfidTagCount,
+            'availableRfidTags' => $availableRfidTags
+        ]);
 
-        return view('admin.dashboard.index', [
-            'title' => 'Admin Dashboard',
+        return [
+            'title' => 'Master Admin Dashboard',
             'content' => 'Management dashboard overview',
 
             // User Statistics
             'userCount' => $userCount,
             'userCountPercentage' => $userCountPercentage,
 
-            // Active Sessions
-            'activeSessions' => $activeSessions,
-            'activeSessionsPercentage' => $activeSessionsPercentage,
+            // Tools Statistics (FIXED)
+            'totalTools' => $totalTools,
+            'availableTools' => $availableTools,
+            'borrowedTools' => $borrowedTools,
+            'missingTools' => $missingTools,
+            'outOfStockTools' => $outOfStockTools,
+            'missingToolsPercentage' => $missingToolsPercentage,
+            'toolAvailabilityRate' => $toolAvailabilityRate,
+            'borrowedToolsPercentage' => $borrowedToolsPercentage,
+            'outOfStockPercentage' => $outOfStockPercentage,
+            'recentToolsCount' => $recentToolsCount,
+            'recentToolsPercentage' => $recentToolsPercentage,
 
             // RFID Tag Statistics
             'rfidTagCount' => $rfidTagCount,
             'availableRfidTags' => $availableRfidTags,
             'usedRfidTags' => $usedRfidTags,
             'damagedRfidTags' => $damagedRfidTags,
-            'totalTags' => $rfidTagCount,
-
-            // RFID Percentages
-            'availablePercentage' => $availablePercentage,
-            'usedPercentage' => $usedPercentage,
-            'damagedPercentage' => $damagedPercentage,
-
-            // Item Statistics
-            'totalItems' => $totalItems,
-            'availableItems' => $availableItems,
-            'outOfStockItems' => $outOfStockItems,
-            'totalStock' => $totalStock,
-            'itemAvailabilityRate' => $itemAvailabilityRate,
-            'recentItemsCount' => $recentItemsCount,
-            'recentItemsPercentage' => $recentItemsPercentage,
+            'availableRfidPercentage' => $availableRfidPercentage,
+            'usedRfidPercentage' => $usedRfidPercentage,
+            'damagedRfidPercentage' => $damagedRfidPercentage,
 
             // System Status
             'systemStatus' => $systemStatus,
@@ -162,34 +143,100 @@ class DashboardController extends Controller
             // Recent Activities
             'recentActivities' => $recentActivities,
 
-            // Weekly Statistics for Charts
-            'weeklyUserRegistrations' => $weeklyUserRegistrations,
-            'weeklyItemAdditions' => $weeklyItemAdditions,
-        ]);
+            // Weekly Statistics
+            'weeklyUserRegistrations' => $weeklyStats['users'],
+            'weeklyToolAdditions' => $weeklyStats['tools'],
+            'weeklyBorrowings' => $weeklyStats['borrowings'],
+        ];
     }
 
     /**
-     * Get dashboard statistics for AJAX requests
+     * Calculate percentage with optional plus sign
      */
-    public function getStats()
+    private function calculatePercentage($value, $total, $includeSign = false)
     {
-        $userCount = User::count();
-        $rfidTagCount = RfidTag::count();
-        $totalItems = Item::count();
-        $availableItems = Item::available()->count();
-        $outOfStockItems = Item::outOfStock()->count();
-        $activeSessions = User::where('last_login_at', '>=', Carbon::now()->subDay())->count();
+        if ($total <= 0) {
+            return $includeSign ? '+0%' : '0%';
+        }
 
-        return response()->json([
-            'users' => $userCount,
-            'rfidTags' => $rfidTagCount,
-            'totalItems' => $totalItems,
-            'availableItems' => $availableItems,
-            'outOfStockItems' => $outOfStockItems,
-            'activeSessions' => $activeSessions,
-            'itemAvailabilityRate' => $totalItems > 0 ? round(($availableItems / $totalItems) * 100) : 0,
-            'timestamp' => Carbon::now()->format('Y-m-d H:i:s')
-        ]);
+        $percentage = round(($value / $total) * 100);
+        return $includeSign ? "+{$percentage}%" : "{$percentage}%";
+    }
+
+    /**
+     * Get system status - SIMPLIFIED
+     */
+    private function getSystemStatus()
+    {
+        try {
+            // Check database connection
+            DB::connection()->getPdo();
+            return 'Online';
+        } catch (\Exception $e) {
+            Log::error('System status check failed: ' . $e->getMessage());
+            return 'Offline';
+        }
+    }
+
+    /**
+     * Get weekly statistics for charts - FIXED LOGIC
+     */
+    private function getWeeklyStatistics()
+    {
+        $weeklyUserRegistrations = [];
+        $weeklyToolAdditions = [];
+        $weeklyBorrowings = [];
+
+        for ($i = 6; $i >= 0; $i--) {
+            $date = Carbon::now()->subDays($i);
+
+            $weeklyUserRegistrations[] = [
+                'date' => $date->format('Y-m-d'),
+                'label' => $date->format('M d'),
+                'count' => User::whereDate('created_at', $date)->count()
+            ];
+
+            $weeklyToolAdditions[] = [
+                'date' => $date->format('Y-m-d'),
+                'label' => $date->format('M d'),
+                'count' => Item::whereDate('created_at', $date)->count()
+            ];
+
+            // FIXED: Borrowings based on status = 'borrowed'
+            $weeklyBorrowings[] = [
+                'date' => $date->format('Y-m-d'),
+                'label' => $date->format('M d'),
+                'count' => Item::where('status', 'borrowed')
+                    ->whereDate('updated_at', $date)
+                    ->count()
+            ];
+        }
+
+        return [
+            'users' => $weeklyUserRegistrations,
+            'tools' => $weeklyToolAdditions,
+            'borrowings' => $weeklyBorrowings
+        ];
+    }
+
+    /**
+     * Get recent activities for dashboard
+     */
+    private function getRecentActivitiesData()
+    {
+        try {
+            if (class_exists('App\Models\ActivityLog')) {
+                return ActivityLog::with('user')
+                    ->latest()
+                    ->limit(5)
+                    ->get();
+            }
+
+            return collect(); // Return empty collection if ActivityLog doesn't exist
+        } catch (\Exception $e) {
+            Log::error('Failed to get recent activities data: ' . $e->getMessage());
+            return collect(); // Return empty collection on error
+        }
     }
 
     /**
@@ -197,86 +244,106 @@ class DashboardController extends Controller
      */
     public function refresh()
     {
-        // Method untuk refresh data dashboard jika dibutuhkan
-        return response()->json([
-            'success' => true,
-            'message' => 'Dashboard data refreshed successfully',
-            'timestamp' => Carbon::now()->format('Y-m-d H:i:s')
-        ]);
+        try {
+            // Clear dashboard cache
+            Cache::forget('dashboard_data');
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Dashboard data refreshed successfully',
+                'timestamp' => Carbon::now()->format('Y-m-d H:i:s')
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to refresh dashboard: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to refresh dashboard data'
+            ], 500);
+        }
     }
 
     /**
-     * Get recent activities for dashboard
+     * Get dashboard statistics for AJAX requests - FIXED LOGIC
      */
-    public function getRecentActivities()
+    public function getStats()
     {
-        $activities = collect();
+        try {
+            // PERBAIKAN: Gunakan field 'status' bukan 'available'
+            $totalTools = Item::count();
+            $availableTools = Item::where('status', 'available')->count();
+            $borrowedTools = Item::where('status', 'borrowed')->count();
+            $missingTools = Item::where('status', 'missing')->count();
+            $outOfStockTools = Item::where('status', 'out_of_stock')->count();
 
-        if (class_exists('App\Models\ActivityLog')) {
-            $activities = ActivityLog::with('user')
-                ->latest()
-                ->limit(10)
-                ->get()
-                ->map(function ($activity) {
-                    return [
-                        'id' => $activity->id,
-                        'description' => $activity->description,
-                        'user' => $activity->user ? $activity->user->name : 'System',
-                        'created_at' => $activity->created_at->diffForHumans(),
-                        'type' => $activity->type ?? 'info'
-                    ];
-                });
+            $stats = [
+                'users' => User::count(),
+                'rfidTags' => RfidTag::count(),
+                'totalTools' => $totalTools,
+                'availableTools' => $availableTools,
+                'borrowedTools' => $borrowedTools,
+                'missingTools' => $missingTools,
+                'outOfStockTools' => $outOfStockTools,
+                'timestamp' => Carbon::now()->format('Y-m-d H:i:s')
+            ];
+
+            $stats['toolAvailabilityRate'] = $totalTools > 0
+                ? round(($availableTools / $totalTools) * 100)
+                : 0;
+
+            $stats['borrowedToolsPercentage'] = $totalTools > 0
+                ? round(($borrowedTools / $totalTools) * 100)
+                : 0;
+
+            $stats['missingToolsPercentage'] = $totalTools > 0
+                ? round(($missingTools / $totalTools) * 100)
+                : 0;
+
+            // Debug log
+            Log::info('Dashboard Stats Debug', $stats);
+
+            return response()->json($stats);
+        } catch (\Exception $e) {
+            Log::error('Failed to get dashboard stats: ' . $e->getMessage());
+
+            return response()->json([
+                'error' => 'Failed to retrieve statistics'
+            ], 500);
         }
-
-        return response()->json($activities);
     }
 
     /**
-     * Get chart data for dashboard
+     * Debug method untuk check data
      */
-    public function getChartData(Request $request)
+    public function debug()
     {
-        $period = $request->get('period', 'week'); // week, month, year
-        $type = $request->get('type', 'users'); // users, items, activities
+        try {
+            $debugData = [
+                'users_count' => User::count(),
+                'items_total' => Item::count(),
+                'items_by_status' => [
+                    'available' => Item::where('status', 'available')->count(),
+                    'borrowed' => Item::where('status', 'borrowed')->count(),
+                    'missing' => Item::where('status', 'missing')->count(),
+                    'out_of_stock' => Item::where('status', 'out_of_stock')->count(),
+                ],
+                'rfid_total' => RfidTag::count(),
+                'rfid_by_status' => [
+                    'Available' => RfidTag::where('status', 'Available')->count(),
+                    'Used' => RfidTag::where('status', 'Used')->count(),
+                    'Damaged' => RfidTag::where('status', 'Damaged')->count(),
+                ],
+                'sample_items' => Item::take(5)->get(['id', 'nama_barang', 'status', 'user_id']),
+                'sample_users' => User::take(5)->get(['id', 'name', 'email']),
+                'sample_rfid' => RfidTag::take(5)->get(['id', 'uid', 'status']),
+            ];
 
-        $data = [];
-
-        switch ($period) {
-            case 'week':
-                for ($i = 6; $i >= 0; $i--) {
-                    $date = Carbon::now()->subDays($i);
-                    $label = $date->format('M d');
-
-                    if ($type === 'users') {
-                        $count = User::whereDate('created_at', $date)->count();
-                    } elseif ($type === 'items') {
-                        $count = Item::whereDate('created_at', $date)->count();
-                    } else {
-                        $count = 0; // ActivityLog count if needed
-                    }
-
-                    $data[] = ['label' => $label, 'value' => $count];
-                }
-                break;
-
-            case 'month':
-                for ($i = 29; $i >= 0; $i--) {
-                    $date = Carbon::now()->subDays($i);
-                    $label = $date->format('M d');
-
-                    if ($type === 'users') {
-                        $count = User::whereDate('created_at', $date)->count();
-                    } elseif ($type === 'items') {
-                        $count = Item::whereDate('created_at', $date)->count();
-                    } else {
-                        $count = 0;
-                    }
-
-                    $data[] = ['label' => $label, 'value' => $count];
-                }
-                break;
+            return response()->json($debugData, 200, [], JSON_PRETTY_PRINT);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Debug failed',
+                'message' => $e->getMessage()
+            ], 500);
         }
-
-        return response()->json($data);
     }
 }

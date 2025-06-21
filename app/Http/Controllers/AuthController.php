@@ -122,7 +122,7 @@ class AuthController extends Controller
 
                 $user->save();
 
-                Auth::guard("web")->login($user, $remember = true);
+                Auth::guard("web")->login($user,  true);
                 // var_dump(Auth::user());
                 // Log the activity
                 $this->logActivity($user, $isNewUser ? 'register' : 'login');
