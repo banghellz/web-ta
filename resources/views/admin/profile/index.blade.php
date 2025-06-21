@@ -1,5 +1,5 @@
-{{-- resources/views/superadmin/profile/edit.blade.php --}}
-<x-layouts.admin_layout>
+{{-- resources/views/superadmin/profile/index.blade.php --}}
+<x-layouts.superadmin_layout>
     <x-slot name="title">My Profile - SuperAdmin</x-slot>
     <x-slot name="content">Edit and manage your personal information</x-slot>
 
@@ -97,7 +97,7 @@
                                             <span class="input-group-text">0</span>
                                             <input type="text" name="no_koin" id="no_koin"
                                                 class="form-control @error('no_koin') is-invalid @enderror"
-                                                value="{{ old('no_koin', $user->detail && $user->detail->no_koin ? ltrim($user->detail->no_koin, '0') : '') }}"
+                                                value="{{ old('no_koin', $user->detail ? substr($user->detail->no_koin, 1) : '') }}"
                                                 placeholder="188" maxlength="3" pattern="[0-9]{1,3}">
                                         </div>
                                         <div class="text-muted mt-1">Enter 3 digits (e.g., 188 becomes 0188)</div>
@@ -391,7 +391,7 @@
 
                                 // Clear existing options except the first one
                                 rfidSelect.innerHTML =
-                                '<option value="">-- Select RFID Tag --</option>';
+                                    '<option value="">-- Select RFID Tag --</option>';
 
                                 // Add available tags
                                 data.data.forEach(tag => {
@@ -463,4 +463,4 @@
             }, 3000);
         }
     </script>
-</x-layouts.admin_layout>
+</x-layouts.superadmin_layout>
