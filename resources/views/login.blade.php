@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ATMI Student Portal - Login</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -120,7 +120,7 @@
                         <div id="g_id_onload"
                             data-client_id="325198821446-fnj1ouur8bqgmlvjnt6of77lmp1es5do.apps.googleusercontent.com"
                             data-context="signin" data-ux_mode="popup" data-callback="handleCredentialResponse"
-                            data-auto_prompt="false">
+                            data-auto_prompt="false" data-itp_support="true">
                         </div>
 
                         <div class="g_id_signin" data-type="standard" data-shape="rectangular" data-theme="outline"
@@ -213,39 +213,36 @@
             // Show processing spinner and hide sign-in button
             showElement(loginProcessing, [signInContainer]);
 
-            // Send credential to your backend
-            fetch('/auth/google/callback', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
-                    },
-                    body: JSON.stringify({
-                        credential: response.credential
-                    })
-                })
-                .then(response => {
-                    if (response.ok) {
-                        return response.json();
-                    }
-                    throw new Error('Login failed');
-                })
-                .then(data => {
-                    console.log('Login successful, redirecting...');
-                    // Keep spinner visible during redirect
-                    if (data.redirect_url) {
-                        window.location.href = data.redirect_url;
-                    } else {
-                        // Fallback redirect
-                        window.location.href = '/dashboard';
-                    }
-                })
-                .catch(error => {
-                    console.error('Login error:', error);
-                    // Show error and return to sign-in button
-                    alert('Login failed. Please try again.');
-                    showElement(signInContainer, [loginProcessing]);
-                });
+            // Create form and submit traditionally (avoid CORS issues)
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '/auth/google/callback';
+            form.style.display = 'none';
+
+            // Add CSRF token
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            if (csrfToken) {
+                const csrfInput = document.createElement('input');
+                csrfInput.type = 'hidden';
+                csrfInput.name = '_token';
+                csrfInput.value = csrfToken;
+                form.appendChild(csrfInput);
+            }
+
+            // Add credential
+            const credentialInput = document.createElement('input');
+            credentialInput.type = 'hidden';
+            credentialInput.name = 'credential';
+            credentialInput.value = response.credential;
+            form.appendChild(credentialInput);
+
+            // Submit form
+            document.body.appendChild(form);
+
+            // Add a small delay to show the spinner
+            setTimeout(() => {
+                form.submit();
+            }, 500);
         }
 
         // Initialize page
@@ -263,13 +260,12 @@
             }, 1000);
         });
 
-        // Handle page visibility change (when user comes back from OAuth popup)
-        document.addEventListener('visibilitychange', function() {
-            if (document.visibilityState === 'visible') {
-                // User came back to the page, but if still processing, keep the spinner
-                if (!loginProcessing.classList.contains('hidden')) {
-                    console.log('User returned to page during login process');
-                }
+        // Handle errors from Google Sign-In
+        window.addEventListener('error', function(e) {
+            console.error('Google Sign-In error:', e);
+            if (e.message && e.message.includes('Cross-Origin-Opener-Policy')) {
+                console.log('COOP error detected, but continuing...');
+                // This error can be safely ignored in most cases
             }
         });
 
@@ -281,15 +277,13 @@
             if (e.target.closest('.g_id_signin') && !isSubmitting) {
                 isSubmitting = true;
                 console.log('Google Sign-In button clicked');
-                // The actual sign-in will be handled by handleCredentialResponse
-            }
-        });
-
-        // Reset submission flag if sign-in is cancelled
-        window.addEventListener('message', function(event) {
-            if (event.data === 'oauth_cancelled') {
-                isSubmitting = false;
-                console.log('OAuth cancelled, resetting state');
+                // Reset after a timeout in case sign-in fails
+                setTimeout(() => {
+                    if (isSubmitting) {
+                        isSubmitting = false;
+                        console.log('Reset submission flag after timeout');
+                    }
+                }, 30000); // 30 seconds timeout
             }
         });
     </script>
