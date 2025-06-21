@@ -13,13 +13,6 @@
                         </h2>
                         <p class="text-muted">Silakan lengkapi data profil untuk melanjutkan</p>
                     </div>
-                    <div class="col-auto ms-auto d-print-none">
-                        <div class="btn-list">
-                            <span class="badge bg-blue-lt">
-                                <i class="ti ti-user me-1"></i>Student
-                            </span>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
@@ -27,12 +20,12 @@
 
     <div class="page-body">
         <div class="container-xl">
-            <div class="row justify-content-center">
-                <div class="col-12 col-lg-8">
+            <div class="row row-cards">
+                <div class="col-12">
                     <div class="card">
                         <div class="card-header">
                             <h3 class="card-title">
-                                <i class="ti ti-forms me-2"></i>Complete Your Profile
+                                <i class="ti ti-forms me-2"></i>Student Profile Information
                             </h3>
                         </div>
 
@@ -61,6 +54,27 @@
                             <form method="POST" action="{{ route('user.complete-profile.store') }}"
                                 enctype="multipart/form-data">
                                 @csrf
+
+                                <!-- Profile Picture Section -->
+                                <div class="mb-4">
+                                    <div class="row">
+                                        <div class="col-auto">
+                                            <span class="avatar avatar-xl mb-3" id="preview-avatar"
+                                                style="background-image: url({{ $userPhoto ?? 'https://www.gravatar.com/avatar/' . md5(auth()->user()->email ?? 'default') }})"></span>
+                                        </div>
+                                        <div class="col">
+                                            <label class="form-label">Profile Photo</label>
+                                            <input type="file" name="pict" id="pict"
+                                                class="form-control @error('pict') is-invalid @enderror"
+                                                accept="image/jpeg,image/png,image/jpg">
+                                            <div class="form-hint">JPG, JPEG, atau PNG. Maksimal 2MB. Foto dari Google
+                                                Account digunakan secara otomatis.</div>
+                                            @error('pict')
+                                                <div class="invalid-feedback">{{ $message }}</div>
+                                            @enderror
+                                        </div>
+                                    </div>
+                                </div>
 
                                 <!-- NIM Field -->
                                 <div class="mb-3">
@@ -118,29 +132,6 @@
                                     @error('prodi')
                                         <div class="invalid-feedback">{{ $message }}</div>
                                     @enderror
-                                </div>
-
-                                <!-- Profile Picture Field -->
-                                <div class="mb-3">
-                                    <label class="form-label required">
-                                        Foto Profil
-                                    </label>
-                                    <div class="row">
-                                        <div class="col-auto">
-                                            <span class="avatar avatar-xl mb-3" id="preview-avatar"
-                                                style="background-image: url({{ $userPhoto ?? 'https://www.gravatar.com/avatar/' . md5(auth()->user()->email ?? 'default') }})"></span>
-                                        </div>
-                                        <div class="col">
-                                            <input type="file" name="pict" id="pict"
-                                                class="form-control @error('pict') is-invalid @enderror"
-                                                accept="image/jpeg,image/png,image/jpg">
-                                            <div class="form-hint">JPG, JPEG, atau PNG. Maksimal 2MB. Foto dari Google
-                                                Account digunakan secara otomatis.</div>
-                                            @error('pict')
-                                                <div class="invalid-feedback">{{ $message }}</div>
-                                            @enderror
-                                        </div>
-                                    </div>
                                 </div>
                         </div>
 

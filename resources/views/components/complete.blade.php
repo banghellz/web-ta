@@ -21,90 +21,18 @@
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
+            background-color: #f8f9fa;
         }
 
         .complete-wrapper {
             min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
             padding: 2rem 1rem;
         }
 
         .complete-container {
             width: 100%;
             max-width: 900px;
-        }
-
-        .complete-card {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border-radius: 1rem;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-
-        .page-header {
-            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
-            border-radius: 1rem 1rem 0 0;
-            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-        }
-
-        .avatar {
-            border: 3px solid rgba(255, 255, 255, 0.8);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        }
-
-        .form-control:focus,
-        .form-select:focus {
-            border-color: #667eea;
-            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border: none;
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-        }
-
-        .btn-primary:hover {
-            background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
-            transform: translateY(-1px);
-            box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
-        }
-
-        .btn-outline-secondary {
-            border-color: rgba(0, 0, 0, 0.1);
-            color: #6c757d;
-        }
-
-        .btn-outline-secondary:hover {
-            background-color: #f8f9fa;
-            border-color: rgba(0, 0, 0, 0.2);
-        }
-
-        .input-group-text {
-            background-color: #f8f9fa;
-            border-color: #dee2e6;
-            color: #6c757d;
-            font-weight: 600;
-        }
-
-        .badge {
-            font-size: 0.75rem;
-            padding: 0.5rem 0.75rem;
-        }
-
-        .alert {
-            border-radius: 0.5rem;
-            border: none;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        .alert-danger {
-            background: linear-gradient(135deg, rgba(220, 53, 69, 0.1) 0%, rgba(220, 53, 69, 0.05) 100%);
+            margin: 0 auto;
         }
 
         /* Enhanced toast styling */
@@ -150,10 +78,8 @@
 
     <div class="complete-wrapper">
         <div class="complete-container">
-            <div class="complete-card">
-                {{ $header }}
-                {{ $slot }}
-            </div>
+            {{ $header }}
+            {{ $slot }}
         </div>
     </div>
 
