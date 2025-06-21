@@ -26,7 +26,7 @@ class UserController extends Controller
         $adminUsers = User::whereIn('role', ['admin', 'superadmin'])->count();
         $guestUsers = User::where('role', 'guest')->count();
 
-        return view('superadmin.users.index', [
+        return view('admin.users.index', [
             'title' => 'User Management',
             'content' => 'Kelola semua user dalam sistem',
             'totalUsers' => $totalUsers,
@@ -52,12 +52,12 @@ class UserController extends Controller
                     '</div>';
             })
             ->addColumn('role_select', function ($user) use ($currentUserId) {
-                $roles = ['guest', 'user', 'admin', 'superadmin'];
+                $roles = ['guest', 'user', 'admin', 'admin'];
                 $roleColors = [
                     'guest' => 'secondary',
                     'user' => 'primary',
                     'admin' => 'warning',
-                    'superadmin' => 'danger'
+                    'admin' => 'danger'
                 ];
 
                 // If this is the current user, disable the select
@@ -86,7 +86,7 @@ class UserController extends Controller
                 return '<div class="text-muted">' . $user->created_at->format('d M Y') . '</div><div class="text-muted small">' . $user->created_at->format('H:i') . '</div>';
             })
             ->addColumn('actions', function ($user) use ($currentUserId) {
-                $editUrl = route('superadmin.users.edit', $user->uuid);
+                $editUrl = route('admin.users.edit', $user->uuid);
                 $isCurrentUser = $user->uuid === $currentUserId;
 
                 $actions = '
@@ -146,7 +146,7 @@ class UserController extends Controller
             ->with([
                 'stats' => [
                     'total_users' => User::count(),
-                    'admin_users' => User::whereIn('role', ['admin', 'superadmin'])->count(),
+                    'admin_users' => User::whereIn('role', ['admin', 'admin'])->count(),
                     'guest_users' => User::where('role', 'guest')->count(),
                 ]
             ])
@@ -158,7 +158,7 @@ class UserController extends Controller
     {
         $request->validate([
             'user_id' => 'required|exists:users,uuid',
-            'role' => 'required|in:guest,user,admin,superadmin'
+            'role' => 'required|in:guest,user,admin,admin'
         ]);
 
         $user = User::where('uuid', $request->user_id)->firstOrFail();
@@ -222,7 +222,7 @@ class UserController extends Controller
                 }
             }
 
-            $html = View::make('superadmin.users.detail-partial', compact('user'))->render();
+            $html = View::make('admin.users.detail-partial', compact('user'))->render();
 
             return response()->json([
                 'success' => true,
@@ -267,7 +267,7 @@ class UserController extends Controller
             }
         }
 
-        return view('superadmin.users.edit', [
+        return view('admin.users.edit', [
             'title' => 'Edit User',
             'content' => 'Edit data user',
             'user' => $user,
@@ -288,7 +288,7 @@ class UserController extends Controller
                 'max:255',
                 Rule::unique('users')->ignore($uuid, 'uuid')
             ],
-            'role' => 'required|in:admin,user,superadmin,guest',
+            'role' => 'required|in:admin,user,admin,guest',
             'nim' => 'nullable|string|max:20',
             'no_koin' => 'nullable|string|max:50',
             'prodi' => 'nullable|string|max:100',
@@ -419,11 +419,11 @@ class UserController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'User data has been updated successfully',
-                'redirect' => route('superadmin.users.index')
+                'redirect' => route('admin.users.index')
             ]);
         }
 
-        return redirect()->route('superadmin.users.index')
+        return redirect()->route('admin.users.index')
             ->with('success', 'User data has been updated successfully');
     }
 
@@ -544,7 +544,7 @@ class UserController extends Controller
             // Check if user is admin
             $adminRoles = [
                 'admin',
-                'superadmin',
+                'admin',
                 'super_admin',
                 'Admin',
                 'SuperAdmin',
@@ -606,7 +606,7 @@ class UserController extends Controller
             // Check if user is admin
             $adminRoles = [
                 'admin',
-                'superadmin',
+                'admin',
                 'super_admin',
                 'Admin',
                 'SuperAdmin',
