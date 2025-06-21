@@ -149,30 +149,17 @@
                     <h3 class="card-title">Items List</h3>
                     <!-- Simplified status indicators -->
                     <div class="card-actions">
-                        <div class="row g-2 align-items-center">
-                            <div class="col">
-                                <div class="input-group">
-                                    <span class="input-group-text">
-                                        <i class="ti ti-filter"></i>
-                                    </span>
-                                    <select id="status-filter" class="form-select">
-                                        <option value="">All Status</option>
-                                        <option value="available">Available</option>
-                                        <option value="borrowed">Borrowed</option>
-                                        <option value="missing">Missing</option>
-                                        <option value="out_of_stock">Out of Stock</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <!-- Simplified Connection Status Indicator -->
-                            <div class="col-auto">
-                                <div id="connection-status" class="d-flex align-items-center">
-                                    <div id="connection-indicator" class="bg-success rounded-circle me-2"
-                                        style="width: 8px; height: 8px;" title="Connection"></div>
-                                    <small class="text-muted"><span id="connection-text">Live</span></small>
-                                </div>
-                            </div>
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="ti ti-filter"></i>
+                            </span>
+                            <select id="status-filter" class="form-select">
+                                <option value="">All Status</option>
+                                <option value="available">Available</option>
+                                <option value="borrowed">Borrowed</option>
+                                <option value="missing">Missing</option>
+                                <option value="out_of_stock">Out of Stock</option>
+                            </select>
                         </div>
                     </div>
                 </div>
@@ -272,27 +259,6 @@
 
     @push('styles')
         <style>
-            /* Simplified connection status with better visual feedback */
-            #connection-status.connected #connection-indicator {
-                background-color: var(--tblr-green) !important;
-                animation: pulse 3s infinite;
-            }
-
-            #connection-status.connecting #connection-indicator {
-                background-color: var(--tblr-yellow) !important;
-                animation: spin 1s linear infinite;
-            }
-
-            #connection-status.disconnected #connection-indicator {
-                background-color: var(--tblr-red) !important;
-                animation: blink 1s infinite;
-            }
-
-            #connection-status.limited #connection-indicator {
-                background-color: var(--tblr-orange) !important;
-                animation: pulse 2s infinite;
-            }
-
             /* Improved animations */
             @keyframes pulse {
 
@@ -476,36 +442,6 @@
                     padding: 0.25rem 0.5rem;
                 }
             }
-
-            /* Dark mode compatibility */
-            @media (prefers-color-scheme: dark) {
-                #connection-status.connected #connection-indicator {
-                    background-color: #51cf66 !important;
-                }
-
-                #connection-status.connecting #connection-indicator {
-                    background-color: #ffd43b !important;
-                }
-
-                #connection-status.disconnected #connection-indicator {
-                    background-color: #ff6b6b !important;
-                }
-
-                #connection-status.limited #connection-indicator {
-                    background-color: #ff922b !important;
-                }
-            }
-
-            /* High contrast mode */
-            @media (prefers-contrast: high) {
-                #connection-indicator {
-                    border: 1px solid currentColor;
-                }
-
-                .badge {
-                    border: 1px solid currentColor;
-                }
-            }
         </style>
     @endpush
 
@@ -602,7 +538,7 @@
 
                 function checkForDatabaseUpdates() {
                     console.log('Checking for database updates...');
-                    setConnectionStatus('connecting');
+
 
                     makeOptimizedRequest("/superadmin/items/check-updates", {
                             ajaxOptions: {
@@ -616,7 +552,6 @@
                             console.log('Update check response:', response);
 
                             pollingFailureCount = 0;
-                            setConnectionStatus('connected');
 
                             if (response.has_updates) {
                                 console.log('Changes detected - refreshing table');
@@ -637,7 +572,6 @@
                             console.error('Update check failed:', xhr.status);
 
                             if (pollingFailureCount >= MAX_FAILURES) {
-                                setConnectionStatus('disconnected');
                                 showItemsToast('Connection lost. Auto-refresh disabled.', 'warning');
                                 stopPolling();
 
@@ -647,7 +581,7 @@
                                     startPolling();
                                 }, RETRY_DELAY * 3);
                             } else {
-                                setConnectionStatus('limited');
+
                             }
                         });
                 }
@@ -671,39 +605,6 @@
                 function refreshNotifications() {
                     if (typeof window.refreshNotifications === 'function') {
                         window.refreshNotifications();
-                    }
-                }
-
-                function setConnectionStatus(status) {
-                    const $indicator = $('#connection-indicator');
-                    const $statusContainer = $('#connection-status');
-                    const $text = $('#connection-text');
-
-                    $statusContainer.removeClass('connected connecting disconnected limited').addClass(status);
-
-                    const statusConfig = {
-                        'connected': {
-                            title: 'Live updates active',
-                            text: 'Live'
-                        },
-                        'connecting': {
-                            title: 'Checking for updates...',
-                            text: 'Checking'
-                        },
-                        'disconnected': {
-                            title: 'Connection failed - Updates disabled',
-                            text: 'Offline'
-                        },
-                        'limited': {
-                            title: 'Limited connection - Reduced frequency',
-                            text: 'Limited'
-                        }
-                    };
-
-                    const config = statusConfig[status];
-                    if (config) {
-                        $indicator.attr('title', config.title);
-                        $text.text(config.text);
                     }
                 }
 
@@ -795,7 +696,6 @@
                     const $refreshBtn = $('#reload-items');
 
                     $refreshBtn.addClass('refreshing');
-                    setConnectionStatus('connecting');
 
                     table.ajax.reload(function(json) {
                         $refreshBtn.removeClass('refreshing');
@@ -826,7 +726,6 @@
 
                             updateStats(json.stats || {});
                             updateLastRefreshTime();
-                            setConnectionStatus('connected');
 
                             // Initialize clientLastUpdate
                             if (!clientLastUpdate && (json.refresh_timestamp || json.last_db_update)) {
@@ -843,7 +742,6 @@
                                 error: error,
                                 code: code
                             });
-                            setConnectionStatus('disconnected');
                             pollingFailureCount++;
 
                             if (pollingFailureCount >= MAX_FAILURES) {
@@ -1019,7 +917,7 @@
                         isPollingEnabled = true;
                         pollingFailureCount = Math.max(0, pollingFailureCount - 1);
 
-                        setConnectionStatus('connecting');
+
 
                         // Resume polling after a short delay
                         setTimeout(() => {
@@ -1230,7 +1128,7 @@
 
                 // === INITIALIZATION ===
                 updateLastRefreshTime();
-                setConnectionStatus('connecting');
+
 
                 // Start optimized polling immediately
                 startPolling();
