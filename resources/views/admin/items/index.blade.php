@@ -528,26 +528,10 @@
                 const RETRY_DELAY = 2000; // 2 seconds
 
                 let currentStats = {
-                    total_items: {
-                        {
-                            $totalItems ?? 0
-                        }
-                    },
-                    available_items: {
-                        {
-                            $availableItems ?? 0
-                        }
-                    },
-                    borrowed_items: {
-                        {
-                            $borrowedItems ?? 0
-                        }
-                    },
-                    missing_items: {
-                        {
-                            $missingItems ?? 0
-                        }
-                    }
+                    total_items: {{ $totalItems ?? 0 }},
+                    available_items: {{ $availableItems ?? 0 }},
+                    borrowed_items: {{ $borrowedItems ?? 0 }},
+                    missing_items: {{ $missingItems ?? 0 }}
                 };
 
                 // === OPTIMIZED AJAX WITH BETTER ERROR HANDLING ===
