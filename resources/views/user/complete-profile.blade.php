@@ -89,10 +89,10 @@
                                     class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full pl-3 pr-10 py-2 text-base border-gray-300 rounded-lg @error('prodi') border-red-500 @enderror">
                                     <option value="">Pilih Program Studi</option>
                                     <option value="TMK" {{ old('prodi') == 'TMK' ? 'selected' : '' }}>
-                                        Teknik Mesin Konversi Energi (TMK)
+                                        Teknik Mekatronika (TMK)
                                     </option>
                                     <option value="TRMK" {{ old('prodi') == 'TRMK' ? 'selected' : '' }}>
-                                        Teknologi Rekayasa Mesin Konversi Energi (TRMK)
+                                        Teknologi Rekayasa Mekatronika (TRMK)
                                     </option>
                                     <option value="TMI" {{ old('prodi') == 'TMI' ? 'selected' : '' }}>
                                         Teknik Mesin Industri (TMI)
@@ -180,6 +180,8 @@
                         reader.readAsDataURL(file);
                     }
                 });
+
+
 
                 // Format no_koin input (add 0 prefix)
                 noKoinInput.addEventListener('input', function(e) {
