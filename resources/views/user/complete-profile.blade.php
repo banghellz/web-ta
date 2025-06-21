@@ -1,162 +1,164 @@
-<!-- resources/views/user/complete-profile.blade.php -->
+{{-- resources/views/user/complete-profile.blade.php --}}
 <x-complete>
     <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            Lengkapi Profil
-        </h2>
-        <p class="mt-1 text-sm text-gray-600">Silakan lengkapi data profil untuk melanjutkan</p>
+        <div class="page-header d-print-none">
+            <div class="container-xl">
+                <div class="row g-2 align-items-center">
+                    <div class="col">
+                        <div class="page-pretitle">
+                            Account Setup
+                        </div>
+                        <h2 class="page-title">
+                            <i class="ti ti-user-plus me-2"></i>Lengkapi Profil
+                        </h2>
+                        <p class="text-muted">Silakan lengkapi data profil untuk melanjutkan</p>
+                    </div>
+                    <div class="col-auto ms-auto d-print-none">
+                        <div class="btn-list">
+                            <span class="badge bg-blue-lt">
+                                <i class="ti ti-user me-1"></i>Student
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </x-slot>
 
-    <div class="py-12">
-        <div class="max-w-3xl mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white shadow-md rounded-lg overflow-hidden">
-                <div class="px-6 py-6">
-                    @if ($errors->any())
-                        <div class="mb-6 bg-red-50 p-4 rounded-md border border-red-200">
-                            <div class="flex">
-                                <div class="flex-shrink-0">
-                                    <svg class="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg"
-                                        viewBox="0 0 20 20" fill="currentColor">
-                                        <path fill-rule="evenodd"
-                                            d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                                            clip-rule="evenodd" />
-                                    </svg>
-                                </div>
-                                <div class="ml-3">
-                                    <h3 class="text-sm font-medium text-red-800">Terdapat {{ $errors->count() }}
-                                        kesalahan pada form</h3>
-                                    <div class="mt-2 text-sm text-red-700">
-                                        <ul class="list-disc pl-5 space-y-1">
-                                            @foreach ($errors->all() as $error)
-                                                <li>{{ $error }}</li>
-                                            @endforeach
-                                        </ul>
+    <div class="page-body">
+        <div class="container-xl">
+            <div class="row justify-content-center">
+                <div class="col-12 col-lg-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <i class="ti ti-forms me-2"></i>Complete Your Profile
+                            </h3>
+                        </div>
+
+                        <div class="card-body">
+                            @if ($errors->any())
+                                <div class="alert alert-danger" role="alert">
+                                    <div class="d-flex">
+                                        <div>
+                                            <i class="ti ti-alert-circle me-2"></i>
+                                        </div>
+                                        <div>
+                                            <h4 class="alert-title">Terdapat {{ $errors->count() }} kesalahan pada form
+                                            </h4>
+                                            <div class="text-secondary">
+                                                <ul class="mb-0">
+                                                    @foreach ($errors->all() as $error)
+                                                        <li>{{ $error }}</li>
+                                                    @endforeach
+                                                </ul>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
-                    @endif
+                            @endif
 
-                    <form method="POST" action="{{ route('user.complete-profile.store') }}"
-                        enctype="multipart/form-data" class="space-y-6">
-                        @csrf
+                            <form method="POST" action="{{ route('user.complete-profile.store') }}"
+                                enctype="multipart/form-data">
+                                @csrf
 
-                        <!-- NIM Field -->
-                        <div>
-                            <label for="nim" class="block text-sm font-medium text-gray-700">
-                                NIM <span class="text-red-500">*</span>
-                            </label>
-                            <div class="mt-1">
-                                <input id="nim" type="text" name="nim"
-                                    value="{{ old('nim', $extractedNim ?? '') }}" required readonly
-                                    class="shadow-sm bg-gray-50 border border-gray-300 text-gray-500 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 cursor-not-allowed @error('nim') border-red-500 @enderror"
-                                    placeholder="NIM akan diambil dari email Anda">
-                                @error('nim')
-                                    <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
-                                @enderror
-                                <p class="mt-1 text-xs text-gray-500">NIM diambil otomatis dari email mahasiswa</p>
-                            </div>
-                        </div>
-
-                        <!-- Coin Number Field -->
-                        <div>
-                            <label for="no_koin" class="block text-sm font-medium text-gray-700">
-                                Nomor Koin <span class="text-red-500">*</span>
-                            </label>
-                            <div class="mt-1 relative">
-                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
-                                    <span class="text-gray-500 text-sm leading-none">0</span>
+                                <!-- NIM Field -->
+                                <div class="mb-3">
+                                    <label for="nim" class="form-label required">
+                                        NIM (Student ID)
+                                    </label>
+                                    <input id="nim" type="text" name="nim"
+                                        value="{{ old('nim', $extractedNim ?? '') }}" required readonly
+                                        class="form-control @error('nim') is-invalid @enderror"
+                                        placeholder="NIM akan diambil dari email Anda">
+                                    @error('nim')
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
+                                    <div class="form-hint">NIM diambil otomatis dari email mahasiswa</div>
                                 </div>
-                                <input type="text" name="no_koin" id="no_koin" value="{{ old('no_koin') }}"
-                                    required
-                                    class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full pl-7 pr-3 py-2.5 text-sm border-gray-300 rounded-lg @error('no_koin') border-red-500 @enderror"
-                                    placeholder="188" maxlength="4" pattern="[0-9]{1,4}">
-                                @error('no_koin')
-                                    <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
-                                @enderror
-                                <p class="mt-1 text-xs text-gray-500">Masukkan 3-4 digit angka (contoh: 188 akan menjadi
-                                    0188)</p>
-                            </div>
-                        </div>
 
-                        <!-- Program Studi Field -->
-                        <div>
-                            <label for="prodi" class="block text-sm font-medium text-gray-700">
-                                Program Studi <span class="text-red-500">*</span>
-                            </label>
-                            <div class="mt-1">
-                                <select name="prodi" id="prodi" required
-                                    class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full pl-3 pr-10 py-2 text-base border-gray-300 rounded-lg @error('prodi') border-red-500 @enderror">
-                                    <option value="">Pilih Program Studi</option>
-                                    <option value="TMK" {{ old('prodi') == 'TMK' ? 'selected' : '' }}>
-                                        Teknik Mekatronika (TMK)
-                                    </option>
-                                    <option value="TRMK" {{ old('prodi') == 'TRMK' ? 'selected' : '' }}>
-                                        Teknologi Rekayasa Mekatronika (TRMK)
-                                    </option>
-                                    <option value="TMI" {{ old('prodi') == 'TMI' ? 'selected' : '' }}>
-                                        Teknik Mesin Industri (TMI)
-                                    </option>
-                                    <option value="RTM" {{ old('prodi') == 'RTM' ? 'selected' : '' }}>
-                                        Rekayasa Teknologi Manufaktur (RTM)
-                                    </option>
-                                </select>
-                                @error('prodi')
-                                    <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
-                                @enderror
-                            </div>
-                        </div>
-
-                        <!-- Profile Picture Field -->
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">
-                                Foto Profil <span class="text-red-500">*</span>
-                            </label>
-                            <div class="mt-1">
-                                <div class="flex items-center space-x-6">
-                                    <div class="flex-shrink-0">
-                                        <img id="preview-image"
-                                            class="h-20 w-20 rounded-full object-cover border-2 border-gray-200"
-                                            src="{{ $userPhoto ?? asset('images/default-avatar.png') }}"
-                                            alt="Preview foto profil">
-                                    </div>
-                                    <div class="flex-1">
-                                        <label for="pict"
-                                            class="relative cursor-pointer bg-white py-2 px-4 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500">
-                                            <span>Ubah Foto</span>
-                                            <input id="pict" name="pict" type="file" class="sr-only"
-                                                accept="image/jpeg,image/png,image/jpg">
-                                        </label>
-                                        <p class="mt-2 text-xs text-gray-500">
-                                            JPG, JPEG, atau PNG. Maksimal 2MB. Foto dari Google Account digunakan secara
-                                            otomatis.
-                                        </p>
-                                        @error('pict')
-                                            <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
+                                <!-- Coin Number Field -->
+                                <div class="mb-3">
+                                    <label for="no_koin" class="form-label required">
+                                        Nomor Koin
+                                    </label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">0</span>
+                                        <input type="text" name="no_koin" id="no_koin" value="{{ old('no_koin') }}"
+                                            required class="form-control @error('no_koin') is-invalid @enderror"
+                                            placeholder="188" maxlength="3" pattern="[0-9]{1,3}">
+                                        @error('no_koin')
+                                            <div class="invalid-feedback">{{ $message }}</div>
                                         @enderror
                                     </div>
+                                    <div class="form-hint">Masukkan 3 digit angka (contoh: 188 akan menjadi 0188)</div>
                                 </div>
-                            </div>
+
+                                <!-- Program Studi Field -->
+                                <div class="mb-3">
+                                    <label for="prodi" class="form-label required">
+                                        Program Studi
+                                    </label>
+                                    <select name="prodi" id="prodi" required
+                                        class="form-select @error('prodi') is-invalid @enderror">
+                                        <option value="">Pilih Program Studi</option>
+                                        <option value="TMK" {{ old('prodi') == 'TMK' ? 'selected' : '' }}>
+                                            Teknik Mesin Konversi Energi (TMK)
+                                        </option>
+                                        <option value="TRMK" {{ old('prodi') == 'TRMK' ? 'selected' : '' }}>
+                                            Teknologi Rekayasa Mesin Konversi Energi (TRMK)
+                                        </option>
+                                        <option value="TMI" {{ old('prodi') == 'TMI' ? 'selected' : '' }}>
+                                            Teknik Mesin Industri (TMI)
+                                        </option>
+                                        <option value="RTM" {{ old('prodi') == 'RTM' ? 'selected' : '' }}>
+                                            Rekayasa Teknologi Manufaktur (RTM)
+                                        </option>
+                                    </select>
+                                    @error('prodi')
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
+                                </div>
+
+                                <!-- Profile Picture Field -->
+                                <div class="mb-3">
+                                    <label class="form-label required">
+                                        Foto Profil
+                                    </label>
+                                    <div class="row">
+                                        <div class="col-auto">
+                                            <span class="avatar avatar-xl mb-3" id="preview-avatar"
+                                                style="background-image: url({{ $userPhoto ?? 'https://www.gravatar.com/avatar/' . md5(auth()->user()->email ?? 'default') }})"></span>
+                                        </div>
+                                        <div class="col">
+                                            <input type="file" name="pict" id="pict"
+                                                class="form-control @error('pict') is-invalid @enderror"
+                                                accept="image/jpeg,image/png,image/jpg">
+                                            <div class="form-hint">JPG, JPEG, atau PNG. Maksimal 2MB. Foto dari Google
+                                                Account digunakan secara otomatis.</div>
+                                            @error('pict')
+                                                <div class="invalid-feedback">{{ $message }}</div>
+                                            @enderror
+                                        </div>
+                                    </div>
+                                </div>
                         </div>
 
-                        <!-- Action Buttons -->
-                        <div class="pt-6 border-t border-gray-200">
-                            <div class="flex justify-end space-x-3">
-                                <a href="{{ route('home') }}"
-                                    class="bg-white py-2 px-4 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 ease-in-out">
-                                    Batal
+                        <div class="card-footer d-flex justify-content-between">
+                            <div>
+                                <a href="{{ route('home') }}" class="btn btn-outline-secondary">
+                                    <i class="ti ti-arrow-left me-1"></i>Batal
                                 </a>
-                                <button type="submit"
-                                    class="inline-flex justify-center py-2 px-6 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 ease-in-out">
-                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M5 13l4 4L19 7"></path>
-                                    </svg>
-                                    Simpan Profil
+                            </div>
+                            <div>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="ti ti-check me-1"></i>Simpan Profil
                                 </button>
                             </div>
                         </div>
-                    </form>
+
+                        </form>
+                    </div>
                 </div>
             </div>
         </div>
@@ -166,7 +168,7 @@
         <script>
             document.addEventListener('DOMContentLoaded', function() {
                 const pictInput = document.getElementById('pict');
-                const previewImage = document.getElementById('preview-image');
+                const previewAvatar = document.getElementById('preview-avatar');
                 const noKoinInput = document.getElementById('no_koin');
 
                 // Preview uploaded image
@@ -175,22 +177,20 @@
                     if (file) {
                         const reader = new FileReader();
                         reader.onload = function(e) {
-                            previewImage.src = e.target.result;
+                            previewAvatar.style.backgroundImage = `url(${e.target.result})`;
                         };
                         reader.readAsDataURL(file);
                     }
                 });
 
-
-
-                // Format no_koin input (add 0 prefix)
+                // Format no_koin input
                 noKoinInput.addEventListener('input', function(e) {
                     // Remove any non-digit characters
                     let value = e.target.value.replace(/\D/g, '');
 
-                    // Limit to 4 digits
-                    if (value.length > 4) {
-                        value = value.substring(0, 4);
+                    // Limit to 3 digits
+                    if (value.length > 3) {
+                        value = value.substring(0, 3);
                     }
 
                     e.target.value = value;
@@ -205,6 +205,20 @@
                         noKoinInput.value = paddedValue;
                     }
                 });
+
+                // Show success message if any
+                @if (session('success'))
+                    if (window.UnifiedToastSystem) {
+                        window.UnifiedToastSystem.success('{{ session('success') }}');
+                    }
+                @endif
+
+                // Show error message if any
+                @if (session('error'))
+                    if (window.UnifiedToastSystem) {
+                        window.UnifiedToastSystem.error('{{ session('error') }}');
+                    }
+                @endif
             });
         </script>
     @endpush
