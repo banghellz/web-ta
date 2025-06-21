@@ -1,4 +1,4 @@
-<x-layouts.superadmin_layout>
+<x-layouts.admin_layout>
     <x-slot name="title">{{ $title }}</x-slot>
     <x-slot name="content">{{ $content }}</x-slot>
 
@@ -193,7 +193,7 @@
                     processing: true,
                     serverSide: true,
                     ajax: {
-                        url: "{{ route('superadmin.log_peminjaman.data') }}",
+                        url: "/admin/log_peminjaman/data",
                         type: 'GET',
                         data: function(d) {
                             d.date = $('#date-filter').val();
@@ -315,7 +315,7 @@
                             'Are you sure you want to clear all borrowing logs? This action cannot be undone and will remove all historical data.'
                         )) {
                         $.ajax({
-                            url: "{{ route('superadmin.log_peminjaman.clear') }}",
+                            url: "{{ route('admin.log_peminjaman.clear') }}",
                             type: 'POST',
                             headers: {
                                 'X-CSRF-TOKEN': csrfToken
@@ -382,4 +382,4 @@
             });
         </script>
     @endpush
-</x-layouts.superadmin_layout>
+</x-layouts.admin_layout>

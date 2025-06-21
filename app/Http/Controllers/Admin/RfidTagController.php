@@ -15,9 +15,14 @@ class RfidTagController extends Controller
      */
     public function index()
     {
-        return view('admin.rfid.index', [
+        $stats = $this->getStatistics();
+
+        return view('superadmin.rfid.index', [
             'title' => 'RFID Tags Management',
-            'content' => 'Manage RFID tags for the system'
+            'content' => 'Manage RFID tags for the system',
+            'totalTags' => $stats['total'],
+            'availableTags' => $stats['available'],
+            'usedTags' => $stats['used']
         ]);
     }
 
@@ -26,42 +31,132 @@ class RfidTagController extends Controller
      */
     public function getData(Request $request)
     {
-        $rfidTags = RfidTag::with('userDetail')->select('rfid_tags.*');
+        $rfidTags = RfidTag::with(['userDetail.user'])->select('rfid_tags.*');
 
         return DataTables::of($rfidTags)
             ->addIndexColumn()
+            ->addColumn('rfid_uid', function ($tag) {
+                return '<div class="d-flex align-items-center">' .
+                    '<span class="avatar avatar-sm me-2 bg-secondary text-white">' .
+                    '<i class="ti ti-nfc"></i>' .
+                    '</span>' .
+                    '<div><strong>' . $tag->uid . '</strong></div>' .
+                    '</div>';
+            })
+            ->addColumn('notes_display', function ($tag) {
+                if ($tag->notes) {
+                    return '<div class="text-wrap">' .
+                        '<a href="#" class="rfid-detail-clickable" data-rfid-id="' . $tag->id . '">' .
+                        $tag->notes .
+                        '</a>' .
+                        '</div>';
+                } else {
+                    return '<div class="text-wrap">' .
+                        '<a href="#" class="rfid-detail-clickable text-muted" data-rfid-id="' . $tag->id . '">' .
+                        'RFID Tag #' . $tag->id .
+                        '</a>' .
+                        '</div>';
+                }
+            })
             ->addColumn('status', function ($tag) {
-                $statusClass = [
-                    'Available' => 'success',
-                    'Used' => 'warning',
-                    'Damaged' => 'danger'
-                ];
+                $iconClass = '';
+                $badgeClass = '';
+                $statusText = '';
 
-                $class = $statusClass[$tag->status] ?? 'secondary';
-                return '<span class="badge bg-' . $class . '">' . $tag->status . '</span>';
+                if ($tag->status === 'Available') {
+                    $iconClass = 'ti-check';
+                    $badgeClass = 'bg-success';
+                    $statusText = 'Available';
+                } else if ($tag->status === 'Used') {
+                    $iconClass = 'ti-user';
+                    $badgeClass = 'bg-warning';
+                    $statusText = 'Used';
+                } else {
+                    $iconClass = 'ti-help';
+                    $badgeClass = 'bg-secondary';
+                    $statusText = 'Unknown';
+                }
+
+                return '<span class="badge ' . $badgeClass . '"><i class="ti ' .
+                    $iconClass . ' me-1"></i>' . $statusText . '</span>';
             })
             ->addColumn('assigned_to', function ($tag) {
                 if ($tag->userDetail && $tag->userDetail->user) {
-                    return $tag->userDetail->user->name;
+                    return '<div class="d-flex align-items-center">' .
+                        '<span class="avatar avatar-sm me-2 bg-primary text-white">' .
+                        '<i class="ti ti-user"></i>' .
+                        '</span>' .
+                        '<div>' .
+                        '<div class="font-weight-medium">' . $tag->userDetail->user->name . '</div>' .
+                        '<div class="text-muted small">' . ($tag->userDetail->nim ?? 'No NIM') . '</div>' .
+                        '</div>' .
+                        '</div>';
                 }
                 return '<span class="text-muted">Not assigned</span>';
             })
-            ->addColumn('created_at', function ($tag) {
-                return $tag->created_at->format('d M Y, H:i');
+            ->addColumn('created_at_formatted', function ($tag) {
+                return '<div class="text-muted">' . $tag->created_at->format('d M Y, H:i') . '</div>';
             })
             ->addColumn('actions', function ($tag) {
-                $editBtn = '<button class="btn btn-sm btn-outline-primary btn-edit me-1" data-id="' . $tag->id . '">
-                    <i class="ti ti-edit"></i> Edit
-                </button>';
+                $actions = '
+                    <div class="d-flex justify-content-center align-items-center">
+                        <div class="dropdown">
+                            <button class="btn btn-actions" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="ti ti-dots-vertical"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end dropdown-menu-actions">
+                                <li>
+                                    <a class="dropdown-item btn-edit" href="#" data-id="' . $tag->id . '">
+                                        <i class="ti ti-edit me-2"></i>Edit
+                                    </a>
+                                </li>';
 
-                $deleteBtn = '<button class="btn btn-sm btn-outline-danger btn-delete" data-id="' . $tag->id . '" data-tag="' . $tag->uid . '">
-                    <i class="ti ti-trash"></i> Delete
-                </button>';
+                // Add release option for used RFID tags
+                if ($tag->status === 'Used' && $tag->userDetail) {
+                    $actions .= '
+                                <li>
+                                    <a class="dropdown-item text-warning release-rfid" href="#" 
+                                       data-rfid-id="' . $tag->id . '" 
+                                       data-rfid-uid="' . $tag->uid . '">
+                                        <i class="ti ti-user-minus me-2"></i>Release from User
+                                    </a>
+                                </li>';
+                }
 
-                return $editBtn . $deleteBtn;
+                $actions .= '
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item text-danger delete-rfid" href="#" 
+                                       data-rfid-id="' . $tag->id . '" 
+                                       data-rfid-uid="' . $tag->uid . '">
+                                        <i class="ti ti-trash me-2"></i>Delete
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                ';
+
+                return $actions;
             })
-            ->rawColumns(['status', 'assigned_to', 'actions'])
+            ->rawColumns(['rfid_uid', 'notes_display', 'status', 'assigned_to', 'created_at_formatted', 'actions'])
+            ->with('stats', $this->getStatistics())
             ->make(true);
+    }
+
+    /**
+     * Show the specified RFID tag details.
+     */
+    public function show(RfidTag $rfidTag)
+    {
+        $rfidTag->load(['userDetail.user']);
+
+        $html = view('superadmin.rfid.detail-partial', compact('rfidTag'))->render();
+
+        return response()->json([
+            'success' => true,
+            'html' => $html
+        ]);
     }
 
     /**
@@ -69,12 +164,7 @@ class RfidTagController extends Controller
      */
     public function getStats()
     {
-        $stats = [
-            'available' => RfidTag::where('status', 'Available')->count(),
-            'used' => RfidTag::where('status', 'Used')->count(),
-            'damaged' => RfidTag::where('status', 'Damaged')->count(),
-            'total' => RfidTag::count()
-        ];
+        $stats = $this->getStatistics();
 
         return response()->json([
             'success' => true,
@@ -83,19 +173,15 @@ class RfidTagController extends Controller
     }
 
     /**
-     * Show the specified RFID tag.
+     * Get statistics data
      */
-    public function show(RfidTag $rfidTag)
+    private function getStatistics()
     {
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'id' => $rfidTag->id,
-                'tag_id' => $rfidTag->uid,
-                'name' => $rfidTag->notes,
-                'is_active' => $rfidTag->status === 'Available'
-            ]
-        ]);
+        return [
+            'available' => RfidTag::where('status', 'Available')->count(),
+            'used' => RfidTag::where('status', 'Used')->count(),
+            'total' => RfidTag::count()
+        ];
     }
 
     /**
@@ -120,23 +206,21 @@ class RfidTagController extends Controller
     public function store(Request $request)
     {
         try {
-            // Validate the request
             $validated = $request->validate([
-                'tag_id' => [
+                'uid' => [
                     'required',
                     'string',
                     'max:50',
                     'unique:rfid_tags,uid'
                 ],
-                'name' => 'nullable|string|max:255',
-                'is_active' => 'boolean',
+                'status' => 'required|string|in:Available,Used',
+                'notes' => 'nullable|string|max:255',
             ]);
 
-            // Create the RFID tag
             $rfidTag = RfidTag::create([
-                'uid' => $validated['tag_id'],
-                'status' => ($validated['is_active'] ?? true) ? 'Available' : 'Damaged',
-                'notes' => $validated['name'] ?? null
+                'uid' => $validated['uid'],
+                'status' => $validated['status'],
+                'notes' => $validated['notes'] ?? null
             ]);
 
             return response()->json([
@@ -164,7 +248,6 @@ class RfidTagController extends Controller
     public function update(Request $request, RfidTag $rfidTag)
     {
         try {
-            // Validate the request
             $validated = $request->validate([
                 'tag_id' => [
                     'required',
@@ -176,10 +259,9 @@ class RfidTagController extends Controller
                 'is_active' => 'boolean',
             ]);
 
-            // Update the RFID tag
             $rfidTag->update([
                 'uid' => $validated['tag_id'],
-                'status' => ($validated['is_active'] ?? true) ? 'Available' : 'Damaged',
+                'status' => ($validated['is_active'] ?? true) ? 'Available' : 'Used',
                 'notes' => $validated['name'] ?? null
             ]);
 
@@ -212,7 +294,7 @@ class RfidTagController extends Controller
             if ($rfidTag->userDetail) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Cannot delete RFID tag that is in use by a user.'
+                    'message' => 'Cannot delete RFID tag that is assigned to a user.'
                 ], 400);
             }
 
@@ -226,6 +308,38 @@ class RfidTagController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to delete RFID tag: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Release RFID tag from user
+     */
+    public function releaseFromUser(Request $request, RfidTag $rfidTag)
+    {
+        try {
+            if (!$rfidTag->userDetail) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'RFID tag is not assigned to any user.'
+                ], 400);
+            }
+
+            // Remove RFID from user
+            $userDetail = $rfidTag->userDetail;
+            $userDetail->update(['rfid_uid' => null]);
+
+            // Mark RFID as available
+            $rfidTag->markAsAvailable();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'RFID tag released from user successfully.'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to release RFID tag: ' . $e->getMessage()
             ], 500);
         }
     }
@@ -251,7 +365,7 @@ class RfidTagController extends Controller
         $request->validate([
             'tag_ids' => 'required|array',
             'tag_ids.*' => 'exists:rfid_tags,id',
-            'status' => 'required|in:Available,Used,Damaged'
+            'status' => 'required|in:Available,Used'
         ]);
 
         try {

@@ -1,4 +1,4 @@
-<x-app-layout>
+<x-layouts.admin_layout>
     <x-slot name="title">{{ $title }}</x-slot>
     <x-slot name="content">{{ $content }}</x-slot>
 
@@ -6,13 +6,20 @@
         <div class="container-xl">
             <div class="row row-cards">
                 <div class="col-12">
-                    <form action="{{ route('superadmin.users.update', $user->uuid) }}" method="POST" class="card"
+                    <form action="{{ route('admin.users.update', $user->uuid) }}" method="POST" class="card"
                         enctype="multipart/form-data">
                         @csrf
                         @method('PUT')
 
                         <div class="card-header">
-                            <h3 class="card-title">Edit User: {{ $user->name }}</h3>
+                            <h3 class="card-title">
+                                Edit User: {{ $user->name }}
+                                @if ($user->uuid === auth()->user()->uuid)
+                                    <span class="badge bg-info ms-2">
+                                        <i class="ti ti-user me-1"></i>You
+                                    </span>
+                                @endif
+                            </h3>
                         </div>
 
                         <div class="card-body">
@@ -53,15 +60,32 @@
 
                             <div class="mb-3">
                                 <label class="form-label required">Role</label>
-                                <select name="role" class="form-select @error('role') is-invalid @enderror" required>
-                                    <option value="admin" {{ old('role', $user->role) == 'admin' ? 'selected' : '' }}>
-                                        Admin</option>
-                                    <option value="user" {{ old('role', $user->role) == 'user' ? 'selected' : '' }}>
-                                        User</option>
-                                    <option value="superadmin"
-                                        {{ old('role', $user->role) == 'superadmin' ? 'selected' : '' }}>Super Admin
-                                    </option>
-                                </select>
+                                @if ($user->uuid === auth()->user()->uuid)
+                                    <!-- Current user cannot change their own role -->
+                                    <select class="form-select" disabled title="You cannot change your own role">
+                                        <option selected>{{ ucfirst($user->role) }} (Cannot change own role)</option>
+                                    </select>
+                                    <input type="hidden" name="role" value="{{ $user->role }}">
+                                    <div class="text-muted mt-1">
+                                        <i class="ti ti-info-circle me-1"></i>
+                                        You cannot change your own role for security reasons.
+                                    </div>
+                                @else
+                                    <!-- Other users can have their role changed -->
+                                    <select name="role" class="form-select @error('role') is-invalid @enderror"
+                                        required>
+                                        <option value="admin"
+                                            {{ old('role', $user->role) == 'admin' ? 'selected' : '' }}>
+                                            Admin</option>
+                                        <option value="user"
+                                            {{ old('role', $user->role) == 'user' ? 'selected' : '' }}>
+                                            User</option>
+                                        <option value="superadmin"
+                                            {{ old('role', $user->role) == 'superadmin' ? 'selected' : '' }}>Super
+                                            Admin
+                                        </option>
+                                    </select>
+                                @endif
                                 @error('role')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
@@ -185,7 +209,7 @@
 
                         <div class="card-footer d-flex justify-content-between">
                             <div>
-                                <a href="{{ route('superadmin.users.index') }}" class="btn btn-outline-secondary">
+                                <a href="{{ route('admin.users.index') }}" class="btn btn-outline-secondary">
                                     <i class="ti ti-arrow-left me-1"></i>Back to Users
                                 </a>
                             </div>
@@ -209,6 +233,85 @@
         document.addEventListener('DOMContentLoaded', function() {
             const refreshButton = document.getElementById('refresh-rfid-tags');
             const rfidSelect = document.getElementById('rfid_uid');
+            const form = document.querySelector('form');
+
+            // Handle form submission with AJAX and toast
+            if (form) {
+                form.addEventListener('submit', function(e) {
+                    e.preventDefault(); // Prevent default form submission
+
+                    const submitBtn = form.querySelector('button[type="submit"]');
+                    const formData = new FormData(form);
+
+                    // Show loading state
+                    if (submitBtn) {
+                        submitBtn.disabled = true;
+                        submitBtn.innerHTML = '<i class="ti ti-loader me-1"></i>Saving...';
+                    }
+
+                    // Submit via AJAX
+                    fetch(form.action, {
+                            method: 'POST',
+                            body: formData,
+                            headers: {
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')
+                                    .getAttribute('content'),
+                                'X-Requested-With': 'XMLHttpRequest'
+                            }
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                // Show success toast
+                                if (window.UnifiedToastSystem) {
+                                    window.UnifiedToastSystem.success(data.message);
+                                } else {
+                                    showToast(data.message, 'success');
+                                }
+
+                                // Redirect after short delay
+                                setTimeout(() => {
+                                    window.location.href = data.redirect;
+                                }, 1500);
+                            } else {
+                                // Handle validation errors
+                                if (data.errors) {
+                                    Object.keys(data.errors).forEach(key => {
+                                        data.errors[key].forEach(error => {
+                                            if (window.UnifiedToastSystem) {
+                                                window.UnifiedToastSystem.error(error);
+                                            } else {
+                                                showToast(error, 'error');
+                                            }
+                                        });
+                                    });
+                                } else if (data.message) {
+                                    if (window.UnifiedToastSystem) {
+                                        window.UnifiedToastSystem.error(data.message);
+                                    } else {
+                                        showToast(data.message, 'error');
+                                    }
+                                }
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            if (window.UnifiedToastSystem) {
+                                window.UnifiedToastSystem.error('An error occurred while saving');
+                            } else {
+                                showToast('An error occurred while saving', 'error');
+                            }
+                        })
+                        .finally(() => {
+                            // Reset button state
+                            if (submitBtn) {
+                                submitBtn.disabled = false;
+                                submitBtn.innerHTML =
+                                    '<i class="ti ti-device-floppy me-1"></i>Save Changes';
+                            }
+                        });
+                });
+            }
 
             if (refreshButton) {
                 refreshButton.addEventListener('click', function() {
@@ -217,7 +320,7 @@
                     refreshButton.innerHTML = '<i class="ti ti-loader me-1"></i>Loading...';
 
                     // Fetch available RFID tags
-                    fetch('{{ route('superadmin.available-rfid-tags') }}')
+                    fetch('{{ route('admin.rfid-tags.available') }}')
                         .then(response => response.json())
                         .then(data => {
                             if (data.success) {
@@ -242,15 +345,28 @@
                                     rfidSelect.value = currentValue;
                                 }
 
-                                // Show success message
-                                showToast('RFID tags refreshed successfully', 'success');
+                                // Use unified toast system
+                                if (window.UnifiedToastSystem) {
+                                    window.UnifiedToastSystem.success(
+                                        'RFID tags refreshed successfully');
+                                } else {
+                                    showToast('RFID tags refreshed successfully', 'success');
+                                }
                             } else {
-                                showToast('Failed to refresh RFID tags', 'error');
+                                if (window.UnifiedToastSystem) {
+                                    window.UnifiedToastSystem.error('Failed to refresh RFID tags');
+                                } else {
+                                    showToast('Failed to refresh RFID tags', 'error');
+                                }
                             }
                         })
                         .catch(error => {
                             console.error('Error:', error);
-                            showToast('Error refreshing RFID tags', 'error');
+                            if (window.UnifiedToastSystem) {
+                                window.UnifiedToastSystem.error('Error refreshing RFID tags');
+                            } else {
+                                showToast('Error refreshing RFID tags', 'error');
+                            }
                         })
                         .finally(() => {
                             // Reset button state
@@ -261,6 +377,7 @@
             }
         });
 
+        // Fallback toast function if UnifiedToastSystem is not available
         function showToast(message, type) {
             // Create toast element
             const toast = document.createElement('div');
@@ -284,4 +401,4 @@
             }, 3000);
         }
     </script>
-</x-app-layout>
+</x-layouts.admin_layout>

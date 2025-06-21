@@ -1,4 +1,4 @@
-<x-layouts.superadmin_layout>
+<x-layouts.admin_layout>
     <x-slot name="title">{{ $title }}</x-slot>
     <x-slot name="content">{{ $content }}</x-slot>
 
@@ -159,7 +159,7 @@
                     processing: true,
                     serverSide: true,
                     ajax: {
-                        url: "{{ route('superadmin.activity-logs.data') }}",
+                        url: "/admin/activity-logs/data",
                         dataSrc: function(json) {
                             updateStats(json.stats || {});
                             return json.data;
@@ -192,9 +192,9 @@
                             render: function(data, type, row) {
                                 let badgeClass = 'bg-secondary';
 
-                                if (data === 'admin') {
+                                if (data === 'superadmin') {
                                     badgeClass = 'bg-primary';
-                                } else if (data === 'superadmin') {
+                                } else if (data === 'admin') {
                                     badgeClass = 'bg-danger';
                                 } else if (data === 'user') {
                                     badgeClass = 'bg-success';
@@ -262,7 +262,7 @@
                             'Are you sure you want to clear all activity logs? This action cannot be undone.'
                         )) {
                         $.ajax({
-                            url: "{{ route('superadmin.activity-logs.clear') }}",
+                            url: "{{ route('admin.activity-logs.clear') }}",
                             type: 'POST',
                             headers: {
                                 'X-CSRF-TOKEN': csrfToken
@@ -327,4 +327,4 @@
             });
         </script>
     @endpush
-</x-layouts.superadmin_layout>
+</x-layouts.admin_layout>

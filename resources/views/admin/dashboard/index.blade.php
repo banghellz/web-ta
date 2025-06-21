@@ -1,5 +1,5 @@
 <!-- resources/views/admin/dashboard/index.blade.php -->
-<x-layouts.superadmin_layout>
+<x-layouts.admin_layout>
     <x-slot name="title">{{ $title }}</x-slot>
     <x-slot name="content">{{ $content }}</x-slot>
 
@@ -206,7 +206,7 @@
                                                 </div>
                                             </div>
                                             <div class="mt-3">
-                                                <a href="{{ route('superadmin.users.index') }}"
+                                                <a href="{{ route('admin.users.index') }}"
                                                     class="btn btn-primary btn-sm">
                                                     <i class="ti ti-arrow-right me-1"></i>Manage Users
                                                 </a>
@@ -320,7 +320,7 @@
                             </h3>
                         </div>
                         <div class="card-body">
-                            <form id="rfidForm" action="{{ route('superadmin.rfid-tags.store') }}" method="POST">
+                            <form id="rfidForm" action="{{ route('admin.rfid-tags.store') }}" method="POST">
                                 @csrf
                                 <div class="mb-3">
                                     <label class="form-label required">RFID UID</label>
@@ -359,7 +359,7 @@
                                 </div>
 
                                 <div class="d-flex justify-content-end gap-2">
-                                    <a href="{{ route('superadmin.rfid-tags.index') }}" class="btn">
+                                    <a href="{{ route('admin.rfid-tags.index') }}" class="btn">
                                         <i class="ti ti-arrow-right me-1"></i>Go to RFID
                                     </a>
                                     <button type="submit" class="btn btn-primary">
@@ -380,7 +380,7 @@
                             </h3>
                         </div>
                         <div class="card-body">
-                            <form id="itemForm" action="{{ route('superadmin.items.store') }}" method="POST">
+                            <form id="itemForm" action="{{ route('admin.items.store') }}" method="POST">
                                 @csrf
                                 <div class="mb-3">
                                     <label class="form-label required">EPC Code</label>
@@ -414,7 +414,7 @@
                                 </div>
 
                                 <div class="d-flex justify-content-end gap-2">
-                                    <a href="{{ route('superadmin.items.index') }}" class="btn">
+                                    <a href="{{ route('admin.items.index') }}" class="btn">
                                         <i class="ti ti-arrow-right me-1"></i>Go to Items
                                     </a>
                                     <button type="submit" class="btn btn-success">
@@ -767,4 +767,4 @@
             }, 1000);
         }
     </script>
-</x-layouts.superadmin_layout>
+</x-layouts.admin_layout>

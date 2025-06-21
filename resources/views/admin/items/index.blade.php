@@ -1,5 +1,5 @@
-<!-- resources/views/admin/dashboard/index.blade.php -->
-<x-layouts.superadmin_layout>
+<!-- resources/views/admin/items/index.blade.php -->
+<x-layouts.admin_layout>
     <x-slot name="title">{{ $title }}</x-slot>
     <x-slot name="content">{{ $content }}</x-slot>
 
@@ -17,13 +17,14 @@
                         <span class="d-none d-sm-inline">
                             <button id="reload-items" class="btn btn-primary">
                                 <i class="ti ti-refresh me-1"></i>
-                                Refresh Data
+                                Refresh
                             </button>
                         </span>
-                        <a href="{{ route('superadmin.items.create') }}" class="btn btn-success">
+                        <button type="button" class="btn btn-success" data-bs-toggle="modal"
+                            data-bs-target="#addItemModal">
                             <i class="ti ti-plus me-1"></i>
                             Add New Item
-                        </a>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -36,6 +37,11 @@
             <div class="card">
                 <div class="card-header">
                     <h3 class="card-title">Inventory Statistics</h3>
+                    <div class="card-actions">
+                        <small class="text-muted" id="last-updated">
+                            Last updated: <span id="last-updated-time">Just now</span>
+                        </small>
+                    </div>
                 </div>
                 <div class="card-body">
                     <div class="row row-cards">
@@ -86,47 +92,47 @@
                                 </div>
                             </div>
                         </div>
-                        <!-- Out of Stock -->
+                        <!-- Borrowed Items -->
                         <div class="col-sm-6 col-lg-3">
                             <div class="card card-sm">
                                 <div class="card-body">
                                     <div class="row align-items-center">
                                         <div class="col-auto">
-                                            <span class="bg-red text-white avatar">
-                                                <i class="ti ti-x"></i>
+                                            <span class="bg-yellow text-white avatar">
+                                                <i class="ti ti-user"></i>
                                             </span>
                                         </div>
                                         <div class="col">
                                             <div class="font-weight-medium">
                                                 <span
-                                                    id="out-of-stock-items">{{ number_format($outOfStockItems ?? 0) }}</span>
+                                                    id="borrowed-items">{{ number_format($borrowedItems ?? 0) }}</span>
                                                 Items
                                             </div>
                                             <div class="text-muted">
-                                                Out of Stock
+                                                Borrowed
                                             </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        <!-- Availability Rate -->
+                        <!-- Missing Items -->
                         <div class="col-sm-6 col-lg-3">
                             <div class="card card-sm">
                                 <div class="card-body">
                                     <div class="row align-items-center">
                                         <div class="col-auto">
-                                            <span class="bg-info text-white avatar">
-                                                <i class="ti ti-percentage"></i>
+                                            <span class="bg-dark text-white avatar">
+                                                <i class="ti ti-alert-triangle"></i>
                                             </span>
                                         </div>
                                         <div class="col">
                                             <div class="font-weight-medium">
-                                                <span
-                                                    id="availability-rate">{{ $totalItems > 0 ? round(($availableItems / $totalItems) * 100) : 0 }}</span>%
+                                                <span id="missing-items">{{ number_format($missingItems ?? 0) }}</span>
+                                                Items
                                             </div>
                                             <div class="text-muted">
-                                                Availability Rate
+                                                Missing
                                             </div>
                                         </div>
                                     </div>
@@ -141,6 +147,7 @@
             <div class="card mt-3">
                 <div class="card-header">
                     <h3 class="card-title">Items List</h3>
+                    <!-- Simplified status indicators -->
                     <div class="card-actions">
                         <div class="row g-2 align-items-center">
                             <div class="col">
@@ -151,8 +158,19 @@
                                     <select id="status-filter" class="form-select">
                                         <option value="">All Status</option>
                                         <option value="available">Available</option>
+                                        <option value="borrowed">Borrowed</option>
+                                        <option value="missing">Missing</option>
                                         <option value="out_of_stock">Out of Stock</option>
                                     </select>
+                                </div>
+                            </div>
+
+                            <!-- Simplified Connection Status Indicator -->
+                            <div class="col-auto">
+                                <div id="connection-status" class="d-flex align-items-center">
+                                    <div id="connection-indicator" class="bg-success rounded-circle me-2"
+                                        style="width: 8px; height: 8px;" title="Connection"></div>
+                                    <small class="text-muted"><span id="connection-text">Live</span></small>
                                 </div>
                             </div>
                         </div>
@@ -166,10 +184,9 @@
                                     <th class="w-1">No</th>
                                     <th>EPC Code</th>
                                     <th>Item Name</th>
-                                    <th>Available Quantity</th>
                                     <th>Status</th>
                                     <th>Created At</th>
-                                    <th width="150">Actions</th>
+                                    <th width="80">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -182,22 +199,672 @@
         </div>
     </div>
 
+    <!-- Existing Modals -->
+    <div class="modal modal-blur fade" id="modal-item-detail" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Item Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="item-detail-content">
+                    <!-- Content will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal modal-blur fade" id="modal-delete-item" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Move Item to Trash</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="text-center">
+                        <i class="ti ti-trash text-warning" style="font-size: 3rem;"></i>
+                        <h3 class="mt-3">Move to Trash?</h3>
+                        <p>Are you sure you want to move the item <span id="item-to-delete" class="fw-bold"></span> to
+                            trash?</p>
+                        <p class="text-muted">You can restore it later from the trash if needed.</p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-warning ms-auto" id="btn-confirm-delete">
+                        <i class="ti ti-trash me-1"></i>Move to Trash
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal modal-blur fade" id="modal-mark-missing" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Mark Item as Missing</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="text-center">
+                        <i class="ti ti-alert-triangle text-warning" style="font-size: 3rem;"></i>
+                        <h3 class="mt-3">Mark as Missing?</h3>
+                        <p>Are you sure you want to mark the item <span id="item-to-mark-missing"
+                                class="fw-bold"></span> as missing?</p>
+                        <p class="text-warning">This will remove the item from the borrower's responsibility and mark
+                            it as missing in the system.</p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-warning ms-auto" id="btn-confirm-mark-missing">
+                        <i class="ti ti-alert-triangle me-1"></i>Mark as Missing
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- Include Create Modal --}}
+    @include('admin.items.create-modal')
+
+    @push('styles')
+        <style>
+            /* Simplified connection status with better visual feedback */
+            #connection-status.connected #connection-indicator {
+                background-color: var(--tblr-green) !important;
+                animation: pulse 3s infinite;
+            }
+
+            #connection-status.connecting #connection-indicator {
+                background-color: var(--tblr-yellow) !important;
+                animation: spin 1s linear infinite;
+            }
+
+            #connection-status.disconnected #connection-indicator {
+                background-color: var(--tblr-red) !important;
+                animation: blink 1s infinite;
+            }
+
+            #connection-status.limited #connection-indicator {
+                background-color: var(--tblr-orange) !important;
+                animation: pulse 2s infinite;
+            }
+
+            /* Improved animations */
+            @keyframes pulse {
+
+                0%,
+                100% {
+                    opacity: 1;
+                    transform: scale(1);
+                }
+
+                50% {
+                    opacity: 0.6;
+                    transform: scale(1.1);
+                }
+            }
+
+            @keyframes spin {
+                from {
+                    transform: rotate(0deg);
+                }
+
+                to {
+                    transform: rotate(360deg);
+                }
+            }
+
+            @keyframes blink {
+
+                0%,
+                50% {
+                    opacity: 1;
+                }
+
+                51%,
+                100% {
+                    opacity: 0.3;
+                }
+            }
+
+            /* Optimized stat update animation */
+            .stat-updating {
+                animation: statUpdate 0.6s ease-in-out;
+                transform-origin: center;
+            }
+
+            @keyframes statUpdate {
+                0% {
+                    background-color: transparent;
+                    transform: scale(1);
+                }
+
+                50% {
+                    background-color: var(--tblr-green-lt);
+                    transform: scale(1.02);
+                }
+
+                100% {
+                    background-color: transparent;
+                    transform: scale(1);
+                }
+            }
+
+            /* Status badge update animation */
+            .status-updating {
+                animation: statusUpdate 0.8s ease-in-out;
+                transform-origin: center;
+            }
+
+            @keyframes statusUpdate {
+                0% {
+                    transform: scale(1);
+                }
+
+                30% {
+                    transform: scale(1.05);
+                }
+
+                100% {
+                    transform: scale(1);
+                }
+            }
+
+            /* Refresh button animation */
+            .btn.refreshing {
+                animation: spin 1s linear infinite;
+            }
+
+            /* Performance optimization for animations */
+            .status-updating,
+            .stat-updating,
+            #connection-indicator {
+                will-change: transform, opacity;
+            }
+
+            /* Dropdown actions styling */
+            .dropdown-menu-actions {
+                min-width: 140px;
+            }
+
+            .dropdown-item:hover {
+                background-color: var(--tblr-hover-bg);
+            }
+
+            .dropdown-item.text-danger:hover {
+                background-color: var(--tblr-red-lt);
+                color: var(--tblr-red) !important;
+            }
+
+            .btn-actions {
+                border: none;
+                background: transparent;
+                color: var(--tblr-body-color);
+                font-size: 1.2rem;
+                padding: 0.375rem 0.5rem;
+                border-radius: var(--tblr-border-radius);
+                transition: all 0.15s ease-in-out;
+                width: 32px;
+                height: 32px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .btn-actions:hover {
+                background-color: var(--tblr-hover-bg);
+                color: var(--tblr-primary);
+            }
+
+            /* Reduced motion for accessibility */
+            @media (prefers-reduced-motion: reduce) {
+
+                .status-updating,
+                .stat-updating,
+                #connection-indicator {
+                    animation: none !important;
+                }
+            }
+
+            /* Mobile responsiveness */
+            @media (max-width: 768px) {
+                #connection-status small {
+                    font-size: 0.7rem;
+                }
+
+                .card-actions .row {
+                    gap: 0.5rem;
+                }
+
+                .card-actions .col-auto {
+                    margin-bottom: 0.5rem;
+                }
+            }
+
+            /* Loading states */
+            .modal-loading {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 2rem;
+                min-height: 100px;
+            }
+
+            /* Toast enhancement for better visibility */
+            .toast-container {
+                z-index: 1060;
+            }
+
+            /* Improved table responsiveness */
+            @media (max-width: 576px) {
+                .table-responsive {
+                    font-size: 0.875rem;
+                }
+
+                .btn-actions {
+                    width: 28px;
+                    height: 28px;
+                    font-size: 1rem;
+                }
+
+                .badge {
+                    font-size: 0.75rem;
+                    padding: 0.25rem 0.5rem;
+                }
+            }
+
+            /* Dark mode compatibility */
+            @media (prefers-color-scheme: dark) {
+                #connection-status.connected #connection-indicator {
+                    background-color: #51cf66 !important;
+                }
+
+                #connection-status.connecting #connection-indicator {
+                    background-color: #ffd43b !important;
+                }
+
+                #connection-status.disconnected #connection-indicator {
+                    background-color: #ff6b6b !important;
+                }
+
+                #connection-status.limited #connection-indicator {
+                    background-color: #ff922b !important;
+                }
+            }
+
+            /* High contrast mode */
+            @media (prefers-contrast: high) {
+                #connection-indicator {
+                    border: 1px solid currentColor;
+                }
+
+                .badge {
+                    border: 1px solid currentColor;
+                }
+            }
+        </style>
+    @endpush
+
     @push('scripts')
         <script>
             $(function() {
                 const csrfToken = "{{ csrf_token() }}";
+                let itemToDelete = null;
+                let itemToMarkMissing = null;
 
-                // Initialize DataTable with custom styling
+                // === SIMPLIFIED REAL-TIME CONFIGURATION ===
+                let pollingInterval = null;
+                let clientLastUpdate = null;
+                let isPollingEnabled = true;
+                let pollingFailureCount = 0;
+
+                // OPTIMIZED: Faster intervals for better responsiveness
+                const POLLING_INTERVAL = 3000; // 3 seconds instead of 15
+                const MAX_FAILURES = 3; // Reduced from 5
+                const RETRY_DELAY = 2000; // 2 seconds
+
+                let currentStats = {
+                    total_items: {
+                        {
+                            $totalItems ?? 0
+                        }
+                    },
+                    available_items: {
+                        {
+                            $availableItems ?? 0
+                        }
+                    },
+                    borrowed_items: {
+                        {
+                            $borrowedItems ?? 0
+                        }
+                    },
+                    missing_items: {
+                        {
+                            $missingItems ?? 0
+                        }
+                    }
+                };
+
+                // === OPTIMIZED AJAX WITH BETTER ERROR HANDLING ===
+                function makeOptimizedRequest(url, options = {}) {
+                    const defaultOptions = {
+                        timeout: 5000, // Reduced from 8000
+                        retries: 1, // Reduced from 2
+                        retryDelay: 1000
+                    };
+
+                    const config = {
+                        ...defaultOptions,
+                        ...options
+                    };
+
+                    // Circuit breaker
+                    if (pollingFailureCount >= MAX_FAILURES) {
+                        return Promise.reject(new Error('Circuit breaker open'));
+                    }
+
+                    function attemptRequest(attempt = 1) {
+                        return new Promise((resolve, reject) => {
+                            $.ajax({
+                                    url: url,
+                                    timeout: config.timeout,
+                                    ...config.ajaxOptions
+                                })
+                                .done(resolve)
+                                .fail((xhr, status, error) => {
+                                    console.warn(`Request failed (attempt ${attempt}):`, {
+                                        status: xhr.status,
+                                        statusText: xhr.statusText,
+                                        error
+                                    });
+
+                                    if (attempt < config.retries && xhr.status >= 500) {
+                                        setTimeout(() => {
+                                            attemptRequest(attempt + 1).then(resolve).catch(reject);
+                                        }, config.retryDelay * attempt);
+                                    } else {
+                                        reject(xhr);
+                                    }
+                                });
+                        });
+                    }
+
+                    return attemptRequest();
+                }
+
+                // === SIMPLIFIED POLLING SYSTEM ===
+                function startPolling() {
+                    if (pollingInterval) clearInterval(pollingInterval);
+
+                    console.log(`Starting optimized polling - interval: ${POLLING_INTERVAL}ms`);
+
+                    pollingInterval = setInterval(() => {
+                        if (!isPollingEnabled || document.hidden) return;
+                        checkForDatabaseUpdates();
+                    }, POLLING_INTERVAL);
+                }
+
+                function stopPolling() {
+                    if (pollingInterval) {
+                        clearInterval(pollingInterval);
+                        pollingInterval = null;
+                    }
+                }
+
+                function checkForDatabaseUpdates() {
+                    console.log('Checking for database updates...');
+                    setConnectionStatus('connecting');
+
+                    makeOptimizedRequest("/admin/items/check-updates", {
+                            ajaxOptions: {
+                                type: 'GET',
+                                data: {
+                                    last_update: clientLastUpdate
+                                }
+                            }
+                        })
+                        .then(response => {
+                            console.log('Update check response:', response);
+
+                            pollingFailureCount = 0;
+                            setConnectionStatus('connected');
+
+                            if (response.has_updates) {
+                                console.log('Changes detected - refreshing table');
+                                performSilentRefresh();
+
+                                if (response.stats) {
+                                    updateStats(response.stats);
+                                }
+                            }
+
+                            // Update timestamp
+                            if (response.latest_db_update) {
+                                clientLastUpdate = response.latest_db_update;
+                            }
+                        })
+                        .catch(xhr => {
+                            pollingFailureCount++;
+                            console.error('Update check failed:', xhr.status);
+
+                            if (pollingFailureCount >= MAX_FAILURES) {
+                                setConnectionStatus('disconnected');
+                                showItemsToast('Connection lost. Auto-refresh disabled.', 'warning');
+                                stopPolling();
+
+                                // Retry after delay
+                                setTimeout(() => {
+                                    pollingFailureCount = 0;
+                                    startPolling();
+                                }, RETRY_DELAY * 3);
+                            } else {
+                                setConnectionStatus('limited');
+                            }
+                        });
+                }
+
+                // === UTILITY FUNCTIONS ===
+                function showItemsToast(message, type = 'success', skipAutoUpdate = false) {
+                    if (skipAutoUpdate) {
+                        console.log('Auto-update (silent):', message);
+                        return;
+                    }
+
+                    if (window.UnifiedToastSystem) {
+                        window.UnifiedToastSystem.show(type, message);
+                    } else if (typeof window.showNotificationToast === 'function') {
+                        window.showNotificationToast(message, type);
+                    } else {
+                        console.log(`${type.toUpperCase()}: ${message}`);
+                    }
+                }
+
+                function refreshNotifications() {
+                    if (typeof window.refreshNotifications === 'function') {
+                        window.refreshNotifications();
+                    }
+                }
+
+                function setConnectionStatus(status) {
+                    const $indicator = $('#connection-indicator');
+                    const $statusContainer = $('#connection-status');
+                    const $text = $('#connection-text');
+
+                    $statusContainer.removeClass('connected connecting disconnected limited').addClass(status);
+
+                    const statusConfig = {
+                        'connected': {
+                            title: 'Live updates active',
+                            text: 'Live'
+                        },
+                        'connecting': {
+                            title: 'Checking for updates...',
+                            text: 'Checking'
+                        },
+                        'disconnected': {
+                            title: 'Connection failed - Updates disabled',
+                            text: 'Offline'
+                        },
+                        'limited': {
+                            title: 'Limited connection - Reduced frequency',
+                            text: 'Limited'
+                        }
+                    };
+
+                    const config = statusConfig[status];
+                    if (config) {
+                        $indicator.attr('title', config.title);
+                        $text.text(config.text);
+                    }
+                }
+
+                function updateLastRefreshTime() {
+                    const now = new Date();
+                    $('#last-updated-time').text(now.toLocaleTimeString());
+                }
+
+                function updateStats(stats) {
+                    function animateStatUpdate(element, newValue) {
+                        const $element = $(element);
+                        const currentValue = parseInt($element.text().replace(/,/g, '')) || 0;
+
+                        if (currentValue !== newValue) {
+                            $element.addClass('stat-updating');
+                            $element.text(newValue.toLocaleString());
+                            setTimeout(() => $element.removeClass('stat-updating'), 500);
+                        }
+                    }
+
+                    Object.keys(stats).forEach(key => {
+                        const elementMap = {
+                            'total_items': '#total-items',
+                            'available_items': '#available-items',
+                            'borrowed_items': '#borrowed-items',
+                            'missing_items': '#missing-items'
+                        };
+
+                        const element = elementMap[key];
+                        if (element && stats[key] !== undefined && stats[key] !== currentStats[key]) {
+                            animateStatUpdate(element, stats[key]);
+                            currentStats[key] = stats[key];
+                        }
+                    });
+                }
+
+                function updateStatusBadge($badge, newStatus) {
+                    const statusConfig = {
+                        'available': {
+                            icon: 'ti-check',
+                            class: 'bg-success',
+                            text: 'Available'
+                        },
+                        'borrowed': {
+                            icon: 'ti-user',
+                            class: 'bg-warning',
+                            text: 'Borrowed'
+                        },
+                        'missing': {
+                            icon: 'ti-alert-triangle',
+                            class: 'bg-dark',
+                            text: 'Missing'
+                        },
+                        'out_of_stock': {
+                            icon: 'ti-x',
+                            class: 'bg-danger',
+                            text: 'Out of Stock'
+                        }
+                    };
+
+                    const config = statusConfig[newStatus] || {
+                        icon: 'ti-help',
+                        class: 'bg-secondary',
+                        text: 'Unknown'
+                    };
+
+                    $badge.removeClass('bg-success bg-warning bg-dark bg-danger bg-secondary')
+                        .addClass('status-updating')
+                        .addClass(config.class)
+                        .attr('data-status', newStatus)
+                        .html(`<i class="ti ${config.icon} me-1"></i>${config.text}`);
+
+                    setTimeout(() => $badge.removeClass('status-updating'), 800);
+                }
+
+                function performSilentRefresh() {
+                    console.log('Performing silent table refresh...');
+
+                    table.ajax.reload(function(json) {
+                        updateLastRefreshTime();
+
+                        if (json && (json.refresh_timestamp || json.last_db_update)) {
+                            clientLastUpdate = json.refresh_timestamp || json.last_db_update;
+                        }
+                    }, false);
+                }
+
+                function performManualRefresh() {
+                    const $refreshBtn = $('#reload-items');
+
+                    $refreshBtn.addClass('refreshing');
+                    setConnectionStatus('connecting');
+
+                    table.ajax.reload(function(json) {
+                        $refreshBtn.removeClass('refreshing');
+                        showItemsToast('Data refreshed successfully!', 'success');
+                        updateLastRefreshTime();
+
+                        if (json && (json.refresh_timestamp || json.last_db_update)) {
+                            clientLastUpdate = json.refresh_timestamp || json.last_db_update;
+                        }
+                    }, false);
+                }
+
+                function triggerImmediateUpdate() {
+                    console.log('Triggering immediate update...');
+                    performSilentRefresh();
+                }
+
+                // === DATATABLE INITIALIZATION ===
                 const table = $('#itemsTable').DataTable({
                     processing: true,
                     serverSide: true,
                     ajax: {
-                        url: "{{ route('superadmin.items.data') }}",
+                        url: "/admin/items/data/items",
                         type: 'GET',
+                        timeout: 10000, // Reduced timeout
                         dataSrc: function(json) {
-                            // Update statistics if provided in response
+                            console.log('DataTable loaded successfully');
+
                             updateStats(json.stats || {});
+                            updateLastRefreshTime();
+                            setConnectionStatus('connected');
+
+                            // Initialize clientLastUpdate
+                            if (!clientLastUpdate && (json.refresh_timestamp || json.last_db_update)) {
+                                clientLastUpdate = json.refresh_timestamp || json.last_db_update;
+                                console.log('Initialized clientLastUpdate:', clientLastUpdate);
+                            }
+
+                            pollingFailureCount = 0;
                             return json.data;
+                        },
+                        error: function(xhr, error, code) {
+                            console.error('DataTable Ajax Error:', {
+                                status: xhr.status,
+                                error: error,
+                                code: code
+                            });
+                            setConnectionStatus('disconnected');
+                            pollingFailureCount++;
+
+                            if (pollingFailureCount >= MAX_FAILURES) {
+                                showItemsToast('Connection lost. Please refresh manually.', 'warning');
+                            }
                         }
                     },
                     columns: [{
@@ -223,21 +890,12 @@
                             data: 'nama_barang',
                             name: 'nama_barang',
                             render: function(data, type, row) {
-                                return '<div class="text-wrap">' + data + '</div>';
-                            }
-                        },
-                        {
-                            data: 'available',
-                            name: 'available',
-                            className: 'text-center',
-                            render: function(data, type, row) {
-                                let badgeClass = 'bg-success';
-                                if (data == 0) {
-                                    badgeClass = 'bg-danger';
-                                } else if (data <= 5) {
-                                    badgeClass = 'bg-warning';
-                                }
-                                return '<span class="badge ' + badgeClass + '">' + data + '</span>';
+                                return '<div class="text-wrap">' +
+                                    '<a href="#" class="item-name-clickable" data-item-id="' + row.id +
+                                    '">' +
+                                    data +
+                                    '</a>' +
+                                    '</div>';
                             }
                         },
                         {
@@ -247,25 +905,39 @@
                             render: function(data, type, row) {
                                 let iconClass = '';
                                 let badgeClass = '';
+                                let statusText = '';
 
-                                if (data === 'available') {
-                                    iconClass = 'ti-check';
-                                    badgeClass = 'bg-success';
-                                } else if (data === 'out_of_stock') {
-                                    iconClass = 'ti-x';
-                                    badgeClass = 'bg-danger';
-                                } else if (data === 'low_stock') {
-                                    iconClass = 'ti-alert-triangle';
-                                    badgeClass = 'bg-warning';
-                                } else {
-                                    iconClass = 'ti-help';
-                                    badgeClass = 'bg-secondary';
+                                switch (data) {
+                                    case 'available':
+                                        iconClass = 'ti-check';
+                                        badgeClass = 'bg-success';
+                                        statusText = 'Available';
+                                        break;
+                                    case 'borrowed':
+                                        iconClass = 'ti-user';
+                                        badgeClass = 'bg-warning';
+                                        statusText = 'Borrowed';
+                                        break;
+                                    case 'missing':
+                                        iconClass = 'ti-alert-triangle';
+                                        badgeClass = 'bg-dark';
+                                        statusText = 'Missing';
+                                        break;
+                                    case 'out_of_stock':
+                                        iconClass = 'ti-x';
+                                        badgeClass = 'bg-danger';
+                                        statusText = 'Out of Stock';
+                                        break;
+                                    default:
+                                        iconClass = 'ti-help';
+                                        badgeClass = 'bg-secondary';
+                                        statusText = 'Unknown';
                                 }
 
-                                return '<span class="badge ' + badgeClass + '"><i class="ti ' +
-                                    iconClass + ' me-1"></i>' +
-                                    data.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) +
-                                    '</span>';
+                                return '<span class="badge ' + badgeClass + '" data-item-id="' + row
+                                    .id +
+                                    '" data-status="' + data + '"><i class="ti ' + iconClass +
+                                    ' me-1"></i>' + statusText + '</span>';
                             }
                         },
                         {
@@ -277,16 +949,58 @@
                             }
                         },
                         {
-                            data: 'actions',
+                            data: null,
                             name: 'actions',
                             orderable: false,
                             searchable: false,
-                            className: 'text-center'
+                            className: 'text-center align-middle',
+                            width: '80px',
+                            render: function(data, type, row) {
+                                let actions = `
+                        <div class="d-flex justify-content-center align-items-center">
+                            <div class="dropdown">
+                                <button class="btn btn-actions" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="ti ti-dots-vertical"></i>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end dropdown-menu-actions">
+                                    <li>
+                                        <a class="dropdown-item" href="/admin/items/${row.id}/edit">
+                                            <i class="ti ti-edit me-2"></i>Edit
+                                        </a>
+                                    </li>`;
+
+                                if (row.status === 'borrowed') {
+                                    actions += `
+                            <li>
+                                <a class="dropdown-item text-warning mark-missing" href="#" 
+                                   data-item-id="${row.id}" 
+                                   data-item-name="${row.nama_barang}">
+                                    <i class="ti ti-alert-triangle me-2"></i>Mark as Missing
+                                </a>
+                            </li>`;
+                                }
+
+                                actions += `
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <a class="dropdown-item text-danger delete-item" href="#" 
+                                   data-item-id="${row.id}" 
+                                   data-item-name="${row.nama_barang}"
+                                   data-item-status="${row.status}">
+                                    <i class="ti ti-trash me-2"></i>Move to Trash
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>`;
+
+                                return actions;
+                            }
                         }
                     ],
                     order: [
-                        [5, 'desc']
-                    ], // Order by created_at descending
+                        [4, 'desc']
+                    ],
                     dom: '<"d-flex justify-content-between align-items-center mb-3"<"d-flex align-items-center"l><"d-flex"f>>t<"d-flex justify-content-between align-items-center mt-3"<"text-muted"i><"d-flex"p>>',
                     language: {
                         search: '',
@@ -309,96 +1023,269 @@
                     responsive: true
                 });
 
-                // Handle refresh button
-                $('#reload-items').on('click', function() {
-                    table.ajax.reload();
-                    if (typeof toastr !== 'undefined') {
-                        toastr.success('Data refreshed successfully!');
+                window.itemsDataTable = table;
+
+                // === PAGE VISIBILITY HANDLING ===
+                document.addEventListener('visibilitychange', function() {
+                    if (document.hidden) {
+                        console.log('Page hidden - pausing activities');
+                        isPollingEnabled = false;
+                    } else {
+                        console.log('Page visible - resuming activities');
+                        isPollingEnabled = true;
+                        pollingFailureCount = Math.max(0, pollingFailureCount - 1);
+
+                        setConnectionStatus('connecting');
+
+                        // Resume polling after a short delay
+                        setTimeout(() => {
+                            checkForDatabaseUpdates();
+                        }, 1000);
                     }
                 });
 
-                // Status filter
+                // === EVENT HANDLERS ===
+                $('#reload-items').on('click', function() {
+                    performManualRefresh();
+                });
+
                 $('#status-filter').on('change', function() {
                     const selectedStatus = $(this).val();
-                    table.column(4).search(selectedStatus).draw();
+                    table.column(3).search(selectedStatus).draw();
                 });
 
-                // Delete confirmation using SweetAlert2
+                // Item detail modal
+                $(document).on('click', '.item-name-clickable', function(e) {
+                    e.preventDefault();
+                    const itemId = $(this).data('item-id');
+
+                    $('#item-detail-content').html(`
+            <div class="modal-loading">
+                <div class="spinner-border spinner-border-sm text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <span class="ms-2">Loading item details...</span>
+            </div>
+        `);
+
+                    $('#modal-item-detail').modal('show');
+
+                    $.ajax({
+                        url: `/admin/items/${itemId}`,
+                        type: 'GET',
+                        timeout: 10000,
+                        success: function(response) {
+                            if (response.success) {
+                                $('#item-detail-content').html(response.html);
+                            } else {
+                                $('#item-detail-content').html(`
+                        <div class="alert alert-danger">
+                            <i class="ti ti-alert-triangle me-2"></i>
+                            Failed to load item details. Please try again.
+                        </div>
+                    `);
+                            }
+                        },
+                        error: function(xhr, status, error) {
+                            console.error('Error loading item details:', error);
+                            $('#item-detail-content').html(`
+                    <div class="alert alert-danger">
+                        <i class="ti ti-alert-triangle me-2"></i>
+                        Error loading item details. Please try again.
+                    </div>
+                `);
+                        }
+                    });
+                });
+
+                // Delete item (SOFT DELETE)
                 $(document).on('click', '.delete-item', function(e) {
                     e.preventDefault();
+                    const itemId = $(this).data('item-id');
+                    const itemName = $(this).data('item-name');
+                    const itemStatus = $(this).data('item-status');
 
-                    const form = $(this).closest('form');
+                    itemToDelete = {
+                        id: itemId,
+                        name: itemName
+                    };
+                    $('#item-to-delete').text(itemName);
+                    $('#modal-delete-item').modal('show');
+                });
+
+                // Mark as missing
+                $(document).on('click', '.mark-missing', function(e) {
+                    e.preventDefault();
+                    const itemId = $(this).data('item-id');
                     const itemName = $(this).data('item-name');
 
-                    if (typeof Swal !== 'undefined') {
-                        Swal.fire({
-                            title: 'Delete Item',
-                            text: `Are you sure you want to delete "${itemName}"? This action cannot be undone.`,
-                            icon: 'warning',
-                            showCancelButton: true,
-                            confirmButtonColor: '#dc3545',
-                            cancelButtonColor: '#6c757d',
-                            confirmButtonText: 'Yes, Delete',
-                            cancelButtonText: 'Cancel'
-                        }).then((result) => {
-                            if (result.isConfirmed) {
-                                form.submit();
+                    itemToMarkMissing = {
+                        id: itemId,
+                        name: itemName
+                    };
+                    $('#item-to-mark-missing').text(itemName);
+                    $('#modal-mark-missing').modal('show');
+                });
+
+                // Confirm delete (SOFT DELETE)
+                $('#btn-confirm-delete').on('click', function() {
+                    if (!itemToDelete) return;
+
+                    const $btn = $(this);
+                    const originalText = $btn.html();
+                    $btn.prop('disabled', true).html('<i class="ti ti-loader-2 me-1 spinning"></i>Moving...');
+
+                    $.ajax({
+                        url: `/admin/items/${itemToDelete.id}`,
+                        type: 'DELETE',
+                        data: {
+                            _token: csrfToken
+                        },
+                        timeout: 10000,
+                        success: function(response) {
+                            if (response.success) {
+                                showItemsToast(response.message ||
+                                    'Item moved to trash successfully!', 'success');
+                                refreshNotifications();
+
+                                if (response.force_update || response.trigger_refresh) {
+                                    triggerImmediateUpdate();
+                                }
+
+                                // Update stats immediately
+                                if (response.stats) {
+                                    updateStats(response.stats);
+                                }
+                            } else {
+                                showItemsToast(response.message || 'Failed to move item to trash.',
+                                    'error');
                             }
-                        });
-                    } else {
-                        // Fallback to confirm dialog if SweetAlert2 is not available
-                        if (confirm(
-                                `Are you sure you want to delete "${itemName}"? This action cannot be undone.`
-                            )) {
-                            form.submit();
+                        },
+                        error: function(xhr, status, error) {
+                            let errorMessage = 'Failed to move item to trash. Please try again.';
+                            if (xhr.responseJSON && xhr.responseJSON.message) {
+                                errorMessage = xhr.responseJSON.message;
+                            }
+                            showItemsToast(errorMessage, 'error');
+                        },
+                        complete: function() {
+                            $btn.prop('disabled', false).html(originalText);
+                            $('#modal-delete-item').modal('hide');
                         }
+                    });
+                });
+
+                // Confirm mark missing
+                $('#btn-confirm-mark-missing').on('click', function() {
+                    if (!itemToMarkMissing) return;
+
+                    const $btn = $(this);
+                    const originalText = $btn.html();
+                    $btn.prop('disabled', true).html(
+                        '<i class="ti ti-loader-2 me-1 spinning"></i>Processing...');
+
+                    $.ajax({
+                        url: `/admin/missing-tools/mark-missing/${itemToMarkMissing.id}`,
+                        type: 'POST',
+                        data: {
+                            _token: csrfToken
+                        },
+                        timeout: 10000,
+                        success: function(response) {
+                            if (response.success) {
+                                showItemsToast(response.message ||
+                                    'Item marked as missing successfully!', 'warning');
+                                refreshNotifications();
+                                triggerImmediateUpdate();
+
+                                // Update stats immediately
+                                if (response.stats) {
+                                    updateStats(response.stats);
+                                }
+                            } else {
+                                showItemsToast(response.message ||
+                                    'Failed to mark item as missing.', 'error');
+                            }
+                        },
+                        error: function(xhr, status, error) {
+                            console.error('Error marking item as missing:', error);
+                            showItemsToast('Failed to mark item as missing. Please try again.',
+                                'error');
+                        },
+                        complete: function() {
+                            $btn.prop('disabled', false).html(originalText);
+                            $('#modal-mark-missing').modal('hide');
+                        }
+                    });
+                });
+
+                // Modal cleanup
+                $('#modal-delete-item').on('hidden.bs.modal', function() {
+                    itemToDelete = null;
+                });
+
+                $('#modal-mark-missing').on('hidden.bs.modal', function() {
+                    itemToMarkMissing = null;
+                });
+
+                // Handle successful item creation from modal
+                $(document).on('itemAdded', function(event, data) {
+                    console.log('Item added event received:', data);
+                    triggerImmediateUpdate();
+
+                    // Update stats immediately
+                    if (data.stats) {
+                        updateStats(data.stats);
                     }
                 });
 
-                // Helper function to update the statistics
-                function updateStats(stats) {
-                    if (stats.total_items !== undefined) {
-                        $('#total-items').text(stats.total_items.toLocaleString());
-                    }
-                    if (stats.available_items !== undefined) {
-                        $('#available-items').text(stats.available_items.toLocaleString());
-                    }
-                    if (stats.out_of_stock_items !== undefined) {
-                        $('#out-of-stock-items').text(stats.out_of_stock_items.toLocaleString());
-                    }
-                    if (stats.availability_rate !== undefined) {
-                        $('#availability-rate').text(Math.round(stats.availability_rate));
-                    }
-                }
+                // === WINDOW UNLOAD HANDLING ===
+                window.addEventListener('beforeunload', function() {
+                    stopPolling();
+                });
 
-                // Helper function to get initials from name
-                function getInitials(name) {
-                    if (!name) return '?';
-                    return name.split(' ').map(n => n[0]).join('').toUpperCase();
-                }
+                // === INITIALIZATION ===
+                updateLastRefreshTime();
+                setConnectionStatus('connecting');
 
-                // Helper function to generate color from string
-                function stringToColor(str) {
-                    if (!str) return '#607D8B';
-                    let hash = 0;
-                    for (let i = 0; i < str.length; i++) {
-                        hash = str.charCodeAt(i) + ((hash << 5) - hash);
+                // Start optimized polling immediately
+                startPolling();
+
+                // Show Laravel session messages
+                @if (session('success'))
+                    showItemsToast("{{ session('success') }}", 'success');
+                @endif
+
+                @if (session('error'))
+                    showItemsToast("{{ session('error') }}", 'error');
+                @endif
+
+                @if (session('warning'))
+                    showItemsToast("{{ session('warning') }}", 'warning');
+                @endif
+
+                @if (session('info'))
+                    showItemsToast("{{ session('info') }}", 'info');
+                @endif
+
+                // === GLOBAL FUNCTIONS ===
+                window.refreshItemsTable = function(silent = true) {
+                    if ($('#itemsTable').DataTable()) {
+                        $('#itemsTable').DataTable().ajax.reload(null, false);
                     }
-                    let color = '#';
-                    for (let i = 0; i < 3; i++) {
-                        const value = (hash >> (i * 8)) & 0xFF;
-                        color += ('00' + value.toString(16)).substr(-2);
-                    }
-                    return color;
-                }
+                };
+
+                window.debugItemsRealTime = function() {
+                    console.log('=== OPTIMIZED REAL-TIME DEBUG INFO ===');
+                    console.log('Client Last Update:', clientLastUpdate);
+                    console.log('Polling Interval:', POLLING_INTERVAL);
+                    console.log('Failure Count:', pollingFailureCount);
+                    console.log('Active Polling:', !!pollingInterval);
+                    console.log('Polling Enabled:', isPollingEnabled);
+                };
+
+                console.log(`Optimized real-time system initialized with ${POLLING_INTERVAL}ms interval`);
             });
-
-            // Global refresh function for backward compatibility
-            function refreshTable() {
-                if ($('#itemsTable').DataTable()) {
-                    $('#itemsTable').DataTable().ajax.reload(null, false);
-                }
-            }
         </script>
     @endpush
-</x-layouts.superadmin_layout>
+</x-layouts.admin_layout>
