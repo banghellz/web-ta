@@ -198,7 +198,7 @@
                             </div>
                         </a>
                         <div class="dropdown-menu dropdown-menu-end dropdown-menu-arrow">
-                            <a href="#" class="dropdown-item">Profile</a>
+                            <a href="{{ route('admin.profile.index') }}" class="dropdown-item">Profile</a>
                             <div class="dropdown-divider"></div>
                             <form method="GET" action="{{ route('logout') }}">
                                 @csrf
@@ -239,7 +239,8 @@
                     <div class="col-12 col-lg-auto mt-3 mt-lg-0">
                         <ul class="list-inline list-inline-dots mb-0">
                             <li class="list-inline-item">
-                                &copy; {{ date('Y') }} {{ config('app.name', 'Laravel App') }}. All rights reserved.
+                                &copy; {{ date('Y') }} {{ config('app.name', 'Laravel App') }}. All rights
+                                reserved.
                             </li>
                         </ul>
                     </div>
