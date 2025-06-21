@@ -107,6 +107,16 @@
                         </a>
                     </li>
 
+                    <!-- Profile Menu Item -->
+                    <li class="nav-item">
+                        <a class="nav-link text-gray-400 fw-semibold" href="{{ route('user.profile.index') }}">
+                            <span class="nav-link-icon d-md-none d-lg-inline-block">
+                                <i class="ti ti-user"></i>
+                            </span>
+                            <span class="nav-link-title">Profile</span>
+                        </a>
+                    </li>
+
                     <!-- Logout -->
                     <li class="nav-item mt-auto">
                         <form method="GET" action="{{ route('logout') }}" class="m-0">
@@ -150,6 +160,75 @@
     #user-sidebar .navbar-nav .nav-link.active {
         background-color: var(--tblr-primary);
         color: #ffffff;
+    }
+
+    /* Profile Section - Clickable */
+    #user-sidebar .profile-link {
+        transition: all 0.2s ease-in-out;
+        border-radius: 0.5rem;
+        padding: 0.5rem;
+        margin: 0 0.5rem;
+        cursor: pointer;
+        position: relative;
+    }
+
+    #user-sidebar .profile-link:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+        transform: translateY(-1px);
+    }
+
+    #user-sidebar .profile-link:hover .profile-name {
+        color: #ffffff !important;
+    }
+
+    #user-sidebar .profile-link:hover .profile-role {
+        color: #b8c5d1 !important;
+    }
+
+    #user-sidebar .profile-link:hover .profile-avatar .avatar-overlay {
+        opacity: 1;
+    }
+
+    /* Profile Avatar with Overlay */
+    #user-sidebar .profile-avatar {
+        position: relative;
+        transition: all 0.2s ease-in-out;
+        border: 2px solid rgba(255, 255, 255, 0.1);
+    }
+
+    #user-sidebar .profile-avatar:hover {
+        border-color: rgba(255, 255, 255, 0.3);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Avatar Overlay Icon */
+    #user-sidebar .avatar-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        opacity: 0;
+        transition: opacity 0.2s ease-in-out;
+    }
+
+    #user-sidebar .avatar-overlay i {
+        color: #ffffff;
+        font-size: 1.25rem;
+    }
+
+    /* Profile Text Styling */
+    #user-sidebar .profile-name {
+        transition: color 0.2s ease-in-out;
+    }
+
+    #user-sidebar .profile-role {
+        transition: color 0.2s ease-in-out;
     }
 
     /* Logout button styling */
@@ -242,6 +321,11 @@
         #user-sidebar .navbar-brand {
             padding: 0.75rem;
         }
+
+        #user-sidebar .profile-link {
+            margin: 0 0.25rem;
+            padding: 0.25rem;
+        }
     }
 
     /* Typography consistency */
@@ -275,5 +359,39 @@
     #user-sidebar button.nav-link:focus {
         outline: none;
         box-shadow: none;
+    }
+
+    /* Accessibility improvements */
+    #user-sidebar .profile-link:focus {
+        outline: 2px solid var(--tblr-primary);
+        outline-offset: 2px;
+    }
+
+    /* Tooltip for better UX */
+    #user-sidebar .profile-link[title]:hover::after {
+        content: attr(title);
+        position: absolute;
+        bottom: -2rem;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.25rem;
+        font-size: 0.75rem;
+        white-space: nowrap;
+        z-index: 1000;
+        opacity: 0;
+        animation: fadeIn 0.2s ease-in-out forwards;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+
+        to {
+            opacity: 1;
+        }
     }
 </style>
