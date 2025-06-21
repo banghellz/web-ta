@@ -64,12 +64,12 @@
                                 Nomor Koin <span class="text-red-500">*</span>
                             </label>
                             <div class="mt-1 relative">
-                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <span class="text-gray-500 sm:text-sm">0</span>
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
+                                    <span class="text-gray-500 text-sm leading-none">0</span>
                                 </div>
                                 <input type="text" name="no_koin" id="no_koin" value="{{ old('no_koin') }}"
                                     required
-                                    class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full pl-6 pr-3 py-2 sm:text-sm border-gray-300 rounded-lg @error('no_koin') border-red-500 @enderror"
+                                    class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full pl-7 pr-3 py-2.5 text-sm border-gray-300 rounded-lg @error('no_koin') border-red-500 @enderror"
                                     placeholder="188" maxlength="4" pattern="[0-9]{1,4}">
                                 @error('no_koin')
                                     <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
@@ -121,21 +121,15 @@
                                             alt="Preview foto profil">
                                     </div>
                                     <div class="flex-1">
-                                        <div class="flex items-center space-x-3">
-                                            <label for="pict"
-                                                class="relative cursor-pointer bg-white py-2 px-4 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500">
-                                                <span>Ubah Foto</span>
-                                                <input id="pict" name="pict" type="file" class="sr-only"
-                                                    accept="image/jpeg,image/png,image/jpg">
-                                            </label>
-                                            <button type="button" id="use-google-photo"
-                                                class="py-2 px-4 border border-blue-300 rounded-lg shadow-sm text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                                                Gunakan Foto Google
-                                            </button>
-                                        </div>
+                                        <label for="pict"
+                                            class="relative cursor-pointer bg-white py-2 px-4 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500">
+                                            <span>Ubah Foto</span>
+                                            <input id="pict" name="pict" type="file" class="sr-only"
+                                                accept="image/jpeg,image/png,image/jpg">
+                                        </label>
                                         <p class="mt-2 text-xs text-gray-500">
-                                            JPG, JPEG, atau PNG. Maksimal 2MB. Foto dari Google Account akan digunakan
-                                            secara default.
+                                            JPG, JPEG, atau PNG. Maksimal 2MB. Foto dari Google Account digunakan secara
+                                            otomatis.
                                         </p>
                                         @error('pict')
                                             <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
@@ -173,12 +167,7 @@
             document.addEventListener('DOMContentLoaded', function() {
                 const pictInput = document.getElementById('pict');
                 const previewImage = document.getElementById('preview-image');
-                const useGooglePhotoBtn = document.getElementById('use-google-photo');
                 const noKoinInput = document.getElementById('no_koin');
-
-                // Store original Google photo URL
-                const googlePhotoUrl = '{{ $userPhoto ?? asset('images/default-avatar.png') }}';
-                let isUsingGooglePhoto = true;
 
                 // Preview uploaded image
                 pictInput.addEventListener('change', function(event) {
@@ -187,26 +176,8 @@
                         const reader = new FileReader();
                         reader.onload = function(e) {
                             previewImage.src = e.target.result;
-                            isUsingGooglePhoto = false;
-                            useGooglePhotoBtn.textContent = 'Gunakan Foto Google';
-                            useGooglePhotoBtn.classList.remove('bg-green-50', 'text-green-700',
-                                'border-green-300');
-                            useGooglePhotoBtn.classList.add('bg-blue-50', 'text-blue-700',
-                                'border-blue-300');
                         };
                         reader.readAsDataURL(file);
-                    }
-                });
-
-                // Use Google photo button
-                useGooglePhotoBtn.addEventListener('click', function() {
-                    if (!isUsingGooglePhoto) {
-                        previewImage.src = googlePhotoUrl;
-                        pictInput.value = '';
-                        isUsingGooglePhoto = true;
-                        this.textContent = 'Menggunakan Foto Google';
-                        this.classList.remove('bg-blue-50', 'text-blue-700', 'border-blue-300');
-                        this.classList.add('bg-green-50', 'text-green-700', 'border-green-300');
                     }
                 });
 
@@ -232,12 +203,6 @@
                         noKoinInput.value = paddedValue;
                     }
                 });
-
-                // Initialize button state
-                if (isUsingGooglePhoto) {
-                    useGooglePhotoBtn.textContent = 'Menggunakan Foto Google';
-                    useGooglePhotoBtn.classList.add('bg-green-50', 'text-green-700', 'border-green-300');
-                }
             });
         </script>
     @endpush

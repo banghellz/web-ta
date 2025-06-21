@@ -125,24 +125,34 @@ class CompleteProfileController extends Controller
     }
 
     /**
-     * Get user's photo URL - try Google first, then default
+     * Get user's photo URL - try Google/Gravatar first, then default
      */
     private function getUserPhotoUrl($user)
     {
         try {
             $email = $user->email;
 
-            // Simple approach: try to construct Google photo URL from email
+            // Try to get Gravatar (which often includes Google photos)
             if (strpos($email, '@') !== false) {
-                // For Gmail or Google accounts, try Gravatar first
                 $hash = md5(strtolower(trim($email)));
                 $gravatarUrl = "https://www.gravatar.com/avatar/{$hash}?s=200&d=404";
 
-                // Check if Gravatar exists
-                $headers = @get_headers($gravatarUrl);
+                // Check if Gravatar exists by making a simple request
+                $context = stream_context_create([
+                    'http' => [
+                        'timeout' => 5,
+                        'method' => 'HEAD'
+                    ]
+                ]);
+
+                $headers = @get_headers($gravatarUrl, 0, $context);
                 if ($headers && strpos($headers[0], '200') !== false) {
                     return $gravatarUrl;
                 }
+
+                // Try alternative: get Gravatar with default fallback to a specific image
+                $gravatarUrlWithDefault = "https://www.gravatar.com/avatar/{$hash}?s=200&d=mp";
+                return $gravatarUrlWithDefault;
             }
         } catch (\Exception $e) {
             Log::warning('Could not fetch user photo: ' . $e->getMessage());
