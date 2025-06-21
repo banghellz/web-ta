@@ -1,26 +1,43 @@
-{{-- resources/views/superadmin/profile/index.blade.php --}}
-<x-layouts.superadmin_layout>
-    <x-slot name="title">My Profile - SuperAdmin</x-slot>
-    <x-slot name="content">Edit and manage your personal information</x-slot>
+{{-- resources/views/user/profile/index.blade.php --}}
+<x-layouts.user_layout>
+    <x-slot name="title">My Profile</x-slot>
+
+    <div class="page-header d-print-none">
+        <div class="container-xl">
+            <div class="row g-2 align-items-center">
+                <div class="col">
+                    <div class="page-pretitle">
+                        Account Settings
+                    </div>
+                    <h2 class="page-title">
+                        <i class="ti ti-user me-2"></i>My Profile
+                    </h2>
+                    <p class="text-muted">Edit and manage your personal information</p>
+                </div>
+                <div class="col-auto ms-auto d-print-none">
+                    <div class="btn-list">
+                        <span class="badge bg-blue-lt">
+                            <i class="ti ti-user me-1"></i>Student
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <div class="page-body">
         <div class="container-xl">
             <div class="row row-cards">
                 <div class="col-12">
-                    <form action="{{ route('superadmin.profile.update') }}" method="POST" class="card"
+                    <form action="{{ route('user.profile.update') }}" method="POST" class="card"
                         enctype="multipart/form-data">
                         @csrf
                         @method('PUT')
 
                         <div class="card-header">
                             <h3 class="card-title">
-                                <i class="ti ti-user me-2"></i>My Profile
+                                <i class="ti ti-user me-2"></i>Profile Information
                             </h3>
-                            <div class="card-actions">
-                                <span class="badge bg-danger">
-                                    <i class="ti ti-crown me-1"></i>Super Admin
-                                </span>
-                            </div>
                         </div>
 
                         <div class="card-body">
@@ -29,14 +46,14 @@
                                 <div class="row">
                                     <div class="col-auto">
                                         <span class="avatar avatar-xl mb-3"
-                                            style="background-image: url({{ $user->detail && $user->detail->pict ? asset('profile_pictures/' . $user->detail->pict) : asset('assets/img/default-avatar.png') }})"></span>
+                                            style="background-image: url({{ $user->detail && $user->detail->pict ? asset('profile_pictures/' . $user->detail->pict) : 'https://www.gravatar.com/avatar/' . md5($user->email) }})"></span>
                                     </div>
                                     <div class="col">
                                         <label class="form-label">Profile Photo</label>
-                                        <input type="file" name="pict"
+                                        <input type="file" name="pict" id="pictInput"
                                             class="form-control @error('pict') is-invalid @enderror"
                                             accept="image/jpeg,image/png,image/jpg">
-                                        <div class="text-muted mt-1">Upload new photo (JPG, PNG, max 10MB)</div>
+                                        <div class="form-hint">Upload new photo (JPG, PNG, max 10MB)</div>
                                         @error('pict')
                                             <div class="invalid-feedback">{{ $message }}</div>
                                         @enderror
@@ -55,14 +72,14 @@
                                     <div class="mb-3">
                                         <label class="form-label">Full Name</label>
                                         <input type="text" value="{{ $user->name }}" class="form-control" readonly>
-                                        <div class="text-muted mt-1">Name is synchronized with your Google account</div>
+                                        <div class="form-hint">Name is synchronized with your Google account</div>
                                     </div>
                                 </div>
                                 <div class="col-md-6">
                                     <div class="mb-3">
                                         <label class="form-label">Email Address</label>
                                         <input type="email" value="{{ $user->email }}" class="form-control" readonly>
-                                        <div class="text-muted mt-1">Email cannot be changed</div>
+                                        <div class="form-hint">Email cannot be changed</div>
                                     </div>
                                 </div>
                             </div>
@@ -80,7 +97,7 @@
                                         <label class="form-label">NIM (Student ID)</label>
                                         <input type="text" value="{{ $user->detail->nim ?? 'Not set' }}"
                                             class="form-control" readonly>
-                                        <div class="text-muted mt-1">
+                                        <div class="form-hint">
                                             @if ($user->detail && $user->detail->nim)
                                                 NIM is set during registration and cannot be changed
                                             @else
@@ -97,10 +114,10 @@
                                             <span class="input-group-text">0</span>
                                             <input type="text" name="no_koin" id="no_koin"
                                                 class="form-control @error('no_koin') is-invalid @enderror"
-                                                value="{{ old('no_koin', $user->detail ? substr($user->detail->no_koin, 1) : '') }}"
+                                                value="{{ old('no_koin', $user->detail && $user->detail->no_koin ? ltrim($user->detail->no_koin, '0') : '') }}"
                                                 placeholder="188" maxlength="3" pattern="[0-9]{1,3}">
                                         </div>
-                                        <div class="text-muted mt-1">Enter 3 digits (e.g., 188 becomes 0188)</div>
+                                        <div class="form-hint">Enter 3 digits (e.g., 188 becomes 0188)</div>
                                         @error('no_koin')
                                             <div class="invalid-feedback">{{ $message }}</div>
                                         @enderror
@@ -146,7 +163,7 @@
                                                 <i class="ti ti-coin text-yellow"></i>
                                             </span>
                                         </div>
-                                        <div class="text-muted mt-1">
+                                        <div class="form-hint">
                                             Available coins for borrowing items
                                             @if ($user->detail)
                                                 ({{ $user->detail->borrowed_items_count ?? 0 }} items currently
@@ -157,7 +174,7 @@
                                 </div>
                             </div>
 
-                            <!-- RFID Tag Section -->
+                            <!-- RFID Access Section - Read Only -->
                             <div class="row">
                                 <div class="col-12">
                                     <h4 class="mb-3">
@@ -166,84 +183,88 @@
                                 </div>
                                 <div class="col-md-8">
                                     <div class="mb-3">
-                                        <label class="form-label">RFID Tag</label>
-                                        <div class="row">
-                                            <div class="col-md-8">
-                                                <select name="rfid_uid" id="rfid_uid"
-                                                    class="form-select @error('rfid_uid') is-invalid @enderror">
-                                                    <option value="">-- Select RFID Tag --</option>
-                                                    @foreach ($availableRfidTags as $tag)
-                                                        <option value="{{ $tag->uid }}"
-                                                            {{ old('rfid_uid', $user->detail->rfid_uid ?? '') == $tag->uid ? 'selected' : '' }}>
-                                                            {{ $tag->uid }}
-                                                            @if ($tag->notes)
-                                                                - {{ $tag->notes }}
-                                                            @endif
-                                                            @if ($tag->status === 'Used' && $tag->uid === ($user->detail->rfid_uid ?? ''))
-                                                                (Current)
-                                                            @endif
-                                                        </option>
-                                                    @endforeach
-                                                </select>
-                                                @error('rfid_uid')
-                                                    <div class="invalid-feedback">{{ $message }}</div>
-                                                @enderror
+                                        <label class="form-label">RFID Tag Status</label>
+                                        @if ($user->detail && $user->detail->rfid_uid)
+                                            @php
+                                                $currentRfidTag = \App\Models\RfidTag::where(
+                                                    'uid',
+                                                    $user->detail->rfid_uid,
+                                                )->first();
+                                            @endphp
+                                            <div class="input-group">
+                                                <input type="text" value="{{ $user->detail->rfid_uid }}"
+                                                    class="form-control" readonly>
+                                                <span class="input-group-text">
+                                                    <span class="badge bg-success">
+                                                        <i class="ti ti-check me-1"></i>Assigned
+                                                    </span>
+                                                </span>
                                             </div>
-                                            <div class="col-md-4">
-                                                <button type="button" class="btn btn-outline-secondary"
-                                                    id="refresh-rfid-tags">
-                                                    <i class="ti ti-refresh me-1"></i>Refresh
-                                                </button>
+                                            <div class="form-hint">
+                                                <i class="ti ti-info-circle me-1"></i>
+                                                Your RFID tag is assigned and ready to use
                                             </div>
-                                        </div>
-                                        <div class="text-muted mt-1">
-                                            @if ($user->detail && $user->detail->rfid_uid)
-                                                Current RFID: <strong>{{ $user->detail->rfid_uid }}</strong>
-                                            @else
-                                                No RFID tag assigned
-                                            @endif
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
 
-                            <!-- Current RFID Status Info -->
-                            @if ($user->detail && $user->detail->rfid_uid)
-                                @php
-                                    $currentRfidTag = \App\Models\RfidTag::where(
-                                        'uid',
-                                        $user->detail->rfid_uid,
-                                    )->first();
-                                @endphp
-                                @if ($currentRfidTag)
-                                    <div class="row">
-                                        <div class="col-12">
-                                            <div class="alert alert-info">
+                                            <!-- RFID Status Details -->
+                                            @if ($currentRfidTag)
+                                                <div class="alert alert-success mt-3">
+                                                    <div class="d-flex align-items-center">
+                                                        <div>
+                                                            <i class="ti ti-shield-check me-2"></i>
+                                                        </div>
+                                                        <div>
+                                                            <strong>RFID Tag Information:</strong><br>
+                                                            <small class="text-muted">
+                                                                UID: {{ $currentRfidTag->uid }} |
+                                                                Status: <span
+                                                                    class="badge bg-success-lt">{{ $currentRfidTag->status }}</span>
+                                                                @if ($currentRfidTag->notes)
+                                                                    | Notes: {{ $currentRfidTag->notes }}
+                                                                @endif
+                                                            </small>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            @endif
+                                        @else
+                                            <div class="input-group">
+                                                <input type="text" value="Not Assigned" class="form-control"
+                                                    readonly>
+                                                <span class="input-group-text">
+                                                    <span class="badge bg-warning">
+                                                        <i class="ti ti-alert-triangle me-1"></i>Pending
+                                                    </span>
+                                                </span>
+                                            </div>
+                                            <div class="form-hint">
+                                                <i class="ti ti-info-circle me-1"></i>
+                                                No RFID tag assigned yet. Contact administrator for assignment.
+                                            </div>
+
+                                            <!-- No RFID Alert -->
+                                            <div class="alert alert-warning mt-3">
                                                 <div class="d-flex align-items-center">
                                                     <div>
-                                                        <i class="ti ti-info-circle me-2"></i>
+                                                        <i class="ti ti-alert-triangle me-2"></i>
                                                     </div>
                                                     <div>
-                                                        <strong>Current RFID Tag Status:</strong><br>
-                                                        UID: {{ $currentRfidTag->uid }} |
-                                                        Status: <span
-                                                            class="badge bg-{{ $currentRfidTag->status === 'Used' ? 'success' : ($currentRfidTag->status === 'Available' ? 'primary' : 'danger') }}">{{ $currentRfidTag->status }}</span>
-                                                        @if ($currentRfidTag->notes)
-                                                            | Notes: {{ $currentRfidTag->notes }}
-                                                        @endif
+                                                        <strong>RFID Assignment Required</strong><br>
+                                                        <small class="text-muted">
+                                                            Please contact your administrator to get an RFID tag
+                                                            assigned for cabinet access.
+                                                        </small>
                                                     </div>
                                                 </div>
                                             </div>
-                                        </div>
+                                        @endif
                                     </div>
-                                @endif
-                            @endif
+                                </div>
+                            </div>
                         </div>
 
                         <div class="card-footer d-flex justify-content-between">
                             <div>
-                                <a href="{{ route('superadmin.dashboard.index') }}"
-                                    class="btn btn-outline-secondary">
+                                <a href="{{ route('user.dashboard.index') }}" class="btn btn-outline-secondary">
                                     <i class="ti ti-arrow-left me-1"></i>Back to Dashboard
                                 </a>
                             </div>
@@ -265,8 +286,6 @@
     <!-- JavaScript for Profile functionality -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const refreshButton = document.getElementById('refresh-rfid-tags');
-            const rfidSelect = document.getElementById('rfid_uid');
             const noKoinInput = document.getElementById('no_koin');
             const form = document.querySelector('form');
 
@@ -373,70 +392,6 @@
                         });
                 });
             }
-
-            // Refresh RFID tags functionality
-            if (refreshButton) {
-                refreshButton.addEventListener('click', function() {
-                    // Show loading state
-                    refreshButton.disabled = true;
-                    refreshButton.innerHTML = '<i class="ti ti-loader me-1"></i>Loading...';
-
-                    // Fetch available RFID tags
-                    fetch('{{ route('admin.rfid-tags.available') }}')
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success) {
-                                // Store current selection
-                                const currentValue = rfidSelect.value;
-
-                                // Clear existing options except the first one
-                                rfidSelect.innerHTML =
-                                    '<option value="">-- Select RFID Tag --</option>';
-
-                                // Add available tags
-                                data.data.forEach(tag => {
-                                    const option = document.createElement('option');
-                                    option.value = tag.uid;
-                                    option.textContent = tag.uid + (tag.notes ? ' - ' + tag
-                                        .notes : '');
-                                    rfidSelect.appendChild(option);
-                                });
-
-                                // Restore selection if it still exists
-                                if (currentValue) {
-                                    rfidSelect.value = currentValue;
-                                }
-
-                                // Use unified toast system
-                                if (window.UnifiedToastSystem) {
-                                    window.UnifiedToastSystem.success(
-                                        'RFID tags refreshed successfully');
-                                } else {
-                                    showToast('RFID tags refreshed successfully', 'success');
-                                }
-                            } else {
-                                if (window.UnifiedToastSystem) {
-                                    window.UnifiedToastSystem.error('Failed to refresh RFID tags');
-                                } else {
-                                    showToast('Failed to refresh RFID tags', 'error');
-                                }
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Error:', error);
-                            if (window.UnifiedToastSystem) {
-                                window.UnifiedToastSystem.error('Error refreshing RFID tags');
-                            } else {
-                                showToast('Error refreshing RFID tags', 'error');
-                            }
-                        })
-                        .finally(() => {
-                            // Reset button state
-                            refreshButton.disabled = false;
-                            refreshButton.innerHTML = '<i class="ti ti-refresh me-1"></i>Refresh';
-                        });
-                });
-            }
         });
 
         // Fallback toast function if UnifiedToastSystem is not available
@@ -463,4 +418,4 @@
             }, 3000);
         }
     </script>
-</x-layouts.superadmin_layout>
+</x-layouts.user_layout>

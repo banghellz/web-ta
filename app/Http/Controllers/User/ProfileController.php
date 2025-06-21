@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
-use App\Models\RfidTag;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -22,13 +21,7 @@ class ProfileController extends Controller
         $user = Auth::user();
         $user->load('detail'); // Eager load detail relationship
 
-        // Get available RFID tags for selection
-        $availableRfidTags = RfidTag::where('status', 'Available')
-            ->orWhere('uid', $user->detail->rfid_uid ?? '')
-            ->orderBy('uid')
-            ->get();
-
-        return view('user.profile.index', compact('user', 'availableRfidTags'));
+        return view('user.profile.index', compact('user'));
     }
 
     /**
@@ -38,15 +31,14 @@ class ProfileController extends Controller
     {
         $user = Auth::user();
 
-        // Validation rules
+        // Validation rules (removed rfid_uid since users can't edit it)
         $rules = [
             'no_koin' => 'nullable|numeric|digits:4',
             'prodi' => 'nullable|string|max:50',
             'pict' => 'nullable|image|mimes:jpg,jpeg,png|max:10240', // 10MB max
-            'rfid_uid' => 'nullable|string|exists:rfid_tags,uid',
         ];
 
-        // If user has details, add unique validation for nim and no_koin (excluding current user)
+        // If user has details, add unique validation for no_koin (excluding current user)
         if ($user->detail) {
             $rules['no_koin'] = 'nullable|numeric|digits:4|unique:user_details,no_koin,' . $user->detail->id;
         }
@@ -67,28 +59,12 @@ class ProfileController extends Controller
                 }
             }
 
-            // Handle RFID tag assignment
-            $oldRfidUid = $user->detail->rfid_uid ?? null;
-            $newRfidUid = $request->rfid_uid;
-
-            if ($oldRfidUid !== $newRfidUid) {
-                // Free up old RFID tag
-                if ($oldRfidUid) {
-                    RfidTag::where('uid', $oldRfidUid)->update(['status' => 'Available']);
-                }
-
-                // Assign new RFID tag
-                if ($newRfidUid) {
-                    RfidTag::where('uid', $newRfidUid)->update(['status' => 'Used']);
-                }
-            }
-
-            // Update or create user details
+            // Update or create user details (removed RFID handling)
             $detailData = [
                 'nama' => $user->name, // Keep name synchronized
                 'no_koin' => $request->no_koin ? str_pad($request->no_koin, 4, '0', STR_PAD_LEFT) : null,
                 'prodi' => $request->prodi,
-                'rfid_uid' => $newRfidUid,
+                // RFID remains unchanged - only admin can modify
             ];
 
             // Add picture filename if uploaded
@@ -103,6 +79,7 @@ class ProfileController extends Controller
                 // Create new details
                 $detailData['user_id'] = $user->id;
                 $detailData['nim'] = null; // NIM can only be set during registration
+                $detailData['rfid_uid'] = null; // RFID assigned by admin
                 $user->detail()->create($detailData);
             }
 
