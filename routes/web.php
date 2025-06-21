@@ -246,39 +246,31 @@ Route::prefix('admin')
     ->middleware(['auth', 'admin'])
     ->name('admin.')
     ->group(function () {
-
+        Route::any('/', function () {
+            return redirect()->route('admin.dashboard.index');
+        })->name('index');
         Route::get('/dashboard', [App\Http\Controllers\Admin\DashboardController::class, 'index'])
             ->name('dashboard.index');
 
         // User management routes
-        Route::get('/users', [App\Http\Controllers\Admin\UserController::class, 'index'])
-            ->name('users.index');
-
-        Route::get('/users/data', [App\Http\Controllers\Admin\UserController::class, 'getData'])
-            ->name('users.data');
-
-        Route::patch('/users/update-role', [App\Http\Controllers\Admin\UserController::class, 'updateRole'])
-            ->name('users.update-role');
-
-        Route::get('/users/{uuid}', [App\Http\Controllers\Admin\UserController::class, 'show'])
-            ->name('users.show');
-
-        Route::get('/users/{uuid}/edit', [App\Http\Controllers\Admin\UserController::class, 'edit'])
-            ->name('users.edit');
-
-        Route::put('/users/{uuid}', [App\Http\Controllers\Admin\UserController::class, 'update'])
-            ->name('users.update');
-
-        Route::delete('/users/{uuid}', [App\Http\Controllers\Admin\UserController::class, 'destroy'])
-            ->name('users.destroy');
-
-        // RFID Tag assignment routes (for users)
-        Route::get('/available-rfid-tags', [App\Http\Controllers\Admin\UserController::class, 'getAvailableRfidTags'])
-            ->name('available-rfid-tags');
-
-        Route::post('/users/{uuid}/unassign-rfid', [App\Http\Controllers\Admin\UserController::class, 'unassignRfid'])
-            ->name('users.unassign-rfid');
-
+        Route::prefix('users')->name('users.')->group(function () {
+            // Main user management
+            Route::get('/', [App\Http\Controllers\Admin\UserController::class, 'index'])->name('index');
+            Route::get('/data', [App\Http\Controllers\Admin\UserController::class, 'getData'])->name('data');
+            Route::get('/create', [App\Http\Controllers\Admin\UserController::class, 'create'])->name('create');
+            Route::post('/', [App\Http\Controllers\Admin\UserController::class, 'store'])->name('store');
+            // AJAX endpoints
+            Route::patch('/update-role', [App\Http\Controllers\Admin\UserController::class, 'updateRole'])->name('update-role');
+            Route::post('/{uuid}/unassign-rfid', [App\Http\Controllers\Admin\UserController::class, 'unassignRfid'])->name('unassign-rfid');
+            Route::get('/rfid/available', [App\Http\Controllers\Admin\UserController::class, 'getAvailableRfidTags'])->name('rfid.available');
+            Route::get('/stats', [App\Http\Controllers\Admin\UserController::class, 'getStats'])->name('stats');
+            Route::get('/{uuid}/coin-info', [App\Http\Controllers\Admin\UserController::class, 'getCoinInfo']);
+            Route::post('/{uuid}/sync-koin', [App\Http\Controllers\Admin\UserController::class, 'syncKoin']);
+            Route::get('/{uuid}', [App\Http\Controllers\Admin\UserController::class, 'show'])->name('show');
+            Route::get('/{uuid}/edit', [App\Http\Controllers\Admin\UserController::class, 'edit'])->name('edit');
+            Route::put('/{uuid}', [App\Http\Controllers\Admin\UserController::class, 'update'])->name('update');
+            Route::delete('/{uuid}', [App\Http\Controllers\Admin\UserController::class, 'destroy'])->name('destroy');
+        });
         // Activity logs routes
         Route::get('/activity-logs', [App\Http\Controllers\Admin\ActivityLogController::class, 'index'])
             ->name('activity-logs.index');
@@ -294,23 +286,13 @@ Route::prefix('admin')
 
         // RFID Tags management routes
         Route::prefix('rfid-tags')->name('rfid-tags.')->group(function () {
-            // Main RFID tags page
             Route::get('/', [App\Http\Controllers\Admin\RfidTagController::class, 'index'])->name('index');
-
-            // DataTables data endpoint
             Route::get('/data', [App\Http\Controllers\Admin\RfidTagController::class, 'getData'])->name('data');
-
-            // Get statistics
             Route::get('/stats', [App\Http\Controllers\Admin\RfidTagController::class, 'getStats'])->name('stats');
-
-            // Get available RFID tags
             Route::get('/available', [App\Http\Controllers\Admin\RfidTagController::class, 'getAvailable'])->name('available');
-
-            // Bulk operations
-            Route::post('/bulk-update-status', [App\Http\Controllers\Admin\RfidTagController::class, 'bulkUpdateStatus'])->name('bulk-update-status');
-
-            // CRUD operations
             Route::post('/', [App\Http\Controllers\Admin\RfidTagController::class, 'store'])->name('store');
+            Route::post('/release/{rfidTag}', [App\Http\Controllers\Admin\RfidTagController::class, 'releaseFromUser'])->name('release');
+            Route::post('/bulk-status', [App\Http\Controllers\Admin\RfidTagController::class, 'bulkUpdateStatus'])->name('bulk-status');
             Route::get('/{rfidTag}', [App\Http\Controllers\Admin\RfidTagController::class, 'show'])->name('show');
             Route::get('/{rfidTag}/edit', [App\Http\Controllers\Admin\RfidTagController::class, 'edit'])->name('edit');
             Route::put('/{rfidTag}', [App\Http\Controllers\Admin\RfidTagController::class, 'update'])->name('update');
@@ -320,14 +302,33 @@ Route::prefix('admin')
         // Items management routes
         Route::prefix('items')->name('items.')->group(function () {
             Route::get('/', [App\Http\Controllers\Admin\ItemController::class, 'index'])->name('index');
-            Route::get('/data', [App\Http\Controllers\Admin\ItemController::class, 'getData'])->name('data');
             Route::get('/create', [App\Http\Controllers\Admin\ItemController::class, 'create'])->name('create');
             Route::post('/', [App\Http\Controllers\Admin\ItemController::class, 'store'])->name('store');
+
+
+            // Soft delete (default delete route)
+            Route::delete('/{item}', [App\Http\Controllers\Admin\ItemController::class, 'destroy'])->name('destroy');
+
+            // NEW: Soft delete management routes
+            Route::post('/{id}/restore', [App\Http\Controllers\Admin\ItemController::class, 'restore'])->name('restore');
+            Route::delete('/{id}/force', [App\Http\Controllers\Admin\ItemController::class, 'forceDestroy'])->name('force-destroy');
+
+            // Data endpoints
+            Route::get('/data/items', [App\Http\Controllers\Admin\ItemController::class, 'getData'])->name('data');
+            Route::get('/data/deleted', [App\Http\Controllers\Admin\ItemController::class, 'getDeletedData'])->name('deleted-data');
+
+            // Status and validation endpoints
+            Route::post('/{item}/change-status', [App\Http\Controllers\Admin\ItemController::class, 'changeStatus'])->name('change-status');
+            Route::get('/check-epc', [App\Http\Controllers\Admin\ItemController::class, 'checkEpc'])->name('check-epc');
+            Route::get('/check-updates', [App\Http\Controllers\Admin\ItemController::class, 'checkUpdates'])->name('check-updates');
+
+            // Real-time endpoints
+            Route::post('/force-refresh', [App\Http\Controllers\Admin\ItemController::class, 'forceRefresh'])->name('force-refresh');
+            Route::get('/stats', [App\Http\Controllers\Admin\ItemController::class, 'getStats'])->name('stats');
+
             Route::get('/{item}', [App\Http\Controllers\Admin\ItemController::class, 'show'])->name('show');
             Route::get('/{item}/edit', [App\Http\Controllers\Admin\ItemController::class, 'edit'])->name('edit');
             Route::put('/{item}', [App\Http\Controllers\Admin\ItemController::class, 'update'])->name('update');
-            Route::delete('/{item}', [App\Http\Controllers\Admin\ItemController::class, 'destroy'])->name('destroy');
-            Route::patch('/{item}/quantity', [App\Http\Controllers\Admin\ItemController::class, 'updateQuantity'])->name('update-quantity');
         });
 
         Route::prefix('log_peminjaman')->name('log_peminjaman.')->group(function () {
@@ -338,5 +339,35 @@ Route::prefix('admin')
             Route::get('/dashboard', [App\Http\Controllers\Admin\LogPeminjamanController::class, 'dashboard'])->name('dashboard');
             Route::get('/user/{userId}/history', [App\Http\Controllers\Admin\LogPeminjamanController::class, 'userHistory'])->name('user.history');
             Route::get('/item/{itemId}/status', [App\Http\Controllers\Admin\LogPeminjamanController::class, 'checkItemStatus'])->name('item.status');
+        });
+        Route::prefix('missing-tools')->name('missing-tools.')->group(function () {
+            // Display missing tools page
+            Route::get('/', [App\Http\Controllers\Admin\MissingToolsController::class, 'index'])->name('index');
+            // Get missing tools data for DataTables AJAX
+            Route::get('/data', [App\Http\Controllers\Admin\MissingToolsController::class, 'getData'])->name('data');
+
+            // Mark item as missing (called from Items management)
+            Route::post('/mark-missing/{itemId}', [App\Http\Controllers\Admin\MissingToolsController::class, 'markAsMissing'])->name('mark-missing');
+            // Reclaim missing tool (mark as completed)
+            Route::post('/{id}/reclaim', [App\Http\Controllers\Admin\MissingToolsController::class, 'reclaimMissingItem'])->name('reclaim');
+            // Cancel missing tool report (mark as cancelled)
+            Route::post('/{id}/cancel', [App\Http\Controllers\Admin\MissingToolsController::class, 'cancelMissingTool'])->name('cancel');
+            // Get all missing tools (API endpoint)
+            Route::get('/api/all', [App\Http\Controllers\Admin\MissingToolsController::class, 'getAllMissingTools'])->name('api.all');
+            // Show missing tool details
+            Route::get('/{id}', [App\Http\Controllers\Admin\MissingToolsController::class, 'show'])->name('show');
+        });
+
+        Route::prefix('notifications')->name('notifications.')->group(function () {
+            Route::get('/', [App\Http\Controllers\Admin\NotificationController::class, 'index'])
+                ->name('index');
+            Route::get('/count', [App\Http\Controllers\Admin\NotificationController::class, 'getCount'])
+                ->name('count');
+            // Ganti POST dengan DELETE
+            Route::delete('/{id}', [App\Http\Controllers\Admin\NotificationController::class, 'destroy'])
+                ->name('destroy');
+            // Ganti POST dengan DELETE  
+            Route::post('/clear-all', [App\Http\Controllers\Admin\NotificationController::class, 'clearAll'])
+                ->name('clear-all');
         });
     });
