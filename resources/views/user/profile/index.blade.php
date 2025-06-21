@@ -1,5 +1,5 @@
 {{-- resources/views/user/profile/index.blade.php --}}
-<x-layouts.user_layout>
+<x-layouts.user_layout title="Profile" pageTitle="">
     <x-slot name="title">My Profile - user</x-slot>
     <x-slot name="content">Edit and manage your personal information</x-slot>
 
