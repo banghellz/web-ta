@@ -28,7 +28,7 @@ class ProfileController extends Controller
             ->orderBy('uid')
             ->get();
 
-        return view('user.profile.edit', compact('user', 'availableRfidTags'));
+        return view('user.profile.index', compact('user', 'availableRfidTags'));
     }
 
     /**
