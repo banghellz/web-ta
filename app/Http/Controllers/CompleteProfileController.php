@@ -23,8 +23,8 @@ class CompleteProfileController extends Controller
         $user = Auth::user();
         $extractedNim = session('extracted_nim');
 
-        // Get user's Google photo if available
-        $userPhoto = $this->getUserGooglePhoto($user);
+        // Get user's photo - try to get from Google first, then use default
+        $userPhoto = $this->getUserPhotoUrl($user);
 
         return view('user.complete-profile', compact('user', 'extractedNim', 'userPhoto'));
     }
@@ -125,40 +125,36 @@ class CompleteProfileController extends Controller
     }
 
     /**
-     * Get user's Google profile photo
+     * Get user's photo URL - try Google first, then default
      */
-    private function getUserGooglePhoto($user)
+    private function getUserPhotoUrl($user)
     {
-        // Try to get photo from Google API if user has Google account
-        // This is a simplified approach - you might want to store the photo URL during login
         try {
-            // If you stored Google photo URL during OAuth, retrieve it here
-            // For now, we'll use a placeholder approach
             $email = $user->email;
-            $domain = explode('@', $email)[1] ?? '';
 
-            if (in_array($domain, ['atmi.ac.id', 'student.atmi.ac.id', 'gmail.com'])) {
-                // Try to get Gravatar or use default
+            // Simple approach: try to construct Google photo URL from email
+            if (strpos($email, '@') !== false) {
+                // For Gmail or Google accounts, try Gravatar first
                 $hash = md5(strtolower(trim($email)));
-                $gravatarUrl = "https://www.gravatar.com/avatar/{$hash}?s=200&d=mp";
+                $gravatarUrl = "https://www.gravatar.com/avatar/{$hash}?s=200&d=404";
 
                 // Check if Gravatar exists
-                $response = Http::get($gravatarUrl);
-                if ($response->successful()) {
+                $headers = @get_headers($gravatarUrl);
+                if ($headers && strpos($headers[0], '200') !== false) {
                     return $gravatarUrl;
                 }
             }
         } catch (\Exception $e) {
-            Log::warning('Could not fetch Google photo: ' . $e->getMessage());
+            Log::warning('Could not fetch user photo: ' . $e->getMessage());
         }
 
         return asset('images/default-avatar.png');
     }
 
     /**
-     * Save Google photo to local storage
+     * Download and save photo from URL
      */
-    private function saveGooglePhoto($user)
+    private function downloadAndSavePhoto($photoUrl, $prefix = 'profile')
     {
         try {
             $uploadPath = public_path('profile_pictures');
@@ -167,23 +163,55 @@ class CompleteProfileController extends Controller
                 File::makeDirectory($uploadPath, 0755, true);
             }
 
-            // Get Google photo
-            $photoUrl = $this->getUserGooglePhoto($user);
+            $response = Http::timeout(10)->get($photoUrl);
 
+            if ($response->successful()) {
+                $extension = 'jpg'; // Default to jpg
+
+                // Try to get extension from content type
+                $contentType = $response->header('Content-Type');
+                if (strpos($contentType, 'png') !== false) {
+                    $extension = 'png';
+                } elseif (strpos($contentType, 'jpeg') !== false || strpos($contentType, 'jpg') !== false) {
+                    $extension = 'jpg';
+                }
+
+                $filename = $prefix . '_' . uniqid() . '.' . $extension;
+                $filepath = $uploadPath . '/' . $filename;
+
+                File::put($filepath, $response->body());
+                return $filename;
+            }
+        } catch (\Exception $e) {
+            Log::warning('Could not download photo from URL: ' . $e->getMessage());
+        }
+
+        return null;
+    }
+
+    /**
+     * Save user photo - either from upload or from email/gravatar
+     */
+    private function saveGooglePhoto($user)
+    {
+        try {
+            // Get user photo URL
+            $photoUrl = $this->getUserPhotoUrl($user);
+
+            // If we have a valid photo URL (not default), try to download it
             if ($photoUrl && $photoUrl !== asset('images/default-avatar.png')) {
-                $response = Http::get($photoUrl);
-
-                if ($response->successful()) {
-                    $extension = 'jpg'; // Default to jpg
-                    $filename = 'google_' . uniqid() . '.' . $extension;
-                    $filepath = $uploadPath . '/' . $filename;
-
-                    File::put($filepath, $response->body());
+                $filename = $this->downloadAndSavePhoto($photoUrl, 'email');
+                if ($filename) {
                     return $filename;
                 }
             }
 
-            // If can't download Google photo, copy default avatar
+            // If can't download photo, copy default avatar
+            $uploadPath = public_path('profile_pictures');
+            if (!File::exists($uploadPath)) {
+                File::makeDirectory($uploadPath, 0755, true);
+            }
+
             $defaultAvatar = public_path('images/default-avatar.png');
             if (File::exists($defaultAvatar)) {
                 $filename = 'default_' . uniqid() . '.png';
@@ -192,7 +220,7 @@ class CompleteProfileController extends Controller
                 return $filename;
             }
         } catch (\Exception $e) {
-            Log::warning('Could not save Google photo: ' . $e->getMessage());
+            Log::warning('Could not save user photo: ' . $e->getMessage());
         }
 
         return 'default-avatar.png';
