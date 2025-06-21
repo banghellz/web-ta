@@ -22,13 +22,25 @@
             font-family: 'Inter', sans-serif;
         }
 
-        .spinner {
-            border: 3px solid #f3f4f6;
-            border-top: 3px solid #4f46e5;
-            border-radius: 50%;
-            width: 24px;
-            height: 24px;
-            animation: spin 1s linear infinite;
+        .google-signin-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+        }
+
+        /* Override Google Sign-In button styles */
+        .g_id_signin {
+            display: flex !important;
+            justify-content: center !important;
+            width: 100% !important;
+            max-width: 320px !important;
+            margin: 0 auto !important;
+        }
+
+        .g_id_signin iframe {
+            width: 100% !important;
+            max-width: 320px !important;
         }
 
         @keyframes spin {
@@ -123,8 +135,10 @@
                             data-auto_prompt="false" data-itp_support="true">
                         </div>
 
-                        <div class="g_id_signin" data-type="standard" data-shape="rectangular" data-theme="outline"
-                            data-text="signin_with" data-size="large" data-logo_alignment="center">
+                        <div class="flex justify-center">
+                            <div class="g_id_signin" data-type="standard" data-shape="rectangular" data-theme="outline"
+                                data-text="signin_with" data-size="large" data-logo_alignment="center" data-width="320">
+                            </div>
                         </div>
                     </div>
 
