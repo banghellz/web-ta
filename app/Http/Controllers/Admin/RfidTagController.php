@@ -17,7 +17,7 @@ class RfidTagController extends Controller
     {
         $stats = $this->getStatistics();
 
-        return view('superadmin.rfid.index', [
+        return view('admin.rfid.index', [
             'title' => 'RFID Tags Management',
             'content' => 'Manage RFID tags for the system',
             'totalTags' => $stats['total'],
@@ -151,7 +151,7 @@ class RfidTagController extends Controller
     {
         $rfidTag->load(['userDetail.user']);
 
-        $html = view('superadmin.rfid.detail-partial', compact('rfidTag'))->render();
+        $html = view('admin.rfid.detail-partial', compact('rfidTag'))->render();
 
         return response()->json([
             'success' => true,
