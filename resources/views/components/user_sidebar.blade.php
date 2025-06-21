@@ -46,7 +46,7 @@
                         title="Edit Profile">
                         <div class="d-flex flex-column align-items-center">
                             <div class="avatar avatar-lg mb-2 avatar-rounded profile-avatar"
-                                style="background-image: url({{ auth()->user()->detail?->pict ? asset('profile_pictures/' . auth()->user()->detail->pict) : 'https://www.gravatar.com/avatar/' . md5(auth()->user()->email ?? 'default@example.com') }})">
+                                style="background-image: url({{ auth()->user()->detail?->pict ? asset('profile_pictures/' . auth()->user()->detail->pict) : asset('assets/img/default-avatar.png') }})">
                                 <!-- Edit overlay icon -->
                                 <div class="avatar-overlay">
                                     <i class="ti ti-edit"></i>
