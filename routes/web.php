@@ -169,6 +169,11 @@ Route::prefix('superadmin')
             Route::delete('/{rfidTag}', [RfidTagController::class, 'destroy'])->name('destroy');
         });
 
+        Route::prefix('profile')->name('profile.')->group(function () {
+            Route::get('/', [App\Http\Controllers\SuperAdmin\ProfileController::class, 'index'])->name('index');
+            Route::put('/', [App\Http\Controllers\SuperAdmin\ProfileController::class, 'update'])->name('update');
+        });
+
         // Items management routes
         Route::prefix('items')->name('items.')->group(function () {
             Route::get('/', [ItemController::class, 'index'])->name('index');
