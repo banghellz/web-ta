@@ -1,13 +1,13 @@
-{{-- resources/views/superadmin/profile/index.blade.php --}}
-<x-layouts.superadmin_layout>
-    <x-slot name="title">My Profile - SuperAdmin</x-slot>
+{{-- resources/views/user/profile/index.blade.php --}}
+<x-layouts.user_layout>
+    <x-slot name="title">My Profile - user</x-slot>
     <x-slot name="content">Edit and manage your personal information</x-slot>
 
     <div class="page-body">
         <div class="container-xl">
             <div class="row row-cards">
                 <div class="col-12">
-                    <form action="{{ route('superadmin.profile.update') }}" method="POST" class="card"
+                    <form action="{{ route('user.profile.update') }}" method="POST" class="card"
                         enctype="multipart/form-data">
                         @csrf
                         @method('PUT')
@@ -243,8 +243,7 @@
 
                         <div class="card-footer d-flex justify-content-between">
                             <div>
-                                <a href="{{ route('superadmin.dashboard.index') }}"
-                                    class="btn btn-outline-secondary">
+                                <a href="{{ route('user.dashboard.index') }}" class="btn btn-outline-secondary">
                                     <i class="ti ti-arrow-left me-1"></i>Back to Dashboard
                                 </a>
                             </div>
@@ -464,4 +463,4 @@
             }, 3000);
         }
     </script>
-</x-layouts.superadmin_layout>
+</x-layouts.user_layout>
