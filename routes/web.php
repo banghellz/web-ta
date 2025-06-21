@@ -67,8 +67,8 @@ Route::prefix('user')
         Route::post('/dashboard/sync-koin', [App\Http\Controllers\User\DashboardController::class, 'syncKoin'])->name('dashboard.sync-koin');
 
         Route::prefix('profile')->name('profile.')->group(function () {
-            Route::get('/', [App\Http\Controllers\SuperAdmin\ProfileController::class, 'index'])->name('index');
-            Route::put('/', [App\Http\Controllers\SuperAdmin\ProfileController::class, 'update'])->name('update');
+            Route::get('/', [App\Http\Controllers\User\ProfileController::class, 'index'])->name('index');
+            Route::put('/', [App\Http\Controllers\User\ProfileController::class, 'update'])->name('update');
         });
         // Storage routes
         Route::prefix('storage')->name('storage.')->group(function () {
@@ -309,8 +309,8 @@ Route::prefix('admin')
         });
 
         Route::prefix('profile')->name('profile.')->group(function () {
-            Route::get('/', [App\Http\Controllers\SuperAdmin\ProfileController::class, 'index'])->name('index');
-            Route::put('/', [App\Http\Controllers\SuperAdmin\ProfileController::class, 'update'])->name('update');
+            Route::get('/', [App\Http\Controllers\Admin\ProfileController::class, 'index'])->name('index');
+            Route::put('/', [App\Http\Controllers\Admin\ProfileController::class, 'update'])->name('update');
         });
 
         // Items management routes
