@@ -10,7 +10,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Tambahkan di head section -->
+
+    <!-- Google Sign-In -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
 
     <!-- Tailwind CSS -->
@@ -19,6 +20,57 @@
     <style>
         body {
             font-family: 'Inter', sans-serif;
+        }
+
+        .spinner {
+            border: 3px solid #f3f4f6;
+            border-top: 3px solid #4f46e5;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        .fade-out {
+            animation: fadeOut 0.3s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeOut {
+            from {
+                opacity: 1;
+                transform: translateY(0);
+            }
+
+            to {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
         }
     </style>
 </head>
@@ -56,29 +108,33 @@
                             </span>
                         </div>
                     </div>
-                    <div id="sign_in_button" class="hidden">
+
+                    <!-- Initial Loading Spinner -->
+                    <div id="initial_loading" class="flex flex-col items-center justify-center py-8">
+                        <div class="spinner mb-4"></div>
+                        <p class="text-sm text-gray-600">Loading Google Sign-In...</p>
+                    </div>
+
+                    <!-- Google Sign-In Button -->
+                    <div id="sign_in_container" class="hidden">
                         <div id="g_id_onload"
                             data-client_id="325198821446-fnj1ouur8bqgmlvjnt6of77lmp1es5do.apps.googleusercontent.com"
-                            data-context="signin" data-ux_mode="popup" data-nonce=""
-                            data-login_uri="@php echo $_ENV['GOOGLE_REDIRECT_URI'] @endphp" data-auto_prompt="false">
+                            data-context="signin" data-ux_mode="popup" data-callback="handleCredentialResponse"
+                            data-auto_prompt="false">
                         </div>
 
                         <div class="g_id_signin" data-type="standard" data-shape="rectangular" data-theme="outline"
                             data-text="signin_with" data-size="large" data-logo_alignment="center">
                         </div>
-
-
                     </div>
-                    <div id="button_loading" class=" flex justify-center mt-4">
-                        <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-black" xmlns="http://www.w3.org/2000/svg"
-                            fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
-                                stroke-width="4"></circle>
-                            <path class="opacity-75" fill="currentColor"
-                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
-                            </path>
-                        </svg>
+
+                    <!-- Login Processing Spinner -->
+                    <div id="login_processing" class="hidden flex flex-col items-center justify-center py-8">
+                        <div class="spinner mb-4"></div>
+                        <p class="text-sm text-gray-600 mb-2">Signing you in...</p>
+                        <p class="text-xs text-gray-500">Please wait while we verify your account</p>
                     </div>
+
                     <!-- Footer Links -->
                     <div class="mt-6 text-center space-y-3">
                         <p class="text-xs text-gray-500">
@@ -122,42 +178,120 @@
             </div>
         </div>
     </div>
-    <script src="https://accounts.google.com/gsi/client" async></script>
+
     <script>
-        let buttonLoading = document.getElementById('button_loading');
-        let signInButton = document.getElementById('sign_in_button');
-        var loc = window.location.href + '';
-        if (loc.indexOf('http://') == 0 && loc.indexOf('localhost') == -1) {
-            window.location.href = loc.replace('http://', 'https://');
+        // Elements
+        const initialLoading = document.getElementById('initial_loading');
+        const signInContainer = document.getElementById('sign_in_container');
+        const loginProcessing = document.getElementById('login_processing');
+
+        // Show/hide functions with animations
+        function showElement(element, hideElements = []) {
+            hideElements.forEach(el => {
+                if (el && !el.classList.contains('hidden')) {
+                    el.classList.add('fade-out');
+                    setTimeout(() => {
+                        el.classList.add('hidden');
+                        el.classList.remove('fade-out');
+                    }, 300);
+                }
+            });
+
+            setTimeout(() => {
+                if (element) {
+                    element.classList.remove('hidden');
+                    element.classList.add('fade-in');
+                    setTimeout(() => element.classList.remove('fade-in'), 500);
+                }
+            }, hideElements.length > 0 ? 300 : 0);
         }
-        window.onload = function() {
-            buttonLoading.class.remove('hidden')
-            signInButton.classList.add('hidden');
-            // Perform actions after the page is loaded
-        };
+
+        // Handle credential response from Google
+        function handleCredentialResponse(response) {
+            console.log('Google Sign-In successful, processing...');
+
+            // Show processing spinner and hide sign-in button
+            showElement(loginProcessing, [signInContainer]);
+
+            // Send credential to your backend
+            fetch('/auth/google/callback', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                    },
+                    body: JSON.stringify({
+                        credential: response.credential
+                    })
+                })
+                .then(response => {
+                    if (response.ok) {
+                        return response.json();
+                    }
+                    throw new Error('Login failed');
+                })
+                .then(data => {
+                    console.log('Login successful, redirecting...');
+                    // Keep spinner visible during redirect
+                    if (data.redirect_url) {
+                        window.location.href = data.redirect_url;
+                    } else {
+                        // Fallback redirect
+                        window.location.href = '/dashboard';
+                    }
+                })
+                .catch(error => {
+                    console.error('Login error:', error);
+                    // Show error and return to sign-in button
+                    alert('Login failed. Please try again.');
+                    showElement(signInContainer, [loginProcessing]);
+                });
+        }
+
+        // Initialize page
         document.addEventListener('DOMContentLoaded', function() {
-            buttonLoading.classList.add('hidden');
-            signInButton.classList.remove('hidden');
-            // Perform DOM manipulations here
-        });
-        window.addEventListener('load', function() {
-            // Code here runs when the entire page is loaded
-            buttonLoading.class.remove('hidden')
-            signInButton.classList.add('hidden');
+            // Force HTTPS redirect if needed
+            const loc = window.location.href;
+            if (loc.indexOf('http://') === 0 && loc.indexOf('localhost') === -1) {
+                window.location.href = loc.replace('http://', 'https://');
+                return;
+            }
+
+            // Simulate loading time for Google Sign-In initialization
+            setTimeout(() => {
+                showElement(signInContainer, [initialLoading]);
+            }, 1000);
         });
 
-        document.onreadystatechange = () => {
-            if (document.readyState === "loading") {
-                // Code to execute when the document is in the "loading" state
-                buttonLoading.class.remove('hidden')
-                signInButton.classList.add('hidden');
-            } else {
-                buttonLoading.classList.add('hidden');
-                signInButton.classList.remove('hidden');
-                // buttonLoading.style.display = 'none';
-                // signInButton.style.display = 'block';
+        // Handle page visibility change (when user comes back from OAuth popup)
+        document.addEventListener('visibilitychange', function() {
+            if (document.visibilityState === 'visible') {
+                // User came back to the page, but if still processing, keep the spinner
+                if (!loginProcessing.classList.contains('hidden')) {
+                    console.log('User returned to page during login process');
+                }
             }
-        };
+        });
+
+        // Prevent multiple form submissions
+        let isSubmitting = false;
+
+        // Override the default Google Sign-In click handler to add loading state
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('.g_id_signin') && !isSubmitting) {
+                isSubmitting = true;
+                console.log('Google Sign-In button clicked');
+                // The actual sign-in will be handled by handleCredentialResponse
+            }
+        });
+
+        // Reset submission flag if sign-in is cancelled
+        window.addEventListener('message', function(event) {
+            if (event.data === 'oauth_cancelled') {
+                isSubmitting = false;
+                console.log('OAuth cancelled, resetting state');
+            }
+        });
     </script>
 </body>
 
