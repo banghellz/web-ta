@@ -28,7 +28,7 @@ class ProfileController extends Controller
             ->orderBy('uid')
             ->get();
 
-        return view('superadmin.profile.edit', compact('user', 'availableRfidTags'));
+        return view('superadmin.profile.index', compact('user', 'availableRfidTags'));
     }
 
     /**
