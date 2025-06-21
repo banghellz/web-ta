@@ -52,12 +52,12 @@ class UserController extends Controller
                     '</div>';
             })
             ->addColumn('role_select', function ($user) use ($currentUserId) {
-                $roles = ['guest', 'user', 'admin', 'admin'];
+                $roles = ['guest', 'user', 'admin', 'super'];
                 $roleColors = [
                     'guest' => 'secondary',
                     'user' => 'primary',
                     'admin' => 'warning',
-                    'admin' => 'danger'
+                    'superadmin' => 'danger'
                 ];
 
                 // If this is the current user, disable the select
@@ -146,7 +146,7 @@ class UserController extends Controller
             ->with([
                 'stats' => [
                     'total_users' => User::count(),
-                    'admin_users' => User::whereIn('role', ['admin', 'admin'])->count(),
+                    'admin_users' => User::whereIn('role', ['admin', 'superadmin'])->count(),
                     'guest_users' => User::where('role', 'guest')->count(),
                 ]
             ])
@@ -288,7 +288,7 @@ class UserController extends Controller
                 'max:255',
                 Rule::unique('users')->ignore($uuid, 'uuid')
             ],
-            'role' => 'required|in:admin,user,admin,guest',
+            'role' => 'required|in:superadmin,user,admin,guest',
             'nim' => 'nullable|string|max:20',
             'no_koin' => 'nullable|string|max:50',
             'prodi' => 'nullable|string|max:100',
@@ -606,7 +606,7 @@ class UserController extends Controller
             // Check if user is admin
             $adminRoles = [
                 'admin',
-                'admin',
+                'superadmin',
                 'super_admin',
                 'Admin',
                 'SuperAdmin',
