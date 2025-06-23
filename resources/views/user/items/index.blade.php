@@ -1,7 +1,5 @@
 <!-- resources/views/user/items/index.blade.php -->
 <x-layouts.user_layout title="Tool Stocks" pageTitle="">
-    <x-slot name="title">Missing Tools</x-slot>
-    <x-slot name="content">View your missing tools history</x-slot>
 
     <div class="page-header d-print-none">
         <div class="container-xl">
@@ -945,19 +943,19 @@
                                 </div>
 
                                 ${toolData.status === 'available' ? `
-                                                            <!-- Quick Info -->
-                                                            <div class="card">
-                                                                <div class="card-body">
-                                                                    <div class="alert alert-success d-flex align-items-center mb-0">
-                                                                        <i class="ti ti-check-circle me-2"></i>
-                                                                        <div>
-                                                                            <strong>Available for Borrowing</strong><br>
-                                                                            <small>Use the physical RFID system to borrow this tool</small>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        ` : ''}
+                                            <!-- Quick Info -->
+                                            <div class="card">
+                                                <div class="card-body">
+                                                    <div class="alert alert-success d-flex align-items-center mb-0">
+                                                        <i class="ti ti-check-circle me-2"></i>
+                                                        <div>
+                                                            <strong>Available for Borrowing</strong><br>
+                                                            <small>Use the physical RFID system to borrow this tool</small>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ` : ''}
                             </div>
                         </div>
                     `;
