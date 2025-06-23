@@ -438,29 +438,5 @@
                 });
             }
         });
-
-        // Fallback toast function if UnifiedToastSystem is not available
-        function showToast(message, type) {
-            // Create toast element
-            const toast = document.createElement('div');
-            toast.className = `alert alert-${type === 'success' ? 'success' : 'warning'} alert-dismissible fade show`;
-            toast.style.position = 'fixed';
-            toast.style.top = '20px';
-            toast.style.right = '20px';
-            toast.style.zIndex = '9999';
-            toast.innerHTML = `
-                ${message}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            `;
-
-            document.body.appendChild(toast);
-
-            // Auto remove after 3 seconds
-            setTimeout(() => {
-                if (toast.parentNode) {
-                    toast.parentNode.removeChild(toast);
-                }
-            }, 3000);
-        }
     </script>
 </x-layouts.user_layout>
