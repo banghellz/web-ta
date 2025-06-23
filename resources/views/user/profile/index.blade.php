@@ -36,7 +36,7 @@
                                         <input type="file" name="pict" id="pict"
                                             class="form-control @error('pict') is-invalid @enderror"
                                             accept="image/jpeg,image/png,image/jpg">
-                                        <div class="text-muted mt-1">Upload new photo (JPG, PNG, max 10MB)</div>
+                                        <div class="text-muted mt-1">Upload new photo (JPG, PNG, max 1MB)</div>
                                         @error('pict')
                                             <div class="invalid-feedback">{{ $message }}</div>
                                         @enderror
@@ -240,13 +240,13 @@
             const previewAvatar = document.getElementById('preview-avatar');
             const form = document.querySelector('form');
 
-            // Preview uploaded image dengan enhanced validation
+            // Preview uploaded image dengan enhanced validation (TANPA TOAST INFO)
             if (pictInput && previewAvatar) {
                 pictInput.addEventListener('change', function(event) {
                     const file = event.target.files[0];
                     if (file) {
-                        // Enhanced file validation
-                        const maxSizeBytes = 10485760; // 10MB
+                        // Enhanced file validation - 1MB limit
+                        const maxSizeBytes = 1048576; // 1MB
                         const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
 
                         // Validate file size
@@ -254,7 +254,7 @@
                             const sizeMB = (file.size / 1048576).toFixed(2);
                             if (window.UnifiedToastSystem) {
                                 window.UnifiedToastSystem.error(
-                                    `File size (${sizeMB}MB) exceeds maximum limit of 10MB`);
+                                    `File size (${sizeMB}MB) exceeds maximum limit of 1MB`);
                             }
                             this.value = '';
                             return;
@@ -265,19 +265,13 @@
                             if (window.UnifiedToastSystem) {
                                 window.UnifiedToastSystem.error(
                                     `Invalid file type: ${file.type}. Only JPG, JPEG, and PNG files are allowed`
-                                    );
+                                );
                             }
                             this.value = '';
                             return;
                         }
 
-                        // Show file info
-                        if (window.UnifiedToastSystem) {
-                            const sizeMB = (file.size / 1048576).toFixed(2);
-                            window.UnifiedToastSystem.info(`Selected file: ${file.name} (${sizeMB}MB)`);
-                        }
-
-                        // Preview image
+                        // Preview image langsung tanpa notifikasi
                         const reader = new FileReader();
                         reader.onload = function(e) {
                             previewAvatar.style.backgroundImage = `url(${e.target.result})`;
@@ -324,7 +318,7 @@
                 });
             }
 
-            // Handle form submission dengan enhanced error handling - MENGGUNAKAN TOAST SYSTEM SEPERTI SUPERADMIN
+            // Handle form submission dengan enhanced error handling
             if (form) {
                 form.addEventListener('submit', function(e) {
                     e.preventDefault();
@@ -341,15 +335,15 @@
                         return;
                     }
 
-                    // Check file size again before submitting
+                    // Check file size again before submitting - 1MB limit
                     const fileInput = document.getElementById('pict');
                     if (fileInput && fileInput.files[0]) {
                         const file = fileInput.files[0];
-                        if (file.size > 10485760) {
+                        if (file.size > 1048576) {
                             const sizeMB = (file.size / 1048576).toFixed(2);
                             if (window.UnifiedToastSystem) {
                                 window.UnifiedToastSystem.error(
-                                    `File size (${sizeMB}MB) exceeds maximum limit of 10MB`);
+                                    `File size (${sizeMB}MB) exceeds maximum limit of 1MB`);
                             }
                             return;
                         }
@@ -379,7 +373,7 @@
                             console.log('Response data:', data);
 
                             if (data.success) {
-                                // Tampilkan success toast menggunakan sistem yang sama dengan superadmin
+                                // Tampilkan success toast
                                 if (window.UnifiedToastSystem) {
                                     window.UnifiedToastSystem.success('Profile updated successfully!');
                                 }
@@ -401,7 +395,7 @@
                                 // Refresh halaman setelah delay untuk memastikan semua data terupdate
                                 setTimeout(() => {
                                     window.location.reload();
-                                }, 1000);
+                                }, 1500);
                             } else {
                                 // Handle validation errors
                                 if (data.errors) {

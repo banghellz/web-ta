@@ -46,12 +46,12 @@ class ProfileController extends Controller
                     'nullable',
                     'file',
                     'mimes:jpg,jpeg,png',
-                    'max:10240', // 10MB dalam KB
+                    'max:1024', // 1MB dalam KB
                     function ($attribute, $value, $fail) {
                         if ($value) {
-                            // Additional size check in bytes (10MB = 10485760 bytes)
-                            if ($value->getSize() > 10485760) {
-                                $fail('The ' . $attribute . ' must not be greater than 10MB.');
+                            // Additional size check in bytes (1MB = 1048576 bytes)
+                            if ($value->getSize() > 3145728) {
+                                $fail('The ' . $attribute . ' must not be greater than 1MB.');
                             }
 
                             // Check if file is actually an image
@@ -75,7 +75,7 @@ class ProfileController extends Controller
                 'no_koin.regex' => 'Coin number must contain only digits (1-3 characters).',
                 'no_koin.unique' => 'This coin number is already taken by another user.',
                 'pict.mimes' => 'Profile picture must be a JPG, JPEG, or PNG file.',
-                'pict.max' => 'Profile picture must not be larger than 10MB.',
+                'pict.max' => 'Profile picture must not be larger than 1MB.',
             ]);
 
             DB::beginTransaction();
@@ -251,9 +251,9 @@ class ProfileController extends Controller
             throw new \Exception('Invalid file upload.');
         }
 
-        // Double check file size (10MB = 10485760 bytes)
-        if ($file->getSize() > 10485760) {
-            throw new \Exception('File size exceeds maximum limit of 10MB. Current size: ' . round($file->getSize() / 1048576, 2) . 'MB');
+        // Double check file size (1MB = 1048576 bytes)
+        if ($file->getSize() > 1048576) {
+            throw new \Exception('File size exceeds maximum limit of 1MB. Current size: ' . round($file->getSize() / 1048576, 2) . 'MB');
         }
 
         // Validate file is actually an image
