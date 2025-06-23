@@ -50,7 +50,7 @@ class ProfileController extends Controller
                     function ($attribute, $value, $fail) {
                         if ($value) {
                             // Additional size check in bytes (1MB = 1048576 bytes)
-                            if ($value->getSize() > 3145728) {
+                            if ($value->getSize() > 1048576) {
                                 $fail('The ' . $attribute . ' must not be greater than 1MB.');
                             }
 

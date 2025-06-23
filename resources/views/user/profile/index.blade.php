@@ -246,12 +246,12 @@
                     const file = event.target.files[0];
                     if (file) {
                         // Enhanced file validation - 1MB limit
-                        const maxSizeBytes = 3145728; // 1MB
+                        const maxSizeBytes = 1048576; // 1MB
                         const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
 
                         // Validate file size
                         if (file.size > maxSizeBytes) {
-                            const sizeMB = (file.size / 3145728).toFixed(2);
+                            const sizeMB = (file.size / 1048576).toFixed(2);
                             if (window.UnifiedToastSystem) {
                                 window.UnifiedToastSystem.error(
                                     `File size (${sizeMB}MB) exceeds maximum limit of 1MB`);
@@ -339,8 +339,8 @@
                     const fileInput = document.getElementById('pict');
                     if (fileInput && fileInput.files[0]) {
                         const file = fileInput.files[0];
-                        if (file.size > 3145728) {
-                            const sizeMB = (file.size / 3145728).toFixed(2);
+                        if (file.size > 1048576) {
+                            const sizeMB = (file.size / 1048576).toFixed(2);
                             if (window.UnifiedToastSystem) {
                                 window.UnifiedToastSystem.error(
                                     `File size (${sizeMB}MB) exceeds maximum limit of 1MB`);
