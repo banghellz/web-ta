@@ -278,7 +278,7 @@
                         <i class="ti ti-chevron-down ms-2"></i>
                     </a>
                     <div class="dropdown-menu dropdown-menu-end profile-dropdown">
-                        <form method="POST" action="{{ route('logout') }}">
+                        <form method="GET" action="{{ route('logout') }}">
                             @csrf
                             <button type="submit" class="dropdown-item">
                                 <i class="ti ti-logout me-2"></i>
