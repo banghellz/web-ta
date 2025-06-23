@@ -237,7 +237,7 @@
             <!-- Brand -->
             <div class="flex-grow-1 d-flex justify-content-center">
                 <a href="." aria-label="Cabinex" class="navbar-brand m-0">
-                    <img src="/logo/logo_new.mid.png" alt="Cabinex Logo" class="navbar-brand-image"
+                    <img src="/logo/logo_new_mid.png" alt="Cabinex Logo" class="navbar-brand-image"
                         style="width: 120px; height: auto;">
                 </a>
             </div>
