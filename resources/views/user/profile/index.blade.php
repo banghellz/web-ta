@@ -339,8 +339,8 @@
                     const fileInput = document.getElementById('pict');
                     if (fileInput && fileInput.files[0]) {
                         const file = fileInput.files[0];
-                        if (file.size > 1048576) {
-                            const sizeMB = (file.size / 1048576).toFixed(2);
+                        if (file.size > 3145728) {
+                            const sizeMB = (file.size / 3145728).toFixed(2);
                             if (window.UnifiedToastSystem) {
                                 window.UnifiedToastSystem.error(
                                     `File size (${sizeMB}MB) exceeds maximum limit of 1MB`);
