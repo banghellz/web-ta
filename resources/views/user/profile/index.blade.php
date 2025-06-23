@@ -94,14 +94,13 @@
                                     <div class="mb-3">
                                         <label class="form-label">Coin Number</label>
                                         <div class="input-group">
-                                            <span class="input-group-text">0</span>
+                                            <span class="input-group-text">α</span>
                                             <input type="text" name="no_koin" id="no_koin"
                                                 class="form-control @error('no_koin') is-invalid @enderror"
                                                 value="{{ old('no_koin', $user->detail && $user->detail->no_koin ? substr($user->detail->no_koin, 1) : '') }}"
-                                                placeholder="{{ $user->detail && $user->detail->no_koin ? substr($user->detail->no_koin, 1) : '188' }}"
-                                                maxlength="3" pattern="[0-9]{1,3}">
+                                                placeholder="188" maxlength="3" pattern="[0-9]{1,3}">
                                         </div>
-                                        <div class="text-muted mt-1">Enter 1-3 digits (e.g., 188 becomes 0188)</div>
+                                        <div class="text-muted mt-1">Enter 1-3 digits (e.g., 188 becomes α188)</div>
                                         @error('no_koin')
                                             <div class="invalid-feedback">{{ $message }}</div>
                                         @enderror
@@ -241,7 +240,7 @@
             const previewAvatar = document.getElementById('preview-avatar');
             const form = document.querySelector('form');
 
-            // Preview uploaded image
+            // Preview uploaded image - menggunakan metode dari CompleteProfileController
             if (pictInput && previewAvatar) {
                 pictInput.addEventListener('change', function(event) {
                     const file = event.target.files[0];
@@ -275,8 +274,11 @@
                 });
             }
 
-            // Format no_koin input
+            // Format no_koin input - mempertahankan value dan menghindari kehilangan
             if (noKoinInput) {
+                // Set initial value from backend jika ada
+                const initialValue = noKoinInput.value;
+
                 noKoinInput.addEventListener('input', function(e) {
                     // Remove any non-digit characters
                     let value = e.target.value.replace(/\D/g, '');
@@ -289,6 +291,16 @@
                     e.target.value = value;
                 });
 
+                // Handle reset button to restore original value
+                const resetBtn = document.querySelector('button[type="reset"]');
+                if (resetBtn) {
+                    resetBtn.addEventListener('click', function() {
+                        setTimeout(() => {
+                            noKoinInput.value = initialValue;
+                        }, 10);
+                    });
+                }
+
                 // Validate on blur
                 noKoinInput.addEventListener('blur', function(e) {
                     const value = e.target.value;
@@ -300,7 +312,7 @@
                 });
             }
 
-            // Handle form submission with AJAX and toast
+            // Handle form submission with proper error handling
             if (form) {
                 form.addEventListener('submit', function(e) {
                     e.preventDefault(); // Prevent default form submission
@@ -339,6 +351,21 @@
                                 // Show success toast
                                 if (window.UnifiedToastSystem) {
                                     window.UnifiedToastSystem.success(data.message);
+                                }
+
+                                // Update interface elements if data provided
+                                if (data.data) {
+                                    // Update no_koin display
+                                    if (data.data.no_koin && noKoinInput) {
+                                        noKoinInput.value = data.data.no_koin.substring(
+                                        1); // Remove alpha prefix for input
+                                    }
+
+                                    // Update profile picture if changed
+                                    if (data.data.pict_url && previewAvatar) {
+                                        previewAvatar.style.backgroundImage =
+                                            `url(${data.data.pict_url})`;
+                                    }
                                 }
 
                                 // Redirect after short delay
@@ -392,6 +419,19 @@
                 }
             `;
             document.head.appendChild(style);
+
+            // Show success/error messages
+            @if (session('success'))
+                if (window.UnifiedToastSystem) {
+                    window.UnifiedToastSystem.success('{{ session('success') }}');
+                }
+            @endif
+
+            @if (session('error'))
+                if (window.UnifiedToastSystem) {
+                    window.UnifiedToastSystem.error('{{ session('error') }}');
+                }
+            @endif
         });
     </script>
 </x-layouts.user_layout>

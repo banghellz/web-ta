@@ -67,16 +67,18 @@ class ProfileController extends Controller
     {
         $user = Auth::user();
 
-        // Validation rules - no_koin should accept 1-3 digits since user inputs without leading zero
+        // Validation rules - menggunakan pattern seperti CompleteProfileController
         $rules = [
-            'no_koin' => 'nullable|numeric|min:1|max:999', // Accept 1-3 digits
+            'no_koin' => 'nullable|string|max:3|regex:/^[0-9]{1,3}$/', // 1-3 digits only
             'prodi' => 'nullable|string|max:50',
             'pict' => 'nullable|image|mimes:jpg,jpeg,png|max:10240', // 10MB max
         ];
 
-        // If user has details, add unique validation for no_koin (excluding current user)
+        // Add unique validation for no_koin excluding current user
         if ($user->detail) {
-            $rules['no_koin'] = 'nullable|numeric|min:1|max:999|unique:user_details,no_koin,' . $user->detail->id;
+            $rules['no_koin'] .= '|unique:user_details,no_koin,' . $user->detail->id;
+        } else {
+            $rules['no_koin'] .= '|unique:user_details,no_koin';
         }
 
         $request->validate($rules);
@@ -84,24 +86,33 @@ class ProfileController extends Controller
         try {
             DB::beginTransaction();
 
-            // Handle profile picture upload
-            $pictureFileName = null;
+            // Handle profile picture upload menggunakan metode dari CompleteProfileController
+            $namaFileFoto = null;
             if ($request->hasFile('pict')) {
-                $pictureFileName = $this->handleFileUpload($request->file('pict'));
+                $namaFileFoto = $this->handleFileUpload($request->file('pict'));
 
                 // Delete old picture if exists
-                if ($user->detail && $user->detail->pict) {
-                    $this->deleteOldPicture($user->detail->pict);
+                if ($user->detail && $user->detail->pict && $user->detail->pict !== 'default-avatar.png') {
+                    $this->cleanupUploadedFile($user->detail->pict);
                 }
             }
 
-            // Format no_koin - pad to 4 digits with leading zero
+            // Format no_koin menggunakan prefix alpha seperti permintaan
             $formattedNoKoin = null;
             if ($request->filled('no_koin')) {
-                $formattedNoKoin = str_pad($request->no_koin, 4, '0', STR_PAD_LEFT);
+                // Remove any non-digit characters
+                $cleanNoKoin = preg_replace('/[^0-9]/', '', $request->no_koin);
+                if (!empty($cleanNoKoin) && is_numeric($cleanNoKoin)) {
+                    // Pad to 3 digits and add alpha prefix
+                    $paddedNumber = str_pad($cleanNoKoin, 3, '0', STR_PAD_LEFT);
+                    $formattedNoKoin = 'α' . $paddedNumber;
+                }
+            } else {
+                // Keep existing no_koin if not provided
+                $formattedNoKoin = $user->detail->no_koin ?? null;
             }
 
-            // Update or create user details
+            // Prepare data for update/create
             $detailData = [
                 'nama' => $user->name, // Keep name synchronized
                 'no_koin' => $formattedNoKoin,
@@ -110,28 +121,37 @@ class ProfileController extends Controller
             ];
 
             // Add picture filename if uploaded
-            if ($pictureFileName) {
-                $detailData['pict'] = $pictureFileName;
+            if ($namaFileFoto) {
+                $detailData['pict'] = $namaFileFoto;
             }
 
             if ($user->detail) {
                 // Update existing details
                 $user->detail->update($detailData);
+                $updatedDetail = $user->detail->fresh();
             } else {
                 // Create new details
                 $detailData['user_id'] = $user->id;
                 $detailData['nim'] = null; // NIM can only be set during registration
                 $detailData['rfid_uid'] = null; // RFID assigned by admin
-                $user->detail()->create($detailData);
+                $detailData['koin'] = 10; // Default koin value
+                $updatedDetail = $user->detail()->create($detailData);
             }
 
             DB::commit();
+
+            // Reload user with fresh data
+            $user->load('detail');
 
             if ($request->expectsJson()) {
                 return response()->json([
                     'success' => true,
                     'message' => 'Profile updated successfully!',
-                    'redirect' => route('user.profile.index')
+                    'data' => [
+                        'no_koin' => $updatedDetail->no_koin,
+                        'prodi' => $updatedDetail->prodi,
+                        'pict_url' => $updatedDetail->pict ? asset('profile_pictures/' . $updatedDetail->pict) : null
+                    ]
                 ]);
             }
 
@@ -140,8 +160,8 @@ class ProfileController extends Controller
             DB::rollBack();
 
             // Clean up uploaded file if there was an error
-            if ($pictureFileName) {
-                $this->cleanupUploadedFile($pictureFileName);
+            if ($namaFileFoto) {
+                $this->cleanupUploadedFile($namaFileFoto);
             }
 
             $errorMessage = 'Database error occurred while updating profile.';
@@ -151,6 +171,8 @@ class ProfileController extends Controller
                     $errorMessage = 'The coin number is already taken by another user.';
                 }
             }
+
+            Log::error('Database error updating profile: ' . $e->getMessage());
 
             if ($request->expectsJson()) {
                 return response()->json([
@@ -164,13 +186,13 @@ class ProfileController extends Controller
             DB::rollBack();
 
             // Clean up uploaded file if there was an error
-            if ($pictureFileName) {
-                $this->cleanupUploadedFile($pictureFileName);
+            if ($namaFileFoto) {
+                $this->cleanupUploadedFile($namaFileFoto);
             }
 
             Log::error('Profile update error: ' . $e->getMessage());
 
-            $errorMessage = 'An error occurred while updating your profile: ' . $e->getMessage();
+            $errorMessage = 'An error occurred while updating your profile. Please try again.';
 
             if ($request->expectsJson()) {
                 return response()->json([
@@ -184,8 +206,66 @@ class ProfileController extends Controller
     }
 
     /**
-     * Get user's photo URL - try Google/Gravatar first, then default
-     * (Borrowed from CompleteProfileController)
+     * Handle file upload - menggunakan metode yang sama dengan CompleteProfileController
+     */
+    private function handleFileUpload($file)
+    {
+        $uploadPath = public_path('profile_pictures');
+
+        if (!File::exists($uploadPath)) {
+            File::makeDirectory($uploadPath, 0755, true);
+        }
+
+        if (!is_writable($uploadPath)) {
+            throw new \Exception('Upload directory is not writable. Please contact administrator.');
+        }
+
+        // Validate file
+        if (!$file->isValid()) {
+            throw new \Exception('Invalid file upload.');
+        }
+
+        // Check file size (10MB = 10485760 bytes)
+        if ($file->getSize() > 10485760) {
+            throw new \Exception('File size exceeds maximum limit of 10MB.');
+        }
+
+        // Check file type
+        $allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+        if (!in_array($file->getMimeType(), $allowedMimeTypes)) {
+            throw new \Exception('Invalid file type. Only JPG, JPEG, and PNG files are allowed.');
+        }
+
+        // Generate filename dengan uniqid seperti CompleteProfileController
+        $filename = uniqid() . '.' . $file->getClientOriginalExtension();
+
+        if (!$file->move($uploadPath, $filename)) {
+            throw new \Exception('Failed to upload profile picture.');
+        }
+
+        return $filename;
+    }
+
+    /**
+     * Clean up uploaded file on error - sama dengan CompleteProfileController
+     */
+    private function cleanupUploadedFile($filename)
+    {
+        if ($filename && $filename !== 'default-avatar.png' && !str_starts_with($filename, 'default_')) {
+            $filepath = public_path('profile_pictures/' . $filename);
+            if (File::exists($filepath)) {
+                try {
+                    File::delete($filepath);
+                    Log::info('Deleted old/error profile picture: ' . $filename);
+                } catch (\Exception $e) {
+                    Log::warning('Failed to delete profile picture: ' . $e->getMessage());
+                }
+            }
+        }
+    }
+
+    /**
+     * Get user's photo URL - borrowed from CompleteProfileController
      */
     private function getUserPhotoUrl($user)
     {
@@ -222,8 +302,7 @@ class ProfileController extends Controller
     }
 
     /**
-     * Download and save photo from URL
-     * (Borrowed from CompleteProfileController)
+     * Download and save photo from URL - borrowed from CompleteProfileController
      */
     private function downloadAndSavePhoto($photoUrl, $prefix = 'profile')
     {
@@ -258,92 +337,5 @@ class ProfileController extends Controller
         }
 
         return null;
-    }
-
-    /**
-     * Handle file upload with improved error handling
-     * (Improved version from CompleteProfileController)
-     */
-    private function handleFileUpload($file)
-    {
-        try {
-            $uploadPath = public_path('profile_pictures');
-
-            // Create directory if it doesn't exist
-            if (!File::exists($uploadPath)) {
-                File::makeDirectory($uploadPath, 0755, true);
-            }
-
-            // Check if directory is writable
-            if (!is_writable($uploadPath)) {
-                throw new \Exception('Upload directory is not writable. Please contact administrator.');
-            }
-
-            // Validate file
-            if (!$file->isValid()) {
-                throw new \Exception('Invalid file upload.');
-            }
-
-            // Check file size (10MB = 10485760 bytes)
-            if ($file->getSize() > 10485760) {
-                throw new \Exception('File size exceeds maximum limit of 10MB.');
-            }
-
-            // Check file type
-            $allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png'];
-            if (!in_array($file->getMimeType(), $allowedMimeTypes)) {
-                throw new \Exception('Invalid file type. Only JPG, JPEG, and PNG files are allowed.');
-            }
-
-            // Generate unique filename
-            $extension = $file->getClientOriginalExtension();
-            $filename = 'profile_' . uniqid() . '.' . $extension;
-
-            // Move file
-            if (!$file->move($uploadPath, $filename)) {
-                throw new \Exception('Failed to upload profile picture.');
-            }
-
-            return $filename;
-        } catch (\Exception $e) {
-            Log::error('File upload error: ' . $e->getMessage());
-            throw $e;
-        }
-    }
-
-    /**
-     * Delete old profile picture
-     */
-    private function deleteOldPicture($filename)
-    {
-        if ($filename && $filename !== 'default-avatar.png' && !str_starts_with($filename, 'default_')) {
-            $filepath = public_path('profile_pictures/' . $filename);
-            if (File::exists($filepath)) {
-                try {
-                    File::delete($filepath);
-                    Log::info('Deleted old profile picture: ' . $filename);
-                } catch (\Exception $e) {
-                    Log::warning('Failed to delete old profile picture: ' . $e->getMessage());
-                }
-            }
-        }
-    }
-
-    /**
-     * Clean up uploaded file on error
-     */
-    private function cleanupUploadedFile($filename)
-    {
-        if ($filename) {
-            $filepath = public_path('profile_pictures/' . $filename);
-            if (File::exists($filepath)) {
-                try {
-                    File::delete($filepath);
-                    Log::info('Cleaned up uploaded file after error: ' . $filename);
-                } catch (\Exception $e) {
-                    Log::warning('Failed to cleanup uploaded file: ' . $e->getMessage());
-                }
-            }
-        }
     }
 }
