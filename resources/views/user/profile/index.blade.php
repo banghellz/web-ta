@@ -36,7 +36,7 @@
                                         <input type="file" name="pict" id="pict"
                                             class="form-control @error('pict') is-invalid @enderror"
                                             accept="image/jpeg,image/png,image/jpg">
-                                        <div class="text-muted mt-1">Upload new photo (JPG, PNG, max 10MB)</div>
+                                        <div class="text-muted mt-1">Upload new photo (JPG, PNG, max 50MB)</div>
                                         @error('pict')
                                             <div class="invalid-feedback">{{ $message }}</div>
                                         @enderror
@@ -94,13 +94,13 @@
                                     <div class="mb-3">
                                         <label class="form-label">Coin Number</label>
                                         <div class="input-group">
-                                            <span class="input-group-text">α0</span>
+                                            <span class="input-group-text">α</span>
                                             <input type="text" name="no_koin" id="no_koin"
                                                 class="form-control @error('no_koin') is-invalid @enderror"
                                                 value="{{ old('no_koin', $user->detail && $user->detail->no_koin ? substr(str_pad($user->detail->no_koin, 4, '0', STR_PAD_LEFT), 1) : '') }}"
                                                 placeholder="188" maxlength="3" pattern="[0-9]{1,3}">
                                         </div>
-                                        <div class="text-muted mt-1">Enter 1-3 digits (e.g., 188 becomes α0188)</div>
+                                        <div class="text-muted mt-1">Enter 1-3 digits (e.g., 188 becomes α188)</div>
                                         @error('no_koin')
                                             <div class="invalid-feedback">{{ $message }}</div>
                                         @enderror
@@ -155,16 +155,6 @@
                                         </div>
                                     </div>
                                 </div>
-
-                                <!-- Display current no_koin with α prefix -->
-                                @if ($user->detail && $user->detail->no_koin)
-                                    <div class="col-12">
-                                        <div class="alert alert-info">
-                                            <strong>Current Coin Number Display:</strong>
-                                            α{{ str_pad($user->detail->no_koin, 4, '0', STR_PAD_LEFT) }}
-                                        </div>
-                                    </div>
-                                @endif
                             </div>
 
                             <!-- RFID Tag Section - Read Only for Users -->
@@ -255,10 +245,10 @@
                 pictInput.addEventListener('change', function(event) {
                     const file = event.target.files[0];
                     if (file) {
-                        // Validate file size (10MB)
-                        if (file.size > 10485760) {
+                        // Validate file size (50MB)
+                        if (file.size > 52428800) {
                             if (window.UnifiedToastSystem) {
-                                window.UnifiedToastSystem.error('File size exceeds maximum limit of 10MB');
+                                window.UnifiedToastSystem.error('File size exceeds maximum limit of 50MB');
                             }
                             this.value = '';
                             return;
@@ -286,7 +276,6 @@
 
             // Format no_koin input - hanya angka 1-3 digit
             if (noKoinInput) {
-                // Store initial value
                 const initialValue = noKoinInput.value;
 
                 noKoinInput.addEventListener('input', function(e) {
@@ -322,7 +311,7 @@
                 });
             }
 
-            // Handle form submission with AJAX
+            // Handle form submission with AJAX - hanya toast notification
             if (form) {
                 form.addEventListener('submit', function(e) {
                     e.preventDefault();
@@ -358,14 +347,14 @@
                         .then(response => response.json())
                         .then(data => {
                             if (data.success) {
-                                // Show success toast
+                                // Hanya tampilkan toast notification
                                 if (window.UnifiedToastSystem) {
-                                    window.UnifiedToastSystem.success(data.message);
+                                    window.UnifiedToastSystem.success('Profile updated successfully!');
                                 }
 
                                 // Update display elements if data provided
                                 if (data.data) {
-                                    // Update no_koin input dengan value untuk display (tanpa leading 0)
+                                    // Update no_koin input
                                     if (data.data.no_koin_display && noKoinInput) {
                                         noKoinInput.value = data.data.no_koin_display;
                                     }
@@ -377,10 +366,10 @@
                                     }
                                 }
 
-                                // Reload after delay
+                                // Optional: Refresh halaman setelah delay untuk memastikan semua data terupdate
                                 setTimeout(() => {
                                     window.location.reload();
-                                }, 1500);
+                                }, 1000);
                             } else {
                                 // Handle validation errors
                                 if (data.errors) {
@@ -428,19 +417,6 @@
                 }
             `;
             document.head.appendChild(style);
-
-            // Show success/error messages
-            @if (session('success'))
-                if (window.UnifiedToastSystem) {
-                    window.UnifiedToastSystem.success('{{ session('success') }}');
-                }
-            @endif
-
-            @if (session('error'))
-                if (window.UnifiedToastSystem) {
-                    window.UnifiedToastSystem.error('{{ session('error') }}');
-                }
-            @endif
         });
     </script>
 </x-layouts.user_layout>

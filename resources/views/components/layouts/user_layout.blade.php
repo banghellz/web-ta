@@ -36,23 +36,6 @@
             --sidebar-hover-bg: rgba(6, 111, 209, 0.05);
         }
 
-        /* Flash message animations */
-        .alert {
-            animation: slideDown 0.3s ease-out;
-        }
-
-        @keyframes slideDown {
-            from {
-                opacity: 0;
-                transform: translateY(-20px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
         /* Toast Styles */
         .toast-container {
             position: fixed;
@@ -124,8 +107,12 @@
             </div>
         </div>
 
-        <!-- Flash Messages Section -->
-        @if (session('email_sent') || session('email_failed') || session('success') || session('error') || session('warning'))
+        <!-- Flash Messages Section - Hanya untuk non-profile pages -->
+        @if (session('email_sent') ||
+                session('email_failed') ||
+                (session('success') && !request()->routeIs('user.profile.*')) ||
+                (session('error') && !request()->routeIs('user.profile.*')) ||
+                session('warning'))
             <div class="container-xl mt-3">
                 {{-- Email Success Message --}}
                 @if (session('email_sent'))
@@ -173,8 +160,8 @@
                     </div>
                 @endif
 
-                {{-- General Success Message --}}
-                @if (session('success'))
+                {{-- General Success Message - Tidak ditampilkan untuk profile pages --}}
+                @if (session('success') && !request()->routeIs('user.profile.*'))
                     <div class="alert alert-success alert-dismissible fade show" role="alert">
                         <div class="d-flex">
                             <div>
@@ -194,8 +181,8 @@
                     </div>
                 @endif
 
-                {{-- General Error Message --}}
-                @if (session('error'))
+                {{-- General Error Message - Tidak ditampilkan untuk profile pages --}}
+                @if (session('error') && !request()->routeIs('user.profile.*'))
                     <div class="alert alert-danger alert-dismissible fade show" role="alert">
                         <div class="d-flex">
                             <div>

@@ -37,11 +37,11 @@ class ProfileController extends Controller
     {
         $user = Auth::user();
 
-        // Validation rules
+        // Validation rules - file size 50MB untuk mengatasi masalah upload
         $rules = [
             'no_koin' => 'nullable|string|max:3|regex:/^[0-9]{1,3}$/',
             'prodi' => 'nullable|string|max:50',
-            'pict' => 'nullable|image|mimes:jpg,jpeg,png|max:10240',
+            'pict' => 'nullable|image|mimes:jpg,jpeg,png|max:51200', // 50MB (50 * 1024)
         ];
 
         // Add unique validation for no_koin excluding current user
@@ -56,7 +56,7 @@ class ProfileController extends Controller
         try {
             DB::beginTransaction();
 
-            // Handle profile picture upload
+            // Handle profile picture upload with better handling
             $pictureFileName = null;
             if ($request->hasFile('pict')) {
                 $pictureFileName = $this->handleFileUpload($request->file('pict'));
@@ -67,14 +67,12 @@ class ProfileController extends Controller
                 }
             }
 
-            // Format no_koin - PENTING: Simpan sebagai INTEGER dengan prefix 0, bukan string dengan α
+            // Format no_koin - simpan sebagai INTEGER dengan padding 0
             $formattedNoKoin = null;
             if ($request->filled('no_koin')) {
-                // Remove any non-digit characters
                 $cleanNoKoin = preg_replace('/[^0-9]/', '', $request->no_koin);
                 if (!empty($cleanNoKoin) && is_numeric($cleanNoKoin)) {
                     // Pad to 4 digits dengan prefix 0 (disimpan sebagai integer)
-                    // Contoh: input 112 -> disimpan sebagai 0112 (integer)
                     $formattedNoKoin = (int) str_pad($cleanNoKoin, 4, '0', STR_PAD_LEFT);
                 }
             }
@@ -83,7 +81,6 @@ class ProfileController extends Controller
             $detailData = [
                 'nama' => $user->name,
                 'prodi' => $request->prodi,
-                // RFID remains unchanged - only admin can modify
             ];
 
             // Add no_koin hanya jika ada value
@@ -120,14 +117,15 @@ class ProfileController extends Controller
                     'message' => 'Profile updated successfully!',
                     'data' => [
                         'no_koin' => $updatedDetail->no_koin,
-                        'no_koin_display' => $updatedDetail->no_koin ? substr(str_pad($updatedDetail->no_koin, 4, '0', STR_PAD_LEFT), 1) : '', // Remove leading 0 for display
+                        'no_koin_display' => $updatedDetail->no_koin ? substr(str_pad($updatedDetail->no_koin, 4, '0', STR_PAD_LEFT), 1) : '',
                         'prodi' => $updatedDetail->prodi,
                         'pict_url' => $updatedDetail->pict ? asset('profile_pictures/' . $updatedDetail->pict) : null
                     ]
                 ]);
             }
 
-            return redirect()->route('user.profile.index')->with('success', 'Profile updated successfully!');
+            // Tidak menggunakan flash message, hanya redirect
+            return redirect()->route('user.profile.index');
         } catch (\Illuminate\Validation\ValidationException $e) {
             DB::rollBack();
 
@@ -192,7 +190,7 @@ class ProfileController extends Controller
     }
 
     /**
-     * Handle file upload
+     * Handle file upload with better size handling
      */
     private function handleFileUpload($file)
     {
@@ -211,9 +209,9 @@ class ProfileController extends Controller
             throw new \Exception('Invalid file upload.');
         }
 
-        // Check file size (10MB = 10485760 bytes)
-        if ($file->getSize() > 10485760) {
-            throw new \Exception('File size exceeds maximum limit of 10MB.');
+        // Check file size (50MB = 52428800 bytes) - lebih besar untuk mengatasi masalah upload
+        if ($file->getSize() > 52428800) {
+            throw new \Exception('File size exceeds maximum limit of 50MB.');
         }
 
         // Check file type
@@ -222,8 +220,8 @@ class ProfileController extends Controller
             throw new \Exception('Invalid file type. Only JPG, JPEG, and PNG files are allowed.');
         }
 
-        // Generate filename dengan uniqid seperti CompleteProfileController
-        $filename = uniqid() . '.' . $file->getClientOriginalExtension();
+        // Generate filename dengan timestamp untuk menghindari konflik
+        $filename = 'profile_' . time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
 
         if (!$file->move($uploadPath, $filename)) {
             throw new \Exception('Failed to upload profile picture.');
