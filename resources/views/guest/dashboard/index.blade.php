@@ -5,7 +5,7 @@
         <div class="col-12">
             <div class="d-flex align-items-center justify-content-between">
                 <div>
-                    <h1 class="mb-1" style="color: #1f2937; font-weight: 700;">
+                    <h1 class="mb-1" style="color: var(--tblr-body-color); font-weight: 700;">
                         Welcome back, {{ auth()->user()->name ?? 'Guest' }}! 👋
                     </h1>
                     <p class="text-muted mb-0">Here's an overview of the tool inventory system</p>
@@ -28,7 +28,7 @@
                 <div class="card-body p-4">
                     <div class="d-flex align-items-center">
                         <div class="flex-shrink-0">
-                            <div class="avatar avatar-lg icon-bg-primary text-white">
+                            <div class="avatar avatar-lg bg-primary text-white">
                                 <i class="ti ti-package fs-3"></i>
                             </div>
                         </div>
@@ -53,7 +53,7 @@
                 <div class="card-body p-4">
                     <div class="d-flex align-items-center">
                         <div class="flex-shrink-0">
-                            <div class="avatar avatar-lg icon-bg-success text-white">
+                            <div class="avatar avatar-lg bg-success text-white">
                                 <i class="ti ti-check-circle fs-3"></i>
                             </div>
                         </div>
@@ -78,7 +78,7 @@
                 <div class="card-body p-4">
                     <div class="d-flex align-items-center">
                         <div class="flex-shrink-0">
-                            <div class="avatar avatar-lg icon-bg-warning text-white">
+                            <div class="avatar avatar-lg bg-warning text-white">
                                 <i class="ti ti-user-check fs-3"></i>
                             </div>
                         </div>
@@ -103,7 +103,7 @@
                 <div class="card-body p-4">
                     <div class="d-flex align-items-center">
                         <div class="flex-shrink-0">
-                            <div class="avatar avatar-lg icon-bg-danger text-white">
+                            <div class="avatar avatar-lg bg-danger text-white">
                                 <i class="ti ti-alert-triangle fs-3"></i>
                             </div>
                         </div>
@@ -131,8 +131,8 @@
                     <div
                         class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center">
                         <div class="mb-3 mb-md-0">
-                            <h3 class="card-title mb-1" style="color: #1f2937; font-weight: 700;">
-                                <i class="ti ti-list me-2" style="color: var(--primary-color);"></i>
+                            <h3 class="card-title mb-1" style="color: var(--tblr-body-color); font-weight: 700;">
+                                <i class="ti ti-list me-2" style="color: var(--tblr-primary);"></i>
                                 Tools Inventory
                             </h3>
                             <p class="text-muted small mb-0">Browse through all available tools in the system</p>
@@ -140,14 +140,16 @@
                         <div class="d-flex gap-2">
                             <!-- Search Input -->
                             <div class="input-group" style="width: 250px;">
-                                <span class="input-group-text bg-white border-end-0" style="border-color: #e2e8f0;">
+                                <span class="input-group-text bg-white border-end-0"
+                                    style="border-color: var(--tblr-border-color);">
                                     <i class="ti ti-search text-muted"></i>
                                 </span>
                                 <input type="text" id="searchInput" class="form-control border-start-0"
-                                    placeholder="Search tools..." style="border-color: #e2e8f0;">
+                                    placeholder="Search tools..." style="border-color: var(--tblr-border-color);">
                             </div>
                             <!-- Status Filter -->
-                            <select id="statusFilter" class="form-select" style="width: 130px; border-color: #e2e8f0;">
+                            <select id="statusFilter" class="form-select"
+                                style="width: 130px; border-color: var(--tblr-border-color);">
                                 <option value="">All Status</option>
                                 <option value="available">Available</option>
                                 <option value="borrowed">Borrowed</option>
@@ -242,7 +244,7 @@
                             name: 'nama_barang',
                             render: function(data, type, row) {
                                 return '<div class="d-flex align-items-center">' +
-                                    '<div class="avatar avatar-sm me-3" style="background: var(--primary-light); color: var(--primary-color);">' +
+                                    '<div class="avatar avatar-sm me-3" style="background: var(--tblr-primary-lt); color: var(--tblr-primary);">' +
                                     '<i class="ti ti-tool"></i>' +
                                     '</div>' +
                                     '<div>' +

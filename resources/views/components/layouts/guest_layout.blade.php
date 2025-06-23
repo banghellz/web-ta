@@ -1,3 +1,4 @@
+{{-- resources/views/components/layouts/guest_layout.blade.php --}}
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}" data-bs-theme="light">
 
@@ -23,70 +24,61 @@
     @stack('styles')
 
     <style>
-        :root {
-            --primary-color: #4DA1A9;
-            --primary-light: #E6F4F5;
-            --success-color: #2dd36f;
-            --warning-color: #ffc409;
-            --danger-color: #eb445a;
-            --secondary-color: #92949c;
-        }
-
+        /* Menggunakan tema yang sama dengan Tabler */
         body {
-            background-color: #f8fafc;
             font-family: 'Inter', sans-serif;
         }
 
-        /* Custom navbar styling */
+        /* Custom navbar styling - sesuai dengan My Storage */
         .navbar-custom {
             background: white;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            border-bottom: 1px solid #e9ecef;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            border-bottom: 1px solid var(--tblr-border-color);
         }
 
-        /* Custom card styling */
+        /* Custom card styling - sesuai dengan Tabler theme */
         .stats-card {
             border: none;
-            border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            border-radius: var(--tblr-border-radius);
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
             transition: transform 0.2s ease, box-shadow 0.2s ease;
             background: white;
         }
 
         .stats-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.1);
         }
 
-        /* Custom icon backgrounds */
+        /* Icon backgrounds - menggunakan Tabler colors */
         .icon-bg-primary {
-            background: linear-gradient(135deg, var(--primary-color), #5cbdc4);
+            background: var(--tblr-primary);
         }
 
         .icon-bg-success {
-            background: linear-gradient(135deg, var(--success-color), #42e88a);
+            background: var(--tblr-success);
         }
 
         .icon-bg-warning {
-            background: linear-gradient(135deg, var(--warning-color), #ffce3a);
+            background: var(--tblr-warning);
         }
 
         .icon-bg-danger {
-            background: linear-gradient(135deg, var(--danger-color), #f16976);
+            background: var(--tblr-danger);
         }
 
-        /* Table styling */
+        /* Table styling - sesuai dengan Tabler theme */
         .table-custom {
             background: white;
-            border-radius: 12px;
+            border-radius: var(--tblr-border-radius);
             overflow: hidden;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
         }
 
         .table-custom thead th {
-            background: #f8fafc;
+            background: var(--tblr-bg-surface-secondary);
             border: none;
-            color: #64748b;
+            color: var(--tblr-muted);
             font-weight: 600;
             text-transform: uppercase;
             font-size: 0.75rem;
@@ -98,20 +90,17 @@
             border: none;
             padding: 1rem;
             vertical-align: middle;
+            border-bottom: 1px solid var(--tblr-border-color-light);
         }
 
-        .table-custom tbody tr {
-            border-bottom: 1px solid #f1f5f9;
-        }
-
-        .table-custom tbody tr:last-child {
+        .table-custom tbody tr:last-child td {
             border-bottom: none;
         }
 
-        /* Status badges */
+        /* Status badges - menggunakan Tabler badge styles */
         .status-badge {
             padding: 0.375rem 0.75rem;
-            border-radius: 6px;
+            border-radius: var(--tblr-border-radius-sm);
             font-size: 0.75rem;
             font-weight: 600;
             text-transform: uppercase;
@@ -119,18 +108,18 @@
         }
 
         .status-available {
-            background: #dcfce7;
-            color: #166534;
+            background: var(--tblr-success-lt);
+            color: var(--tblr-success);
         }
 
         .status-borrowed {
-            background: #fef3c7;
-            color: #92400e;
+            background: var(--tblr-warning-lt);
+            color: var(--tblr-warning);
         }
 
         .status-missing {
-            background: #fee2e2;
-            color: #991b1b;
+            background: var(--tblr-danger-lt);
+            color: var(--tblr-danger);
         }
 
         /* Search box styling */
@@ -147,23 +136,23 @@
             box-shadow: 0 0 0 3px rgba(77, 161, 169, 0.1);
         }
 
-        /* Profile dropdown */
+        /* Profile dropdown - sesuai dengan Tabler theme */
         .profile-dropdown {
             border: none;
-            border-radius: 10px;
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+            border-radius: var(--tblr-border-radius);
+            box-shadow: var(--tblr-shadow-dropdown);
             padding: 0.5rem 0;
         }
 
         .profile-dropdown .dropdown-item {
             padding: 0.75rem 1.5rem;
-            color: #374151;
+            color: var(--tblr-body-color);
             transition: background-color 0.2s ease;
         }
 
         .profile-dropdown .dropdown-item:hover {
-            background-color: #f8fafc;
-            color: var(--primary-color);
+            background-color: var(--tblr-bg-surface-secondary);
+            color: var(--tblr-primary);
         }
 
         /* Responsive adjustments */
@@ -188,7 +177,7 @@
             }
         }
 
-        /* Animation for stats update */
+        /* Animation for stats update - sesuai dengan My Storage */
         .stat-updating {
             animation: statUpdate 0.6s ease-in-out;
         }
@@ -200,7 +189,7 @@
             }
 
             50% {
-                background-color: var(--primary-light);
+                background-color: var(--tblr-success-lt);
                 transform: scale(1.02);
             }
 
@@ -234,7 +223,7 @@
     <nav class="navbar navbar-expand-lg navbar-custom fixed-top">
         <div class="container-fluid px-4">
             <!-- Brand -->
-            <a class="navbar-brand fw-bold" href="#" style="color: var(--primary-color);">
+            <a class="navbar-brand fw-bold" href="#" style="color: var(--tblr-primary);">
                 <i class="ti ti-building-warehouse me-2"></i>
                 {{ config('app.name', 'Tool Management') }}
             </a>
@@ -246,9 +235,11 @@
                         aria-expanded="false">
                         @php
                             $user = auth()->user();
-                            $photo = $user->detail?->pict
-                                ? asset('profile_pictures/' . $user->detail->pict)
-                                : 'https://www.gravatar.com/avatar/' . md5($user->email ?? 'default@example.com');
+                            // Menggunakan gravatar dari email
+                            $photo =
+                                'https://www.gravatar.com/avatar/' .
+                                md5(strtolower(trim($user->email ?? 'default@example.com'))) .
+                                '?s=80&d=identicon';
                         @endphp
                         <span class="avatar avatar-sm me-2" style="background-image: url({{ $photo }})"></span>
                         <div class="d-none d-md-block">
