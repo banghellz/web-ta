@@ -94,13 +94,13 @@
                                     <div class="mb-3">
                                         <label class="form-label">Coin Number</label>
                                         <div class="input-group">
-                                            <span class="input-group-text">α</span>
+                                            <span class="input-group-text">α0</span>
                                             <input type="text" name="no_koin" id="no_koin"
                                                 class="form-control @error('no_koin') is-invalid @enderror"
-                                                value="{{ old('no_koin', $user->detail && $user->detail->no_koin ? substr($user->detail->no_koin, 1) : '') }}"
+                                                value="{{ old('no_koin', $user->detail && $user->detail->no_koin ? substr(str_pad($user->detail->no_koin, 4, '0', STR_PAD_LEFT), 1) : '') }}"
                                                 placeholder="188" maxlength="3" pattern="[0-9]{1,3}">
                                         </div>
-                                        <div class="text-muted mt-1">Enter 1-3 digits (e.g., 188 becomes α188)</div>
+                                        <div class="text-muted mt-1">Enter 1-3 digits (e.g., 188 becomes α0188)</div>
                                         @error('no_koin')
                                             <div class="invalid-feedback">{{ $message }}</div>
                                         @enderror
@@ -155,6 +155,16 @@
                                         </div>
                                     </div>
                                 </div>
+
+                                <!-- Display current no_koin with α prefix -->
+                                @if ($user->detail && $user->detail->no_koin)
+                                    <div class="col-12">
+                                        <div class="alert alert-info">
+                                            <strong>Current Coin Number Display:</strong>
+                                            α{{ str_pad($user->detail->no_koin, 4, '0', STR_PAD_LEFT) }}
+                                        </div>
+                                    </div>
+                                @endif
                             </div>
 
                             <!-- RFID Tag Section - Read Only for Users -->
@@ -240,7 +250,7 @@
             const previewAvatar = document.getElementById('preview-avatar');
             const form = document.querySelector('form');
 
-            // Preview uploaded image - menggunakan metode dari CompleteProfileController
+            // Preview uploaded image
             if (pictInput && previewAvatar) {
                 pictInput.addEventListener('change', function(event) {
                     const file = event.target.files[0];
@@ -274,9 +284,9 @@
                 });
             }
 
-            // Format no_koin input - mempertahankan value dan menghindari kehilangan
+            // Format no_koin input - hanya angka 1-3 digit
             if (noKoinInput) {
-                // Set initial value from backend jika ada
+                // Store initial value
                 const initialValue = noKoinInput.value;
 
                 noKoinInput.addEventListener('input', function(e) {
@@ -291,7 +301,7 @@
                     e.target.value = value;
                 });
 
-                // Handle reset button to restore original value
+                // Handle reset button
                 const resetBtn = document.querySelector('button[type="reset"]');
                 if (resetBtn) {
                     resetBtn.addEventListener('click', function() {
@@ -312,10 +322,10 @@
                 });
             }
 
-            // Handle form submission with proper error handling
+            // Handle form submission with AJAX
             if (form) {
                 form.addEventListener('submit', function(e) {
-                    e.preventDefault(); // Prevent default form submission
+                    e.preventDefault();
 
                     const submitBtn = form.querySelector('button[type="submit"]');
                     const formData = new FormData(form);
@@ -353,12 +363,11 @@
                                     window.UnifiedToastSystem.success(data.message);
                                 }
 
-                                // Update interface elements if data provided
+                                // Update display elements if data provided
                                 if (data.data) {
-                                    // Update no_koin display
-                                    if (data.data.no_koin && noKoinInput) {
-                                        noKoinInput.value = data.data.no_koin.substring(
-                                        1); // Remove alpha prefix for input
+                                    // Update no_koin input dengan value untuk display (tanpa leading 0)
+                                    if (data.data.no_koin_display && noKoinInput) {
+                                        noKoinInput.value = data.data.no_koin_display;
                                     }
 
                                     // Update profile picture if changed
@@ -368,7 +377,7 @@
                                     }
                                 }
 
-                                // Redirect after short delay
+                                // Reload after delay
                                 setTimeout(() => {
                                     window.location.reload();
                                 }, 1500);
