@@ -140,12 +140,12 @@
                         <div class="card-footer d-flex justify-content-between">
                             <div>
                                 <a href="{{ route('home') }}" class="btn btn-outline-secondary">
-                                    <i class="ti ti-arrow-left me-1"></i>Batal
+                                    <i class="ti ti-arrow-left me-1"></i>Cancel
                                 </a>
                             </div>
                             <div>
                                 <button type="submit" class="btn btn-primary">
-                                    <i class="ti ti-check me-1"></i>Simpan Profil
+                                    <i class="ti ti-check me-1"></i>Save Profile
                                 </button>
                             </div>
                         </div>
