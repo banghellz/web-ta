@@ -9,9 +9,9 @@
                             Account Setup
                         </div>
                         <h2 class="page-title">
-                            <i class="ti ti-user-plus me-2"></i>Lengkapi Profil
+                            <i class="ti ti-user-plus me-2"></i>Complete Your Profile
                         </h2>
-                        <p class="text-muted">Silakan lengkapi data profil untuk melanjutkan</p>
+                        <p class="text-muted">Kindly fill in your profile details to continue</p>
                     </div>
                 </div>
             </div>
@@ -67,8 +67,8 @@
                                             <input type="file" name="pict" id="pict"
                                                 class="form-control @error('pict') is-invalid @enderror"
                                                 accept="image/jpeg,image/png,image/jpg">
-                                            <div class="form-hint">JPG, JPEG, atau PNG. Maksimal 2MB. Foto dari Google
-                                                Account digunakan secara otomatis.</div>
+                                            <div class="form-hint">JPG, JPEG, or PNG format. Maximum file size: 2MB.
+                                                Your Google Account photo will be used automatically.</div>
                                             @error('pict')
                                                 <div class="invalid-feedback">{{ $message }}</div>
                                             @enderror
@@ -88,7 +88,8 @@
                                     @error('nim')
                                         <div class="invalid-feedback">{{ $message }}</div>
                                     @enderror
-                                    <div class="form-hint">NIM diambil otomatis dari email mahasiswa</div>
+                                    <div class="form-hint">Your Student ID (NIM) is automatically extracted from your
+                                        email.</div>
                                 </div>
 
                                 <!-- Coin Number Field -->
@@ -105,7 +106,8 @@
                                             <div class="invalid-feedback">{{ $message }}</div>
                                         @enderror
                                     </div>
-                                    <div class="form-hint">Masukkan 3 digit angka (contoh: 188 akan menjadi 0188)</div>
+                                    <div class="form-hint">Enter a 3-digit number (e.g., 188 will be saved as 0188).
+                                    </div>
                                 </div>
 
                                 <!-- Program Studi Field -->
@@ -117,10 +119,10 @@
                                         class="form-select @error('prodi') is-invalid @enderror">
                                         <option value="">Pilih Program Studi</option>
                                         <option value="TMK" {{ old('prodi') == 'TMK' ? 'selected' : '' }}>
-                                            Teknik Mesin Konversi Energi (TMK)
+                                            Teknik Mekatronika (TMK)
                                         </option>
                                         <option value="TRMK" {{ old('prodi') == 'TRMK' ? 'selected' : '' }}>
-                                            Teknologi Rekayasa Mesin Konversi Energi (TRMK)
+                                            Teknologi Rekayasa Mekatronika (TRMK)
                                         </option>
                                         <option value="TMI" {{ old('prodi') == 'TMI' ? 'selected' : '' }}>
                                             Teknik Mesin Industri (TMI)
