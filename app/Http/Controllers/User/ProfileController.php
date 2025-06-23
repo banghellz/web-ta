@@ -37,34 +37,66 @@ class ProfileController extends Controller
     {
         $user = Auth::user();
 
-        // Validation rules - file size 50MB untuk mengatasi masalah upload
-        $rules = [
-            'no_koin' => 'nullable|string|max:3|regex:/^[0-9]{1,3}$/',
-            'prodi' => 'nullable|string|max:50',
-            'pict' => 'nullable|image|mimes:jpg,jpeg,png|max:51200', // 50MB (50 * 1024)
-        ];
-
-        // Add unique validation for no_koin excluding current user
-        if ($user->detail) {
-            $rules['no_koin'] .= '|unique:user_details,no_koin,' . $user->detail->id;
-        } else {
-            $rules['no_koin'] .= '|unique:user_details,no_koin';
-        }
-
-        $request->validate($rules);
-
         try {
+            // Validation rules dengan pesan custom
+            $rules = [
+                'no_koin' => 'nullable|string|max:3|regex:/^[0-9]{1,3}$/',
+                'prodi' => 'nullable|string|max:50',
+                'pict' => [
+                    'nullable',
+                    'file',
+                    'mimes:jpg,jpeg,png',
+                    'max:10240', // 10MB dalam KB
+                    function ($attribute, $value, $fail) {
+                        if ($value) {
+                            // Additional size check in bytes (10MB = 10485760 bytes)
+                            if ($value->getSize() > 10485760) {
+                                $fail('The ' . $attribute . ' must not be greater than 10MB.');
+                            }
+
+                            // Check if file is actually an image
+                            $imageInfo = @getimagesize($value->getPathname());
+                            if (!$imageInfo) {
+                                $fail('The ' . $attribute . ' must be a valid image file.');
+                            }
+                        }
+                    }
+                ],
+            ];
+
+            // Add unique validation for no_koin excluding current user
+            if ($user->detail) {
+                $rules['no_koin'] .= '|unique:user_details,no_koin,' . $user->detail->id;
+            } else {
+                $rules['no_koin'] .= '|unique:user_details,no_koin';
+            }
+
+            $validatedData = $request->validate($rules, [
+                'no_koin.regex' => 'Coin number must contain only digits (1-3 characters).',
+                'no_koin.unique' => 'This coin number is already taken by another user.',
+                'pict.mimes' => 'Profile picture must be a JPG, JPEG, or PNG file.',
+                'pict.max' => 'Profile picture must not be larger than 10MB.',
+            ]);
+
             DB::beginTransaction();
 
-            // Handle profile picture upload with better handling
+            // Handle profile picture upload
             $pictureFileName = null;
             if ($request->hasFile('pict')) {
+                Log::info('Processing file upload', [
+                    'original_name' => $request->file('pict')->getClientOriginalName(),
+                    'size' => $request->file('pict')->getSize(),
+                    'mime_type' => $request->file('pict')->getMimeType()
+                ]);
+
                 $pictureFileName = $this->handleFileUpload($request->file('pict'));
 
                 // Delete old picture if exists
                 if ($user->detail && $user->detail->pict && $user->detail->pict !== 'default-avatar.png') {
                     $this->cleanupUploadedFile($user->detail->pict);
                 }
+
+                Log::info('File uploaded successfully', ['filename' => $pictureFileName]);
             }
 
             // Format no_koin - simpan sebagai INTEGER dengan padding 0
@@ -80,7 +112,7 @@ class ProfileController extends Controller
             // Prepare data for update/create
             $detailData = [
                 'nama' => $user->name,
-                'prodi' => $request->prodi,
+                'prodi' => $validatedData['prodi'] ?? null,
             ];
 
             // Add no_koin hanya jika ada value
@@ -111,6 +143,8 @@ class ProfileController extends Controller
             // Reload user with fresh data
             $user->load('detail');
 
+            Log::info('Profile update completed successfully', ['user_id' => $user->id]);
+
             if ($request->expectsJson()) {
                 return response()->json([
                     'success' => true,
@@ -129,9 +163,10 @@ class ProfileController extends Controller
         } catch (\Illuminate\Validation\ValidationException $e) {
             DB::rollBack();
 
-            if ($pictureFileName) {
-                $this->cleanupUploadedFile($pictureFileName);
-            }
+            Log::warning('Profile update validation failed', [
+                'user_id' => $user->id,
+                'errors' => $e->errors()
+            ]);
 
             if ($request->expectsJson()) {
                 return response()->json([
@@ -145,20 +180,25 @@ class ProfileController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
 
-            if ($pictureFileName) {
+            // Clean up uploaded file if there was an error
+            if (isset($pictureFileName) && $pictureFileName) {
                 $this->cleanupUploadedFile($pictureFileName);
             }
 
-            Log::error('Profile update error: ' . $e->getMessage());
+            Log::error('Profile update error', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
 
             if ($request->expectsJson()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'An error occurred while updating your profile.'
+                    'message' => 'An error occurred while updating your profile: ' . $e->getMessage()
                 ], 500);
             }
 
-            return back()->withInput()->withErrors(['error' => 'An error occurred while updating your profile.']);
+            return back()->withInput()->withErrors(['error' => 'An error occurred while updating your profile: ' . $e->getMessage()]);
         }
     }
 
@@ -190,16 +230,18 @@ class ProfileController extends Controller
     }
 
     /**
-     * Handle file upload with better size handling
+     * Handle file upload with better size and validation handling
      */
     private function handleFileUpload($file)
     {
         $uploadPath = public_path('profile_pictures');
 
+        // Ensure upload directory exists
         if (!File::exists($uploadPath)) {
             File::makeDirectory($uploadPath, 0755, true);
         }
 
+        // Check if directory is writable
         if (!is_writable($uploadPath)) {
             throw new \Exception('Upload directory is not writable. Please contact administrator.');
         }
@@ -209,22 +251,36 @@ class ProfileController extends Controller
             throw new \Exception('Invalid file upload.');
         }
 
-        // Check file size (50MB = 52428800 bytes) - lebih besar untuk mengatasi masalah upload
-        if ($file->getSize() > 52428800) {
-            throw new \Exception('File size exceeds maximum limit of 50MB.');
+        // Double check file size (10MB = 10485760 bytes)
+        if ($file->getSize() > 10485760) {
+            throw new \Exception('File size exceeds maximum limit of 10MB. Current size: ' . round($file->getSize() / 1048576, 2) . 'MB');
         }
 
-        // Check file type
+        // Validate file is actually an image
+        $imageInfo = @getimagesize($file->getPathname());
+        if (!$imageInfo) {
+            throw new \Exception('File is not a valid image.');
+        }
+
+        // Check MIME type
         $allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png'];
         if (!in_array($file->getMimeType(), $allowedMimeTypes)) {
-            throw new \Exception('Invalid file type. Only JPG, JPEG, and PNG files are allowed.');
+            throw new \Exception('Invalid file type. Only JPG, JPEG, and PNG files are allowed. Detected: ' . $file->getMimeType());
         }
 
-        // Generate filename dengan timestamp untuk menghindari konflik
-        $filename = 'profile_' . time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+        // Generate unique filename with timestamp untuk menghindari konflik
+        $extension = $file->getClientOriginalExtension();
+        $filename = 'profile_' . time() . '_' . uniqid() . '.' . $extension;
 
+        // Move file to upload directory
         if (!$file->move($uploadPath, $filename)) {
             throw new \Exception('Failed to upload profile picture.');
+        }
+
+        // Verify file was uploaded correctly
+        $uploadedFile = $uploadPath . '/' . $filename;
+        if (!File::exists($uploadedFile)) {
+            throw new \Exception('File upload verification failed.');
         }
 
         return $filename;

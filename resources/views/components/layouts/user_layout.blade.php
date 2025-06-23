@@ -20,11 +20,43 @@
     <!-- DataTables CSS -->
     <link rel="stylesheet" href="/assets/css/jquery.dataTables.min.css">
 
-    <!-- Toastr CSS -->
-    <link rel="stylesheet" href="/assets/css/toastr.min.css">
+    @livewireStyles
+    @stack('styles')
 
-    <!-- Custom Styles -->
     <style>
+        /* Enhanced toast styling */
+        .toast-container {
+            z-index: 1070 !important;
+        }
+
+        .toast.text-success {
+            border-left: 4px solid var(--tblr-success);
+        }
+
+        .toast.text-danger {
+            border-left: 4px solid var(--tblr-danger);
+        }
+
+        .toast.text-warning {
+            border-left: 4px solid var(--tblr-warning);
+        }
+
+        .toast.text-info {
+            border-left: 4px solid var(--tblr-info);
+        }
+
+        /* Tabler icons styling */
+        .ti {
+            width: 1.25rem;
+            height: 1.25rem;
+            font-size: 1.25rem;
+        }
+
+        .icon.ti {
+            width: 1.25rem;
+            height: 1.25rem;
+        }
+
         /* Enhanced sidebar styles */
         :root {
             --sidebar-width: 240px;
@@ -35,58 +67,24 @@
             --sidebar-active-bg: rgba(6, 111, 209, 0.1);
             --sidebar-hover-bg: rgba(6, 111, 209, 0.05);
         }
-
-        /* Toast Styles */
-        .toast-container {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 9999;
-        }
-
-        .custom-toast {
-            min-width: 300px;
-            margin-bottom: 10px;
-            animation: slideInRight 0.3s ease-out;
-        }
-
-        @keyframes slideInRight {
-            from {
-                opacity: 0;
-                transform: translateX(100%);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateX(0);
-            }
-        }
-
-        .custom-toast.fade-out {
-            animation: slideOutRight 0.3s ease-in;
-        }
-
-        @keyframes slideOutRight {
-            from {
-                opacity: 1;
-                transform: translateX(0);
-            }
-
-            to {
-                opacity: 0;
-                transform: translateX(100%);
-            }
-        }
     </style>
-
-    <!-- Scripts -->
-    @livewireStyles
-    @stack('styles')
 </head>
 
 <body>
-    <!-- Toast Container -->
-    <div class="toast-container" id="toastContainer"></div>
+    <!-- Enhanced toast container -->
+    <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1070;">
+        <div id="notificationToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header">
+                <i id="toastIcon" class="ti ti-bell me-2"></i>
+                <strong id="toastTitle" class="me-auto">Notification</strong>
+                <small id="toastTime" class="text-muted">just now</small>
+                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+            <div class="toast-body">
+                <span id="toastMessage"></span>
+            </div>
+        </div>
+    </div>
 
     <!-- Sidebar -->
     <x-user_sidebar />
@@ -259,101 +257,164 @@
         </footer>
     </div>
 
+    <!-- Scripts -->
     <script src="{{ asset('assets/js/tabler.min.js') }}"></script>
     <script src="{{ asset('assets/js/jquery-3.6.0.min.js') }}"></script>
     <script src="{{ asset('assets/js/jquery.dataTables.min.js') }}"></script>
-    <script src="{{ asset('assets/js/toastr.min.js') }}"></script>
-    <script src="{{ asset('assets/js/chart.min.js') }}"></script>
 
-    <!-- Unified Toast System -->
+    <!-- Enhanced Unified Toast System dengan Tabler Icons - SAMA SEPERTI SUPERADMIN -->
     <script>
+        // Enhanced Unified Toast System - Global dengan Tabler Icons
         window.UnifiedToastSystem = {
-            show: function(message, type = 'info', duration = 4000) {
-                const container = document.getElementById('toastContainer');
-                if (!container) return;
+            // Initialize toast system
+            init: function() {
+                this.toastElement = document.getElementById('notificationToast');
+                this.toastIcon = document.getElementById('toastIcon');
+                this.toastTitle = document.getElementById('toastTitle');
+                this.toastMessage = document.getElementById('toastMessage');
+                this.toastTime = document.getElementById('toastTime');
 
-                const toastId = 'toast-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
-
-                const typeClasses = {
-                    success: 'alert-success',
-                    error: 'alert-danger',
-                    warning: 'alert-warning',
-                    info: 'alert-info'
-                };
-
-                const typeIcons = {
-                    success: '<path d="M5 12l5 5l10 -10" />',
-                    error: '<path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0" /><path d="M12 8v4" /><path d="M12 16h.01" />',
-                    warning: '<path d="M12 9v2m0 4v.01" /><path d="M5 19h14a2 2 0 0 0 1.84 -2.75l-7.1 -12.25a2 2 0 0 0 -3.5 0l-7.1 12.25a2 2 0 0 0 1.75 2.75" />',
-                    info: '<path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0" /><path d="M12 8h.01" /><path d="M11 12h1v4h1" />'
-                };
-
-                const toast = document.createElement('div');
-                toast.id = toastId;
-                toast.className = `alert ${typeClasses[type] || typeClasses.info} alert-dismissible custom-toast`;
-                toast.innerHTML = `
-                    <div class="d-flex">
-                        <div>
-                            <svg xmlns="http://www.w3.org/2000/svg" class="icon alert-icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                                <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                                ${typeIcons[type] || typeIcons.info}
-                            </svg>
-                        </div>
-                        <div class="flex-grow-1">
-                            ${message}
-                        </div>
-                        <button type="button" class="btn-close" aria-label="Close"></button>
-                    </div>
-                `;
-
-                container.appendChild(toast);
-
-                // Close button functionality
-                const closeBtn = toast.querySelector('.btn-close');
-                closeBtn.addEventListener('click', () => {
-                    this.remove(toastId);
-                });
-
-                // Auto remove after duration
-                setTimeout(() => {
-                    this.remove(toastId);
-                }, duration);
-
-                return toastId;
+                console.log('Unified Toast System with Tabler Icons initialized');
             },
 
-            remove: function(toastId) {
-                const toast = document.getElementById(toastId);
-                if (toast) {
-                    toast.classList.add('fade-out');
-                    setTimeout(() => {
-                        if (toast.parentNode) {
-                            toast.parentNode.removeChild(toast);
-                        }
-                    }, 300);
+            // Main show function
+            show: function(type, message, title = null) {
+                if (!this.toastElement) {
+                    this.init();
+                }
+
+                console.log('Toast show called:', {
+                    type,
+                    message,
+                    title
+                });
+
+                // Clean message
+                const cleanMessage = this.cleanMessage(message);
+                title = title || this.getDefaultTitle(type);
+
+                // Set content
+                this.toastTitle.textContent = title;
+                this.toastMessage.textContent = cleanMessage;
+                this.toastTime.textContent = 'just now';
+
+                // Set icon and styling
+                this.setToastStyle(type);
+
+                // Show toast
+                this.displayToast();
+            },
+
+            // Convenience methods
+            success: function(message, title = 'Success') {
+                this.show('success', message, title);
+            },
+
+            error: function(message, title = 'Error') {
+                this.show('error', message, title);
+            },
+
+            warning: function(message, title = 'Warning') {
+                this.show('warning', message, title);
+            },
+
+            info: function(message, title = 'Info') {
+                this.show('info', message, title);
+            },
+
+            // Clean HTML entities from message
+            cleanMessage: function(message) {
+                if (!message) return '';
+
+                // Create temporary element to decode HTML entities
+                const textarea = document.createElement('textarea');
+                textarea.innerHTML = message;
+                return textarea.value;
+            },
+
+            // Get default title based on type
+            getDefaultTitle: function(type) {
+                const titles = {
+                    'success': 'Success',
+                    'error': 'Error',
+                    'warning': 'Warning',
+                    'info': 'Information'
+                };
+                return titles[type] || 'Notification';
+            },
+
+            // Set toast styling based on type (MENGGUNAKAN TABLER ICONS)
+            setToastStyle: function(type) {
+                // Reset classes
+                this.toastElement.className = 'toast';
+
+                // Set icon menggunakan Tabler Icons
+                const icons = {
+                    'success': 'ti ti-circle-check',
+                    'error': 'ti ti-alert-circle',
+                    'warning': 'ti ti-alert-triangle',
+                    'info': 'ti ti-info-circle'
+                };
+
+                // Set icon class langsung (Tabler Icons menggunakan CSS class)
+                this.toastIcon.className = `${icons[type] || icons.info} me-2`;
+
+                // Add color class
+                if (type !== 'info') {
+                    const colorClass = type === 'error' ? 'text-danger' : `text-${type}`;
+                    this.toastElement.classList.add(colorClass);
                 }
             },
 
-            success: function(message, duration = 4000) {
-                return this.show(message, 'success', duration);
-            },
-
-            error: function(message, duration = 6000) {
-                return this.show(message, 'error', duration);
-            },
-
-            warning: function(message, duration = 5000) {
-                return this.show(message, 'warning', duration);
-            },
-
-            info: function(message, duration = 4000) {
-                return this.show(message, 'info', duration);
+            // Display the toast
+            displayToast: function() {
+                const bsToast = new bootstrap.Toast(this.toastElement, {
+                    autohide: true,
+                    delay: 5000
+                });
+                bsToast.show();
             }
         };
-    </script>
 
-    <!-- Auto-hide flash messages after 10 seconds -->
-    <script>
+        // Backward compatibility functions
+        function showToast(message, type = 'info') {
+            if (window.UnifiedToastSystem) {
+                window.UnifiedToastSystem.show(type, message);
+            } else {
+                console.warn('Toast system not available');
+            }
+        }
+
+        // Enhanced public function for external scripts
+        window.showNotificationToast = function(message, type = 'info') {
+            console.log('Legacy toast function called:', {
+                message,
+                type
+            });
+
+            if (window.UnifiedToastSystem) {
+                window.UnifiedToastSystem.show(type, message);
+            } else {
+                showToast(message, type);
+            }
+        };
+
+        // Initialize when document is ready
+        $(document).ready(function() {
+            // Initialize toast system
+            window.UnifiedToastSystem.init();
+
+            // Setup CSRF token for AJAX requests
+            $.ajaxSetup({
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                }
+            });
+
+            console.log('Layout and toast system ready with Tabler Icons');
+        });
+
+        // Auto-hide flash messages after 10 seconds
         document.addEventListener('DOMContentLoaded', function() {
             // Auto-hide flash messages after 10 seconds (except errors)
             const alerts = document.querySelectorAll('.alert:not(.alert-danger)');

@@ -36,7 +36,7 @@
                                         <input type="file" name="pict" id="pict"
                                             class="form-control @error('pict') is-invalid @enderror"
                                             accept="image/jpeg,image/png,image/jpg">
-                                        <div class="text-muted mt-1">Upload new photo (JPG, PNG, max 50MB)</div>
+                                        <div class="text-muted mt-1">Upload new photo (JPG, PNG, max 10MB)</div>
                                         @error('pict')
                                             <div class="invalid-feedback">{{ $message }}</div>
                                         @enderror
@@ -240,31 +240,44 @@
             const previewAvatar = document.getElementById('preview-avatar');
             const form = document.querySelector('form');
 
-            // Preview uploaded image
+            // Preview uploaded image dengan enhanced validation
             if (pictInput && previewAvatar) {
                 pictInput.addEventListener('change', function(event) {
                     const file = event.target.files[0];
                     if (file) {
-                        // Validate file size (50MB)
-                        if (file.size > 52428800) {
+                        // Enhanced file validation
+                        const maxSizeBytes = 10485760; // 10MB
+                        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+
+                        // Validate file size
+                        if (file.size > maxSizeBytes) {
+                            const sizeMB = (file.size / 1048576).toFixed(2);
                             if (window.UnifiedToastSystem) {
-                                window.UnifiedToastSystem.error('File size exceeds maximum limit of 50MB');
+                                window.UnifiedToastSystem.error(
+                                    `File size (${sizeMB}MB) exceeds maximum limit of 10MB`);
                             }
                             this.value = '';
                             return;
                         }
 
                         // Validate file type
-                        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
                         if (!allowedTypes.includes(file.type)) {
                             if (window.UnifiedToastSystem) {
                                 window.UnifiedToastSystem.error(
-                                    'Invalid file type. Only JPG, JPEG, and PNG files are allowed');
+                                    `Invalid file type: ${file.type}. Only JPG, JPEG, and PNG files are allowed`
+                                    );
                             }
                             this.value = '';
                             return;
                         }
 
+                        // Show file info
+                        if (window.UnifiedToastSystem) {
+                            const sizeMB = (file.size / 1048576).toFixed(2);
+                            window.UnifiedToastSystem.info(`Selected file: ${file.name} (${sizeMB}MB)`);
+                        }
+
+                        // Preview image
                         const reader = new FileReader();
                         reader.onload = function(e) {
                             previewAvatar.style.backgroundImage = `url(${e.target.result})`;
@@ -305,13 +318,13 @@
                     const value = e.target.value;
                     if (value && (value < 1 || value > 999)) {
                         if (window.UnifiedToastSystem) {
-                            window.UnifiedToastSystem.error('Coin number must be between 1 and 999');
+                            window.UnifiedToastSystem.warning('Coin number must be between 1 and 999');
                         }
                     }
                 });
             }
 
-            // Handle form submission with AJAX - hanya toast notification
+            // Handle form submission dengan enhanced error handling - MENGGUNAKAN TOAST SYSTEM SEPERTI SUPERADMIN
             if (form) {
                 form.addEventListener('submit', function(e) {
                     e.preventDefault();
@@ -319,13 +332,27 @@
                     const submitBtn = form.querySelector('button[type="submit"]');
                     const formData = new FormData(form);
 
-                    // Validate no_koin before submitting
+                    // Pre-submission validation
                     const noKoinValue = noKoinInput ? noKoinInput.value : '';
                     if (noKoinValue && (noKoinValue < 1 || noKoinValue > 999)) {
                         if (window.UnifiedToastSystem) {
                             window.UnifiedToastSystem.error('Coin number must be between 1 and 999');
                         }
                         return;
+                    }
+
+                    // Check file size again before submitting
+                    const fileInput = document.getElementById('pict');
+                    if (fileInput && fileInput.files[0]) {
+                        const file = fileInput.files[0];
+                        if (file.size > 10485760) {
+                            const sizeMB = (file.size / 1048576).toFixed(2);
+                            if (window.UnifiedToastSystem) {
+                                window.UnifiedToastSystem.error(
+                                    `File size (${sizeMB}MB) exceeds maximum limit of 10MB`);
+                            }
+                            return;
+                        }
                     }
 
                     // Show loading state
@@ -344,10 +371,15 @@
                                 'X-Requested-With': 'XMLHttpRequest'
                             }
                         })
-                        .then(response => response.json())
+                        .then(response => {
+                            console.log('Response status:', response.status);
+                            return response.json();
+                        })
                         .then(data => {
+                            console.log('Response data:', data);
+
                             if (data.success) {
-                                // Hanya tampilkan toast notification
+                                // Tampilkan success toast menggunakan sistem yang sama dengan superadmin
                                 if (window.UnifiedToastSystem) {
                                     window.UnifiedToastSystem.success('Profile updated successfully!');
                                 }
@@ -366,7 +398,7 @@
                                     }
                                 }
 
-                                // Optional: Refresh halaman setelah delay untuk memastikan semua data terupdate
+                                // Refresh halaman setelah delay untuk memastikan semua data terupdate
                                 setTimeout(() => {
                                     window.location.reload();
                                 }, 1000);
@@ -417,6 +449,9 @@
                 }
             `;
             document.head.appendChild(style);
+
+            // Debug: Log when toast system is ready
+            console.log('Profile page ready. Toast system available:', !!window.UnifiedToastSystem);
         });
     </script>
 </x-layouts.user_layout>
