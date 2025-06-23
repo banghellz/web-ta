@@ -20,6 +20,9 @@
     <!-- DataTables CSS -->
     <link rel="stylesheet" href="/assets/css/jquery.dataTables.min.css">
 
+    <!-- Toastr CSS -->
+    <link rel="stylesheet" href="/assets/css/toastr.min.css">
+
     <!-- Custom Styles -->
     <style>
         /* Enhanced sidebar styles */
@@ -49,6 +52,48 @@
                 transform: translateY(0);
             }
         }
+
+        /* Toast Styles */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+        }
+
+        .custom-toast {
+            min-width: 300px;
+            margin-bottom: 10px;
+            animation: slideInRight 0.3s ease-out;
+        }
+
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(100%);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .custom-toast.fade-out {
+            animation: slideOutRight 0.3s ease-in;
+        }
+
+        @keyframes slideOutRight {
+            from {
+                opacity: 1;
+                transform: translateX(0);
+            }
+
+            to {
+                opacity: 0;
+                transform: translateX(100%);
+            }
+        }
     </style>
 
     <!-- Scripts -->
@@ -57,6 +102,9 @@
 </head>
 
 <body>
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
     <!-- Sidebar -->
     <x-user_sidebar />
 
@@ -229,6 +277,93 @@
     <script src="{{ asset('assets/js/jquery.dataTables.min.js') }}"></script>
     <script src="{{ asset('assets/js/toastr.min.js') }}"></script>
     <script src="{{ asset('assets/js/chart.min.js') }}"></script>
+
+    <!-- Unified Toast System -->
+    <script>
+        window.UnifiedToastSystem = {
+            show: function(message, type = 'info', duration = 4000) {
+                const container = document.getElementById('toastContainer');
+                if (!container) return;
+
+                const toastId = 'toast-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+
+                const typeClasses = {
+                    success: 'alert-success',
+                    error: 'alert-danger',
+                    warning: 'alert-warning',
+                    info: 'alert-info'
+                };
+
+                const typeIcons = {
+                    success: '<path d="M5 12l5 5l10 -10" />',
+                    error: '<path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0" /><path d="M12 8v4" /><path d="M12 16h.01" />',
+                    warning: '<path d="M12 9v2m0 4v.01" /><path d="M5 19h14a2 2 0 0 0 1.84 -2.75l-7.1 -12.25a2 2 0 0 0 -3.5 0l-7.1 12.25a2 2 0 0 0 1.75 2.75" />',
+                    info: '<path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0" /><path d="M12 8h.01" /><path d="M11 12h1v4h1" />'
+                };
+
+                const toast = document.createElement('div');
+                toast.id = toastId;
+                toast.className = `alert ${typeClasses[type] || typeClasses.info} alert-dismissible custom-toast`;
+                toast.innerHTML = `
+                    <div class="d-flex">
+                        <div>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="icon alert-icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                                ${typeIcons[type] || typeIcons.info}
+                            </svg>
+                        </div>
+                        <div class="flex-grow-1">
+                            ${message}
+                        </div>
+                        <button type="button" class="btn-close" aria-label="Close"></button>
+                    </div>
+                `;
+
+                container.appendChild(toast);
+
+                // Close button functionality
+                const closeBtn = toast.querySelector('.btn-close');
+                closeBtn.addEventListener('click', () => {
+                    this.remove(toastId);
+                });
+
+                // Auto remove after duration
+                setTimeout(() => {
+                    this.remove(toastId);
+                }, duration);
+
+                return toastId;
+            },
+
+            remove: function(toastId) {
+                const toast = document.getElementById(toastId);
+                if (toast) {
+                    toast.classList.add('fade-out');
+                    setTimeout(() => {
+                        if (toast.parentNode) {
+                            toast.parentNode.removeChild(toast);
+                        }
+                    }, 300);
+                }
+            },
+
+            success: function(message, duration = 4000) {
+                return this.show(message, 'success', duration);
+            },
+
+            error: function(message, duration = 6000) {
+                return this.show(message, 'error', duration);
+            },
+
+            warning: function(message, duration = 5000) {
+                return this.show(message, 'warning', duration);
+            },
+
+            info: function(message, duration = 4000) {
+                return this.show(message, 'info', duration);
+            }
+        };
+    </script>
 
     <!-- Auto-hide flash messages after 10 seconds -->
     <script>

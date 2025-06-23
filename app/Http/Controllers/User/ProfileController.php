@@ -23,7 +23,40 @@ class ProfileController extends Controller
         $user = Auth::user();
         $user->load('detail'); // Eager load detail relationship
 
-        return view('user.profile.index', compact('user'));
+        // Get available RFID tags (Available status OR current user's tag)
+        $availableRfidTags = RfidTag::where(function ($query) use ($user) {
+            $query->where('status', 'Available')
+                ->orWhere('uid', $user->detail->rfid_uid ?? '');
+        })->orderBy('uid')->get();
+
+        return view('user.profile.index', compact('user', 'availableRfidTags'));
+    }
+
+    /**
+     * Get available RFID tags (AJAX endpoint)
+     */
+    public function getAvailableRfidTags()
+    {
+        try {
+            $user = Auth::user();
+
+            $availableRfidTags = RfidTag::where(function ($query) use ($user) {
+                $query->where('status', 'Available')
+                    ->orWhere('uid', $user->detail->rfid_uid ?? '');
+            })->orderBy('uid')->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => $availableRfidTags
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error fetching RFID tags: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch RFID tags'
+            ], 500);
+        }
     }
 
     /**

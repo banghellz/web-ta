@@ -17,8 +17,8 @@
                                 <i class="ti ti-user me-2"></i>My Profile
                             </h3>
                             <div class="card-actions">
-                                <span class="badge bg-danger">
-                                    <i class="ti ti-crown me-1"></i>Super Admin
+                                <span class="badge bg-primary">
+                                    <i class="ti ti-user me-1"></i>User
                                 </span>
                             </div>
                         </div>
@@ -98,8 +98,8 @@
                                             <input type="text" name="no_koin" id="no_koin"
                                                 class="form-control @error('no_koin') is-invalid @enderror"
                                                 value="{{ old('no_koin', $user->detail ? substr($user->detail->no_koin, 1) : '') }}"
-                                                placeholder="{{ substr($user->detail->no_koin, 1) }}" maxlength="3"
-                                                pattern="[0-9]{1,3}">
+                                                placeholder="{{ $user->detail && $user->detail->no_koin ? substr($user->detail->no_koin, 1) : '188' }}"
+                                                maxlength="3" pattern="[0-9]{1,3}">
                                         </div>
                                         <div class="text-muted mt-1">Enter 3 digits (e.g., 188 becomes 0188)</div>
                                         @error('no_koin')
@@ -158,7 +158,7 @@
                                 </div>
                             </div>
 
-                            <!-- RFID Tag Section -->
+                            <!-- RFID Tag Section - Read Only for Users -->
                             <div class="row">
                                 <div class="col-12">
                                     <h4 class="mb-3">
@@ -168,41 +168,12 @@
                                 <div class="col-md-8">
                                     <div class="mb-3">
                                         <label class="form-label">RFID Tag</label>
-                                        <div class="row">
-                                            <div class="col-md-8">
-                                                <select name="rfid_uid" id="rfid_uid"
-                                                    class="form-select @error('rfid_uid') is-invalid @enderror">
-                                                    <option value="">-- Select RFID Tag --</option>
-                                                    @foreach ($availableRfidTags as $tag)
-                                                        <option value="{{ $tag->uid }}"
-                                                            {{ old('rfid_uid', $user->detail->rfid_uid ?? '') == $tag->uid ? 'selected' : '' }}>
-                                                            {{ $tag->uid }}
-                                                            @if ($tag->notes)
-                                                                - {{ $tag->notes }}
-                                                            @endif
-                                                            @if ($tag->status === 'Used' && $tag->uid === ($user->detail->rfid_uid ?? ''))
-                                                                (Current)
-                                                            @endif
-                                                        </option>
-                                                    @endforeach
-                                                </select>
-                                                @error('rfid_uid')
-                                                    <div class="invalid-feedback">{{ $message }}</div>
-                                                @enderror
-                                            </div>
-                                            <div class="col-md-4">
-                                                <button type="button" class="btn btn-outline-secondary"
-                                                    id="refresh-rfid-tags">
-                                                    <i class="ti ti-refresh me-1"></i>Refresh
-                                                </button>
-                                            </div>
-                                        </div>
+                                        <input type="text"
+                                            value="{{ $user->detail && $user->detail->rfid_uid ? $user->detail->rfid_uid : 'Not assigned' }}"
+                                            class="form-control" readonly>
                                         <div class="text-muted mt-1">
-                                            @if ($user->detail && $user->detail->rfid_uid)
-                                                Current RFID: <strong>{{ $user->detail->rfid_uid }}</strong>
-                                            @else
-                                                No RFID tag assigned
-                                            @endif
+                                            RFID tags can only be assigned by administrators. Contact admin if you need
+                                            RFID access.
                                         </div>
                                     </div>
                                 </div>
@@ -265,8 +236,6 @@
     <!-- JavaScript for Profile functionality -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const refreshButton = document.getElementById('refresh-rfid-tags');
-            const rfidSelect = document.getElementById('rfid_uid');
             const noKoinInput = document.getElementById('no_koin');
             const form = document.querySelector('form');
 
@@ -288,7 +257,7 @@
                 form.addEventListener('submit', function(e) {
                     const noKoinValue = noKoinInput.value;
                     if (noKoinValue && noKoinValue.length > 0) {
-                        // Pad with zeros to make it 4 digits (including the prefix 0)
+                        // Pad with zeros to make it 3 digits
                         const paddedValue = noKoinValue.padStart(3, '0');
                         noKoinInput.value = paddedValue;
                     }
@@ -323,11 +292,7 @@
                         .then(data => {
                             if (data.success) {
                                 // Show success toast
-                                if (window.UnifiedToastSystem) {
-                                    window.UnifiedToastSystem.success(data.message);
-                                } else {
-                                    showToast(data.message, 'success');
-                                }
+                                window.UnifiedToastSystem.success(data.message);
 
                                 // Redirect after short delay
                                 setTimeout(() => {
@@ -338,30 +303,17 @@
                                 if (data.errors) {
                                     Object.keys(data.errors).forEach(key => {
                                         data.errors[key].forEach(error => {
-                                            if (window.UnifiedToastSystem) {
-                                                window.UnifiedToastSystem.error(error);
-                                            } else {
-                                                showToast(error, 'error');
-                                            }
+                                            window.UnifiedToastSystem.error(error);
                                         });
                                     });
                                 } else if (data.message) {
-                                    if (window.UnifiedToastSystem) {
-                                        window.UnifiedToastSystem.error(data.message);
-                                    } else {
-                                        showToast(data.message, 'error');
-                                    }
+                                    window.UnifiedToastSystem.error(data.message);
                                 }
                             }
                         })
                         .catch(error => {
                             console.error('Error:', error);
-                            if (window.UnifiedToastSystem) {
-                                window.UnifiedToastSystem.error(
-                                    'An error occurred while updating profile');
-                            } else {
-                                showToast('An error occurred while updating profile', 'error');
-                            }
+                            window.UnifiedToastSystem.error('An error occurred while updating profile');
                         })
                         .finally(() => {
                             // Reset button state
@@ -370,70 +322,6 @@
                                 submitBtn.innerHTML =
                                     '<i class="ti ti-device-floppy me-1"></i>Update Profile';
                             }
-                        });
-                });
-            }
-
-            // Refresh RFID tags functionality
-            if (refreshButton) {
-                refreshButton.addEventListener('click', function() {
-                    // Show loading state
-                    refreshButton.disabled = true;
-                    refreshButton.innerHTML = '<i class="ti ti-loader me-1"></i>Loading...';
-
-                    // Fetch available RFID tags
-                    fetch('{{ route('user.rfid-tags.available') }}')
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success) {
-                                // Store current selection
-                                const currentValue = rfidSelect.value;
-
-                                // Clear existing options except the first one
-                                rfidSelect.innerHTML =
-                                    '<option value="">-- Select RFID Tag --</option>';
-
-                                // Add available tags
-                                data.data.forEach(tag => {
-                                    const option = document.createElement('option');
-                                    option.value = tag.uid;
-                                    option.textContent = tag.uid + (tag.notes ? ' - ' + tag
-                                        .notes : '');
-                                    rfidSelect.appendChild(option);
-                                });
-
-                                // Restore selection if it still exists
-                                if (currentValue) {
-                                    rfidSelect.value = currentValue;
-                                }
-
-                                // Use unified toast system
-                                if (window.UnifiedToastSystem) {
-                                    window.UnifiedToastSystem.success(
-                                        'RFID tags refreshed successfully');
-                                } else {
-                                    showToast('RFID tags refreshed successfully', 'success');
-                                }
-                            } else {
-                                if (window.UnifiedToastSystem) {
-                                    window.UnifiedToastSystem.error('Failed to refresh RFID tags');
-                                } else {
-                                    showToast('Failed to refresh RFID tags', 'error');
-                                }
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Error:', error);
-                            if (window.UnifiedToastSystem) {
-                                window.UnifiedToastSystem.error('Error refreshing RFID tags');
-                            } else {
-                                showToast('Error refreshing RFID tags', 'error');
-                            }
-                        })
-                        .finally(() => {
-                            // Reset button state
-                            refreshButton.disabled = false;
-                            refreshButton.innerHTML = '<i class="ti ti-refresh me-1"></i>Refresh';
                         });
                 });
             }
