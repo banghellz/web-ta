@@ -1,7 +1,5 @@
 <!-- resources/views/user/items/index.blade.php -->
 <x-layouts.user_layout title="Tool Stocks" pageTitle="">
-    <x-slot name="title">{{ $title }}</x-slot>
-    <x-slot name="content">{{ $content }}</x-slot>
 
     <div class="page-header d-print-none">
         <div class="container-xl">
@@ -404,7 +402,7 @@
                 function checkForDatabaseUpdates() {
                     console.log('Checking for database updates...');
 
-                    makeOptimizedRequest("{{ route('user.items.check-updates') }}", {
+                    makeOptimizedRequest("/user/items/check-updates", {
                             ajaxOptions: {
                                 type: 'GET',
                                 data: {
@@ -565,7 +563,7 @@
                     processing: true,
                     serverSide: true,
                     ajax: {
-                        url: "{{ route('user.items.data') }}",
+                        url: "/user/items/data",
                         type: 'GET',
                         timeout: 10000,
                         dataSrc: function(json) {
@@ -856,19 +854,19 @@
                                 </div>
 
                                 ${toolData.status === 'available' ? `
-                                                    <!-- Quick Info -->
-                                                    <div class="card">
-                                                        <div class="card-body">
-                                                            <div class="alert alert-success d-flex align-items-center mb-0">
-                                                                <i class="ti ti-check-circle me-2"></i>
-                                                                <div>
-                                                                    <strong>Available for Borrowing</strong><br>
-                                                                    <small>Use the physical RFID system to borrow this tool</small>
-                                                                </div>
-                                                            </div>
+                                            <!-- Quick Info -->
+                                            <div class="card">
+                                                <div class="card-body">
+                                                    <div class="alert alert-success d-flex align-items-center mb-0">
+                                                        <i class="ti ti-check-circle me-2"></i>
+                                                        <div>
+                                                            <strong>Available for Borrowing</strong><br>
+                                                            <small>Use the physical RFID system to borrow this tool</small>
                                                         </div>
                                                     </div>
-                                                ` : ''}
+                                                </div>
+                                            </div>
+                                        ` : ''}
                             </div>
                         </div>
                     `;

@@ -105,8 +105,11 @@ Route::prefix('user')
             Route::put('/{item}', [App\Http\Controllers\User\ItemController::class, 'update'])->name('update');
             Route::delete('/{item}', [App\Http\Controllers\User\ItemController::class, 'destroy'])->name('destroy');
             Route::patch('/{item}/quantity', [App\Http\Controllers\User\ItemController::class, 'updateQuantity'])->name('update-quantity');
-            Route::get('/items/check-updates', [App\Http\Controllers\User\ItemController::class, 'checkUpdates'])->name('items.check-updates');
-            Route::get('/items/stats', [App\Http\Controllers\User\ItemController::class, 'getStats'])->name('items.stats');
+            // Real-time update checking route
+            Route::get('/items/check-updates', [App\Http\Controllers\User\ItemController::class, 'checkUpdates'])->name('user.items.check-updates');
+
+            // Stats API route
+            Route::get('/items/stats', [App\Http\Controllers\User\ItemController::class, 'getStats'])->name('user.items.stats');
         });
 
         Route::prefix('missing-tools')->name('missing-tools.')->group(function () {
