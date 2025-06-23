@@ -95,11 +95,14 @@
                                         <label class="form-label">Coin Number</label>
                                         <div class="input-group">
                                             <span class="input-group-text">0</span>
+                                            <span class="input-group-text">0</span>
                                             <input type="text" name="no_koin" id="no_koin"
+                                                value="{{ old('no_koin') }}" required
                                                 class="form-control @error('no_koin') is-invalid @enderror"
-                                                value="{{ old('no_koin', $user->detail ? substr($user->detail->no_koin, 1) : '') }}"
-                                                placeholder="{{ $user->detail && $user->detail->no_koin ? substr($user->detail->no_koin, 1) : '188' }}"
-                                                maxlength="3" pattern="[0-9]{1,3}">
+                                                placeholder="188" maxlength="3" pattern="[0-9]{1,3}">
+                                            @error('no_koin')
+                                                <div class="invalid-feedback">{{ $message }}</div>
+                                            @enderror
                                         </div>
                                         <div class="text-muted mt-1">Enter 3 digits (e.g., 188 becomes 0188)</div>
                                         @error('no_koin')
