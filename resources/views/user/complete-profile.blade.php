@@ -95,7 +95,7 @@
                                 <!-- Coin Number Field -->
                                 <div class="mb-3">
                                     <label for="no_koin" class="form-label required">
-                                        Nomor Koin
+                                        Coin Number
                                     </label>
                                     <div class="input-group">
                                         <span class="input-group-text">0</span>
