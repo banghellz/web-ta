@@ -382,7 +382,7 @@
                     refreshButton.innerHTML = '<i class="ti ti-loader me-1"></i>Loading...';
 
                     // Fetch available RFID tags
-                    fetch('{{ route('admin.rfid-tags.available') }}')
+                    fetch('{{ route('user.rfid-tags.available') }}')
                         .then(response => response.json())
                         .then(data => {
                             if (data.success) {
