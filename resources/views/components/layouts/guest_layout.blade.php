@@ -29,11 +29,36 @@
             font-family: 'Inter', sans-serif;
         }
 
-        /* Custom navbar styling - sesuai dengan My Storage */
+        /* Custom navbar styling */
         .navbar-custom {
             background: white;
             box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
             border-bottom: 1px solid var(--tblr-border-color);
+            position: relative;
+        }
+
+        /* Navbar brand centering */
+        .navbar-brand {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        /* Ensure profile dropdown stays on right */
+        .navbar-nav.ms-auto {
+            margin-left: auto !important;
+        }
+
+        /* Logo responsive sizing */
+        .navbar-brand-image {
+            max-height: 40px;
+            width: auto;
+        }
+
+        @media (max-width: 768px) {
+            .navbar-brand-image {
+                width: 100px !important;
+            }
         }
 
         /* Custom card styling - sesuai dengan Tabler theme */
@@ -223,25 +248,42 @@
     <nav class="navbar navbar-expand-lg navbar-custom fixed-top">
         <div class="container-fluid px-4">
             <!-- Brand -->
-            <a class="navbar-brand fw-bold" href="#" style="color: var(--tblr-primary);">
-                <i class="ti ti-building-warehouse me-2"></i>
-                {{ config('app.name', 'Tool Management') }}
-            </a>
+            <div class="flex-grow-1 d-flex justify-content-center">
+                <a href="." aria-label="Cabinex" class="navbar-brand m-0">
+                    <img src="/logo/darkmode_logo.png" alt="Cabinex Logo" class="navbar-brand-image"
+                        style="width: 120px; height: auto;">
+                </a>
+            </div>
 
             <!-- Profile Section -->
-            <div class="navbar-nav ms-auto">
+            <div class="navbar-nav ms-auto position-absolute"
+                style="right: 1rem; top: 50%; transform: translateY(-50%);">
                 <div class="nav-item dropdown">
                     <a href="#" class="nav-link d-flex align-items-center p-0" data-bs-toggle="dropdown"
                         aria-expanded="false">
                         @php
                             $user = auth()->user();
-                            // Menggunakan gravatar dari email
-                            $photo =
-                                'https://www.gravatar.com/avatar/' .
-                                md5(strtolower(trim($user->email ?? 'default@example.com'))) .
-                                '?s=80&d=identicon';
+                            // Menggunakan foto profil dari user detail jika ada, fallback ke avatar berdasarkan nama
+                            $photo = $user->detail?->pict ? asset('profile_pictures/' . $user->detail->pict) : null;
+
+                            // Jika tidak ada foto, buat avatar dengan inisial
+                            $initials = '';
+                            if (!$photo) {
+                                $nameParts = explode(' ', $user->name ?? 'U');
+                                $initials = strtoupper(substr($nameParts[0], 0, 1));
+                                if (count($nameParts) > 1) {
+                                    $initials .= strtoupper(substr($nameParts[1], 0, 1));
+                                }
+                            }
                         @endphp
-                        <span class="avatar avatar-sm me-2" style="background-image: url({{ $photo }})"></span>
+
+                        @if ($photo)
+                            <span class="avatar avatar-sm me-2"
+                                style="background-image: url({{ $photo }})"></span>
+                        @else
+                            <span class="avatar avatar-sm me-2 bg-primary text-white">{{ $initials }}</span>
+                        @endif
+
                         <div class="d-none d-md-block">
                             <div class="fw-semibold">{{ auth()->user()->name ?? 'Guest User' }}</div>
                             <div class="text-muted small">{{ auth()->user()->role ?? 'Guest' }}</div>
