@@ -34,22 +34,9 @@
             background: white;
             box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
             border-bottom: 1px solid var(--tblr-border-color);
-            position: relative;
         }
 
-        /* Navbar brand centering */
-        .navbar-brand {
-            position: absolute;
-            left: 50%;
-            transform: translateX(-50%);
-        }
-
-        /* Ensure profile dropdown stays on right */
-        .navbar-nav.ms-auto {
-            margin-left: auto !important;
-        }
-
-        /* Logo responsive sizing */
+        /* Logo sizing */
         .navbar-brand-image {
             max-height: 40px;
             width: auto;
