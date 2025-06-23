@@ -37,7 +37,7 @@
                                             <i class="ti ti-alert-circle me-2"></i>
                                         </div>
                                         <div>
-                                            <h4 class="alert-title">Terdapat {{ $errors->count() }} kesalahan pada form
+                                            <h4 class="alert-title">There are {{ $errors->count() }} errors in the form.
                                             </h4>
                                             <div class="text-secondary">
                                                 <ul class="mb-0">
@@ -117,7 +117,7 @@
                                     </label>
                                     <select name="prodi" id="prodi" required
                                         class="form-select @error('prodi') is-invalid @enderror">
-                                        <option value="">Pilih Program Studi</option>
+                                        <option value="">Select Your Major</option>
                                         <option value="TMK" {{ old('prodi') == 'TMK' ? 'selected' : '' }}>
                                             Teknik Mekatronika (TMK)
                                         </option>
