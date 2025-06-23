@@ -10,9 +10,11 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Validation\ValidationException;
 use Mockery\Matcher\Not;
 use Yajra\DataTables\Facades\DataTables;
+use Carbon\Carbon;
 
 class ItemController extends Controller
 {
@@ -80,13 +82,9 @@ class ItemController extends Controller
                     }
                 })
                 ->with([
-                    'stats' => [
-                        'total_items' => Item::count(),
-                        'available_items' => Item::available()->count(),
-                        'borrowed_items' => Item::borrowed()->count(),
-                        'missing_items' => Item::missing()->count(),
-                    ],
-                    'last_update' => now()->toISOString()
+                    'stats' => $this->getCurrentStats(),
+                    'last_db_update' => $this->getLastDatabaseUpdate(),
+                    'refresh_timestamp' => now()->toISOString()
                 ])
                 ->make(true);
         } catch (\Exception $e) {
@@ -99,6 +97,155 @@ class ItemController extends Controller
                 'data' => [],
                 'error' => 'Error loading data: ' . $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * OPTIMIZED: Check for updates dengan database timestamp detection (untuk real-time)
+     */
+    public function checkUpdates(Request $request)
+    {
+        try {
+            $clientLastUpdate = $request->get('last_update');
+            $hasUpdates = false;
+            $updateInfo = [];
+
+            $latestDbUpdate = $this->getLastDatabaseUpdate();
+            $currentTime = now()->toISOString();
+
+            // Better comparison logic - sama seperti SuperAdmin
+            if ($latestDbUpdate && $clientLastUpdate) {
+                try {
+                    $dbTime = Carbon::parse($latestDbUpdate);
+                    $clientTime = Carbon::parse($clientLastUpdate);
+
+                    // Add a small buffer to avoid false positives (1 second)
+                    $hasUpdates = $dbTime->greaterThan($clientTime->addSecond());
+
+                    if ($hasUpdates) {
+                        // Get recent changes for context
+                        $recentChanges = Item::where('updated_at', '>', $clientTime)
+                            ->orWhere('created_at', '>', $clientTime)
+                            ->orderBy('updated_at', 'desc')
+                            ->limit(5)
+                            ->get(['id', 'nama_barang', 'status', 'updated_at', 'created_at']);
+
+                        if ($recentChanges->isNotEmpty()) {
+                            $updateInfo = $recentChanges->map(function ($item) use ($clientTime) {
+                                $isNew = $item->created_at > $clientTime;
+                                return [
+                                    'id' => $item->id,
+                                    'name' => $item->nama_barang,
+                                    'status' => $item->status,
+                                    'action' => $isNew ? 'created' : 'updated',
+                                    'time' => $item->updated_at->toISOString()
+                                ];
+                            })->toArray();
+                        }
+                    }
+                } catch (\Exception $e) {
+                    Log::warning('Failed to parse timestamps in user check: ' . $e->getMessage());
+                    $hasUpdates = false;
+                }
+            } elseif ($latestDbUpdate && !$clientLastUpdate) {
+                $hasUpdates = true;
+            } else {
+                $hasUpdates = false;
+            }
+
+            // Get stats hanya jika ada update
+            $currentStats = null;
+            if ($hasUpdates) {
+                $currentStats = $this->getCurrentStats();
+            }
+
+            return response()->json([
+                'has_updates' => $hasUpdates,
+                'current_time' => $currentTime,
+                'latest_db_update' => $latestDbUpdate,
+                'client_last_update' => $clientLastUpdate,
+                'updates' => $updateInfo,
+                'stats' => $currentStats,
+                'debug' => [
+                    'detection_method' => 'database_timestamp',
+                    'latest_item_update' => $latestDbUpdate
+                ]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('User check updates error: ' . $e->getMessage());
+
+            return response()->json([
+                'has_updates' => false,
+                'current_time' => now()->toISOString(),
+                'error' => 'Failed to check updates: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * OPTIMIZED: Get current system stats with caching (sama seperti SuperAdmin)
+     */
+    public function getStats()
+    {
+        try {
+            $stats = $this->getCurrentStats();
+
+            return response()->json([
+                'success' => true,
+                'stats' => $stats
+            ]);
+        } catch (\Exception $e) {
+            Log::error('User get stats error: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to get stats'
+            ], 500);
+        }
+    }
+
+    /**
+     * HELPER: Get current stats with caching
+     */
+    private function getCurrentStats()
+    {
+        return Cache::remember('user_items_stats', 30, function () {
+            return [
+                'total_items' => Item::count(),
+                'available_items' => Item::available()->count(),
+                'borrowed_items' => Item::borrowed()->count(),
+                'missing_items' => Item::missing()->count(),
+                'out_of_stock_items' => Item::outOfStock()->count(),
+                'last_db_update' => $this->getLastDatabaseUpdate(),
+                'timestamp' => now()->toISOString()
+            ];
+        });
+    }
+
+    /**
+     * OPTIMIZED: Get last database update timestamp (sama seperti SuperAdmin)
+     */
+    private function getLastDatabaseUpdate()
+    {
+        try {
+            $latestUpdate = Item::max('updated_at');
+            $latestCreated = Item::max('created_at');
+
+            $latest = null;
+            if ($latestUpdate && $latestCreated) {
+                $latest = Carbon::parse($latestUpdate)->greaterThan(Carbon::parse($latestCreated))
+                    ? $latestUpdate
+                    : $latestCreated;
+            } elseif ($latestUpdate) {
+                $latest = $latestUpdate;
+            } elseif ($latestCreated) {
+                $latest = $latestCreated;
+            }
+
+            return $latest ? Carbon::parse($latest)->toISOString() : null;
+        } catch (\Exception $e) {
+            Log::error('Failed to get database timestamp in user controller: ' . $e->getMessage());
+            return null;
         }
     }
 }
