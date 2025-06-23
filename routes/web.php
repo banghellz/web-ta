@@ -183,27 +183,27 @@ Route::prefix('superadmin')
 
         // Items management routes
         Route::prefix('items')->name('items.')->group(function () {
-            Route::get('/', [App\Http\Controllers\Admin\ItemController::class, 'index'])->name('index');
-            Route::get('/create', [App\Http\Controllers\Admin\ItemController::class, 'create'])->name('create');
-            Route::post('/', [App\Http\Controllers\Admin\ItemController::class, 'store'])->name('store');
-            Route::delete('/{item}', [App\Http\Controllers\Admin\ItemController::class, 'destroy'])->name('destroy');
-            Route::post('/{id}/restore', [App\Http\Controllers\Admin\ItemController::class, 'restore'])->name('restore');
-            Route::delete('/{id}/force', [App\Http\Controllers\Admin\ItemController::class, 'forceDestroy'])->name('force-destroy');
-            Route::get('/data/items', [App\Http\Controllers\Admin\ItemController::class, 'getData'])->name('data');
-            Route::get('/data/deleted', [App\Http\Controllers\Admin\ItemController::class, 'getDeletedData'])->name('deleted-data');
-            Route::post('/{item}/change-status', [App\Http\Controllers\Admin\ItemController::class, 'changeStatus'])->name('change-status');
-            Route::get('/check-epc', [App\Http\Controllers\Admin\ItemController::class, 'checkEpc'])->name('check-epc');
-            Route::get('/check-updates', [App\Http\Controllers\Admin\ItemController::class, 'checkUpdates'])->name('check-updates');
-            Route::post('/force-refresh', [App\Http\Controllers\Admin\ItemController::class, 'forceRefresh'])->name('force-refresh');
-            Route::get('/stats', [App\Http\Controllers\Admin\ItemController::class, 'getStats'])->name('stats');
-            Route::get('/{item}', [App\Http\Controllers\Admin\ItemController::class, 'show'])->name('show');
-            Route::get('/{item}/edit', [App\Http\Controllers\Admin\ItemController::class, 'edit'])->name('edit');
-            Route::put('/{item}', [App\Http\Controllers\Admin\ItemController::class, 'update'])->name('update');
+            Route::get('/', [App\Http\Controllers\SuperAdmin\ItemController::class, 'index'])->name('index');
+            Route::get('/create', [App\Http\Controllers\SuperAdmin\ItemController::class, 'create'])->name('create');
+            Route::post('/', [App\Http\Controllers\SuperAdmin\ItemController::class, 'store'])->name('store');
+            Route::delete('/{item}', [App\Http\Controllers\SuperAdmin\ItemController::class, 'destroy'])->name('destroy');
+            Route::post('/{id}/restore', [App\Http\Controllers\SuperAdmin\ItemController::class, 'restore'])->name('restore');
+            Route::delete('/{id}/force', [App\Http\Controllers\SuperAdmin\ItemController::class, 'forceDestroy'])->name('force-destroy');
+            Route::get('/data/items', [App\Http\Controllers\SuperAdmin\ItemController::class, 'getData'])->name('data');
+            Route::get('/data/deleted', [App\Http\Controllers\SuperAdmin\ItemController::class, 'getDeletedData'])->name('deleted-data');
+            Route::post('/{item}/change-status', [App\Http\Controllers\SuperAdmin\ItemController::class, 'changeStatus'])->name('change-status');
+            Route::get('/check-epc', [App\Http\Controllers\SuperAdmin\ItemController::class, 'checkEpc'])->name('check-epc');
+            Route::get('/check-updates', [App\Http\Controllers\SuperAdmin\ItemController::class, 'checkUpdates'])->name('check-updates');
+            Route::post('/force-refresh', [App\Http\Controllers\SuperAdmin\ItemController::class, 'forceRefresh'])->name('force-refresh');
+            Route::get('/stats', [App\Http\Controllers\SuperAdmin\ItemController::class, 'getStats'])->name('stats');
+            Route::get('/{item}', [App\Http\Controllers\SuperAdmin\ItemController::class, 'show'])->name('show');
+            Route::get('/{item}/edit', [App\Http\Controllers\SuperAdmin\ItemController::class, 'edit'])->name('edit');
+            Route::put('/{item}', [App\Http\Controllers\SuperAdmin\ItemController::class, 'update'])->name('update');
 
-            // ✅ NEW: Enhanced cache management routes (apply same pattern to admin)
-            Route::post('/force-refresh-all', [App\Http\Controllers\Admin\ItemController::class, 'forceRefreshAll'])->name('force-refresh-all');
-            Route::post('/warm-all-caches', [App\Http\Controllers\Admin\ItemController::class, 'warmAllCaches'])->name('warm-all-caches');
-            Route::get('/cache-status', [App\Http\Controllers\Admin\ItemController::class, 'getCacheStatus'])->name('cache-status');
+            // ✅ NEW: Enhanced cache management routes (apply same pattern to Superadmin)
+            Route::post('/force-refresh-all', [App\Http\Controllers\SuperAdmin\ItemController::class, 'forceRefreshAll'])->name('force-refresh-all');
+            Route::post('/warm-all-caches', [App\Http\Controllers\SuperAdmin\ItemController::class, 'warmAllCaches'])->name('warm-all-caches');
+            Route::get('/cache-status', [App\Http\Controllers\SuperAdmin\ItemController::class, 'getCacheStatus'])->name('cache-status');
         });
 
         Route::prefix('log_peminjaman')->name('log_peminjaman.')->group(function () {
