@@ -31,17 +31,9 @@
                 <div class="card-header">
                     <h3 class="card-title">Tool Inventory Overview</h3>
                     <div class="card-actions">
-                        <div class="d-flex align-items-center">
-                            <!-- Connection Status Indicator -->
-                            <div id="connection-status" class="d-flex align-items-center me-3">
-                                <div id="connection-indicator" class="bg-success rounded-circle me-2"
-                                    style="width: 8px; height: 8px;" title="Connection"></div>
-                                <small class="text-muted"><span id="connection-text">Live</span></small>
-                            </div>
-                            <small class="text-muted" id="last-updated">
-                                Last updated: <span id="last-updated-time">Just now</span>
-                            </small>
-                        </div>
+                        <small class="text-muted" id="last-updated">
+                            Last updated: <span id="last-updated-time">Just now</span>
+                        </small>
                     </div>
                 </div>
                 <div class="card-body">
@@ -149,17 +141,28 @@
                 <div class="card-header">
                     <h3 class="card-title">Available Tools</h3>
                     <div class="card-actions">
-                        <div class="input-group">
-                            <span class="input-group-text">
-                                <i class="ti ti-filter"></i>
-                            </span>
-                            <select id="status-filter" class="form-select">
-                                <option value="">All Status</option>
-                                <option value="available">Available</option>
-                                <option value="borrowed">Borrowed</option>
-                                <option value="missing">Missing</option>
-                                <option value="out_of_stock">Out of Stock</option>
-                            </select>
+                        <div class="row g-2 align-items-center">
+                            <div class="col">
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="ti ti-filter"></i>
+                                    </span>
+                                    <select id="status-filter" class="form-select">
+                                        <option value="">All Status</option>
+                                        <option value="available">Available</option>
+                                        <option value="borrowed">Borrowed</option>
+                                        <option value="missing">Missing</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <!-- Connection Status Indicator -->
+                            <div class="col-auto">
+                                <div id="connection-status" class="d-flex align-items-center">
+                                    <div id="connection-indicator" class="bg-success rounded-circle me-2"
+                                        style="width: 8px; height: 8px;" title="Connection"></div>
+                                    <small class="text-muted"><span id="connection-text">Live</span></small>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -325,11 +328,11 @@
                 font-weight: 500;
             }
 
-            /* Performance optimization for animations */
-            .status-updating,
-            .stat-updating,
-            #connection-indicator {
-                will-change: transform, opacity;
+            /* Mobile responsiveness */
+            @media (max-width: 768px) {
+                .card-actions .row {
+                    gap: 0.5rem;
+                }
             }
 
             /* Reduced motion for accessibility */
@@ -341,31 +344,18 @@
                     animation: none !important;
                 }
             }
-
-            /* Mobile responsiveness */
-            @media (max-width: 768px) {
-                .card-actions .d-flex {
-                    flex-direction: column;
-                    gap: 0.5rem;
-                }
-            }
         </style>
     @endpush
 
     @push('scripts')
         <script>
             $(function() {
-                // === REAL-TIME CONFIGURATION (User View Optimized) ===
                 let pollingInterval = null;
-                let clientLastUpdate = null;
                 let isPollingEnabled = true;
                 let pollingFailureCount = 0;
+                let currentPollingInterval = 30000; // 30 seconds for user view
 
-                // USER VIEW: Longer intervals for better performance
-                const POLLING_INTERVAL = 5000; // 5 seconds (reasonable for user view)
-                const MAX_FAILURES = 3;
-                const RETRY_DELAY = 3000; // 3 seconds
-
+                // Current stats cache
                 let currentStats = {
                     total_items: {{ $totalItems ?? 0 }},
                     available_items: {{ $availableItems ?? 0 }},
@@ -374,17 +364,8 @@
                 };
 
                 // === UTILITY FUNCTIONS ===
-                function showToast(message, type = 'success', skipAutoUpdate = false) {
-                    if (skipAutoUpdate) {
-                        console.log('Auto-update (silent):', message);
-                        return;
-                    }
-
-                    if (window.UnifiedToastSystem) {
-                        window.UnifiedToastSystem.show(type, message);
-                    } else if (typeof window.showNotificationToast === 'function') {
-                        window.showNotificationToast(message, type);
-                    } else if (typeof toastr !== 'undefined') {
+                function showToast(message, type = 'success') {
+                    if (typeof toastr !== 'undefined') {
                         toastr[type](message);
                     } else {
                         console.log(`${type.toUpperCase()}: ${message}`);
@@ -405,7 +386,7 @@
                         },
                         'connecting': {
                             title: 'Checking for updates...',
-                            text: 'Syncing'
+                            text: 'Checking'
                         },
                         'disconnected': {
                             title: 'Connection failed - Updates disabled',
@@ -469,11 +450,6 @@
                             icon: 'ti-alert-triangle',
                             class: 'bg-dark',
                             text: 'Missing'
-                        },
-                        'out_of_stock': {
-                            icon: 'ti-x',
-                            class: 'bg-danger',
-                            text: 'Out of Stock'
                         }
                     };
 
@@ -483,7 +459,7 @@
                         text: 'Unknown'
                     };
 
-                    $badge.removeClass('bg-success bg-warning bg-dark bg-danger bg-secondary')
+                    $badge.removeClass('bg-success bg-warning bg-dark bg-secondary')
                         .addClass('status-updating')
                         .addClass(config.class)
                         .attr('data-status', newStatus)
@@ -492,63 +468,14 @@
                     setTimeout(() => $badge.removeClass('status-updating'), 800);
                 }
 
-                // === OPTIMIZED AJAX WITH BETTER ERROR HANDLING ===
-                function makeOptimizedRequest(url, options = {}) {
-                    const defaultOptions = {
-                        timeout: 8000, // Slightly longer for user view
-                        retries: 1,
-                        retryDelay: 2000
-                    };
-
-                    const config = {
-                        ...defaultOptions,
-                        ...options
-                    };
-
-                    // Circuit breaker
-                    if (pollingFailureCount >= MAX_FAILURES) {
-                        return Promise.reject(new Error('Circuit breaker open'));
-                    }
-
-                    function attemptRequest(attempt = 1) {
-                        return new Promise((resolve, reject) => {
-                            $.ajax({
-                                    url: url,
-                                    timeout: config.timeout,
-                                    ...config.ajaxOptions
-                                })
-                                .done(resolve)
-                                .fail((xhr, status, error) => {
-                                    console.warn(`Request failed (attempt ${attempt}):`, {
-                                        status: xhr.status,
-                                        statusText: xhr.statusText,
-                                        error
-                                    });
-
-                                    if (attempt < config.retries && xhr.status >= 500) {
-                                        setTimeout(() => {
-                                            attemptRequest(attempt + 1).then(resolve).catch(reject);
-                                        }, config.retryDelay * attempt);
-                                    } else {
-                                        reject(xhr);
-                                    }
-                                });
-                        });
-                    }
-
-                    return attemptRequest();
-                }
-
-                // === REAL-TIME POLLING SYSTEM ===
+                // === POLLING SYSTEM FOR LIVE UPDATES ===
                 function startPolling() {
                     if (pollingInterval) clearInterval(pollingInterval);
 
-                    console.log(`Starting user real-time polling - interval: ${POLLING_INTERVAL}ms`);
-
                     pollingInterval = setInterval(() => {
                         if (!isPollingEnabled || document.hidden) return;
-                        checkForDatabaseUpdates();
-                    }, POLLING_INTERVAL);
+                        checkForUpdates();
+                    }, currentPollingInterval);
                 }
 
                 function stopPolling() {
@@ -558,98 +485,51 @@
                     }
                 }
 
-                function checkForDatabaseUpdates() {
+                function checkForUpdates() {
                     setConnectionStatus('connecting');
 
-                    makeOptimizedRequest("{{ route('user.items.check-updates') }}", {
-                            ajaxOptions: {
-                                type: 'GET',
-                                data: {
-                                    last_update: clientLastUpdate
-                                }
+                    $.ajax({
+                        url: "{{ route('user.items.data') }}",
+                        type: 'GET',
+                        timeout: 10000,
+                        data: {
+                            _: Date.now()
+                        },
+                        success: function(response) {
+                            if (response.stats) {
+                                updateStats(response.stats);
                             }
-                        })
-                        .then(response => {
-                            console.log('User update check response:', response);
 
-                            pollingFailureCount = 0;
-                            setConnectionStatus('connected');
-
-                            if (response.has_updates) {
-                                console.log('Changes detected - refreshing user table');
-                                performSilentRefresh();
-
-                                if (response.stats) {
-                                    updateStats(response.stats);
-                                }
-
-                                // Show user-friendly notification for significant updates
-                                if (response.updates && response.updates.length > 0) {
-                                    const updateCount = response.updates.length;
-                                    const message = updateCount === 1 ?
-                                        `${response.updates[0].name} ${response.updates[0].action}` :
-                                        `${updateCount} tools updated`;
-
-                                    // Only show toast for significant changes, not every update
-                                    if (updateCount <= 2) {
-                                        showToast(message, 'info', true); // Silent for frequent updates
+                            // Update status badges in table
+                            if (response.data && Array.isArray(response.data)) {
+                                response.data.forEach(item => {
+                                    const $statusBadge = $(`.badge[data-item-id="${item.id}"]`);
+                                    if ($statusBadge.length > 0) {
+                                        const currentStatus = $statusBadge.data('status');
+                                        if (currentStatus !== item.status) {
+                                            updateStatusBadge($statusBadge, item.status);
+                                        }
                                     }
-                                }
+                                });
                             }
 
-                            // Update timestamp
-                            if (response.latest_db_update) {
-                                clientLastUpdate = response.latest_db_update;
-                            }
-                        })
-                        .catch(xhr => {
+                            updateLastRefreshTime();
+                            setConnectionStatus('connected');
+                            pollingFailureCount = 0;
+                        },
+                        error: function(xhr, status, error) {
                             pollingFailureCount++;
-                            console.error('User update check failed:', xhr.status);
+                            console.warn('Polling failed:', error);
 
-                            if (pollingFailureCount >= MAX_FAILURES) {
+                            if (pollingFailureCount >= 3) {
                                 setConnectionStatus('disconnected');
-                                showToast('Connection lost. Auto-refresh disabled.', 'warning');
-                                stopPolling();
-
-                                // Retry after longer delay for user view
-                                setTimeout(() => {
-                                    pollingFailureCount = 0;
-                                    startPolling();
-                                }, RETRY_DELAY * 2);
+                                currentPollingInterval = Math.min(60000, currentPollingInterval + 10000);
+                                startPolling();
                             } else {
                                 setConnectionStatus('connected');
                             }
-                        });
-                }
-
-                function performSilentRefresh() {
-                    console.log('Performing silent table refresh (user view)...');
-
-                    table.ajax.reload(function(json) {
-                        updateLastRefreshTime();
-
-                        if (json && (json.refresh_timestamp || json.last_db_update)) {
-                            clientLastUpdate = json.refresh_timestamp || json.last_db_update;
                         }
-                    }, false);
-                }
-
-                function performManualRefresh() {
-                    const $refreshBtn = $('#reload-items');
-
-                    $refreshBtn.addClass('refreshing');
-                    setConnectionStatus('connecting');
-
-                    table.ajax.reload(function(json) {
-                        $refreshBtn.removeClass('refreshing');
-                        setConnectionStatus('connected');
-                        showToast('Data refreshed successfully!', 'success');
-                        updateLastRefreshTime();
-
-                        if (json && (json.refresh_timestamp || json.last_db_update)) {
-                            clientLastUpdate = json.refresh_timestamp || json.last_db_update;
-                        }
-                    }, false);
+                    });
                 }
 
                 // === DATATABLE INITIALIZATION ===
@@ -661,33 +541,19 @@
                         type: 'GET',
                         timeout: 15000,
                         dataSrc: function(json) {
-                            console.log('User DataTable loaded successfully');
-
                             updateStats(json.stats || {});
                             updateLastRefreshTime();
                             setConnectionStatus('connected');
-
-                            // Initialize clientLastUpdate
-                            if (!clientLastUpdate && (json.refresh_timestamp || json.last_db_update)) {
-                                clientLastUpdate = json.refresh_timestamp || json.last_db_update;
-                                console.log('Initialized user clientLastUpdate:', clientLastUpdate);
-                            }
-
                             pollingFailureCount = 0;
                             return json.data;
                         },
                         error: function(xhr, error, code) {
-                            console.error('User DataTable Ajax Error:', {
+                            console.error('DataTable Ajax Error:', {
                                 status: xhr.status,
-                                error: error,
-                                code: code
+                                error: error
                             });
-                            pollingFailureCount++;
                             setConnectionStatus('disconnected');
-
-                            if (pollingFailureCount >= MAX_FAILURES) {
-                                showToast('Connection lost. Please refresh manually.', 'warning');
-                            }
+                            pollingFailureCount++;
                         }
                     },
                     columns: [{
@@ -745,11 +611,6 @@
                                         iconClass = 'ti-alert-triangle';
                                         badgeClass = 'bg-dark';
                                         statusText = 'Missing';
-                                        break;
-                                    case 'out_of_stock':
-                                        iconClass = 'ti-x';
-                                        badgeClass = 'bg-danger';
-                                        statusText = 'Out of Stock';
                                         break;
                                     default:
                                         iconClass = 'ti-help';
@@ -809,11 +670,17 @@
                     responsive: true
                 });
 
-                window.userItemsDataTable = table;
-
                 // === EVENT HANDLERS ===
                 $('#reload-items').on('click', function() {
-                    performManualRefresh();
+                    const $refreshBtn = $(this);
+                    $refreshBtn.addClass('refreshing');
+                    setConnectionStatus('connecting');
+
+                    table.ajax.reload(function(json) {
+                        $refreshBtn.removeClass('refreshing');
+                        showToast('Data refreshed successfully!', 'success');
+                        updateLastRefreshTime();
+                    }, false);
                 });
 
                 $('#status-filter').on('change', function() {
@@ -850,11 +717,6 @@
                             icon: 'ti-alert-triangle',
                             class: 'bg-dark',
                             text: 'Missing/Lost'
-                        },
-                        'out_of_stock': {
-                            icon: 'ti-x',
-                            class: 'bg-danger',
-                            text: 'Out of Stock'
                         }
                     };
 
@@ -943,19 +805,19 @@
                                 </div>
 
                                 ${toolData.status === 'available' ? `
-                                            <!-- Quick Info -->
-                                            <div class="card">
-                                                <div class="card-body">
-                                                    <div class="alert alert-success d-flex align-items-center mb-0">
-                                                        <i class="ti ti-check-circle me-2"></i>
-                                                        <div>
-                                                            <strong>Available for Borrowing</strong><br>
-                                                            <small>Use the physical RFID system to borrow this tool</small>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ` : ''}
+                                                                <!-- Quick Info -->
+                                                                <div class="card">
+                                                                    <div class="card-body">
+                                                                        <div class="alert alert-success d-flex align-items-center mb-0">
+                                                                            <i class="ti ti-check-circle me-2"></i>
+                                                                            <div>
+                                                                                <strong>Available for Borrowing</strong><br>
+                                                                                <small>Use the physical RFID system to borrow this tool</small>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                                ` : ''}
                             </div>
                         </div>
                     `;
@@ -967,31 +829,22 @@
                 // === PAGE VISIBILITY HANDLING ===
                 document.addEventListener('visibilitychange', function() {
                     if (document.hidden) {
-                        console.log('User page hidden - pausing activities');
                         isPollingEnabled = false;
                     } else {
-                        console.log('User page visible - resuming activities');
                         isPollingEnabled = true;
                         pollingFailureCount = Math.max(0, pollingFailureCount - 1);
                         setConnectionStatus('connecting');
-
-                        // Resume polling after a short delay
                         setTimeout(() => {
-                            checkForDatabaseUpdates();
+                            checkForUpdates();
                         }, 2000);
                     }
                 });
 
-                // === WINDOW UNLOAD HANDLING ===
-                window.addEventListener('beforeunload', function() {
-                    stopPolling();
-                });
+                // === HELPER FUNCTIONS === - Remove unused functions
 
                 // === INITIALIZATION ===
                 updateLastRefreshTime();
                 setConnectionStatus('connected');
-
-                // Start real-time polling
                 startPolling();
 
                 // Show Laravel session messages
@@ -1003,31 +856,14 @@
                     showToast("{{ session('error') }}", 'error');
                 @endif
 
-                @if (session('warning'))
-                    showToast("{{ session('warning') }}", 'warning');
-                @endif
-
-                @if (session('info'))
-                    showToast("{{ session('info') }}", 'info');
-                @endif
-
                 // === GLOBAL FUNCTIONS ===
-                window.refreshUserItemsTable = function(silent = true) {
+                window.refreshToolsTable = function(silent = true) {
                     if ($('#itemsTable').DataTable()) {
                         $('#itemsTable').DataTable().ajax.reload(null, false);
                     }
                 };
 
-                window.debugUserRealTime = function() {
-                    console.log('=== USER REAL-TIME DEBUG INFO ===');
-                    console.log('Client Last Update:', clientLastUpdate);
-                    console.log('Polling Interval:', POLLING_INTERVAL);
-                    console.log('Failure Count:', pollingFailureCount);
-                    console.log('Active Polling:', !!pollingInterval);
-                    console.log('Polling Enabled:', isPollingEnabled);
-                };
-
-                console.log(`User real-time system initialized with ${POLLING_INTERVAL}ms interval`);
+                console.log('User tools view initialized with live updates');
             });
         </script>
     @endpush
