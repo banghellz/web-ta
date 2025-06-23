@@ -119,16 +119,13 @@
 
                     <!-- Logout - Fixed: Menggunakan POST method dan action yang benar -->
                     <li class="nav-item mt-auto">
-                        <form method="GET" action="{{ route('logout') }}" class="m-0">
-                            @csrf
-                            <button type="submit" class="nav-link text-red fw-semibold w-100 bg-transparent border-0"
-                                onclick="return confirm('Are you sure you want to logout?')">
-                                <span class="nav-link-icon d-md-none d-lg-inline-block">
-                                    <i class="ti ti-logout"></i>
-                                </span>
-                                <span class="nav-link-title">Logout</span>
-                            </button>
-                        </form>
+                        <a class="nav-link text-red fw-semibold w-100 bg-transparent border-0"
+                            href="{{ route('logout') }}">
+                            <span class="nav-link-icon d-md-none d-lg-inline-block">
+                                <i class="ti ti-logout"></i>
+                            </span>
+                            <span class="nav-link-title">Profile</span>
+                        </a>
                     </li>
                 </ul>
             </div>
