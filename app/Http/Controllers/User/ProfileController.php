@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Database\QueryException;
 
 class ProfileController extends Controller
@@ -66,16 +67,16 @@ class ProfileController extends Controller
     {
         $user = Auth::user();
 
-        // Validation rules (removed rfid_uid since users can't edit it)
+        // Validation rules - no_koin should accept 1-3 digits since user inputs without leading zero
         $rules = [
-            'no_koin' => 'nullable|numeric|digits:4',
+            'no_koin' => 'nullable|numeric|min:1|max:999', // Accept 1-3 digits
             'prodi' => 'nullable|string|max:50',
             'pict' => 'nullable|image|mimes:jpg,jpeg,png|max:10240', // 10MB max
         ];
 
         // If user has details, add unique validation for no_koin (excluding current user)
         if ($user->detail) {
-            $rules['no_koin'] = 'nullable|numeric|digits:4|unique:user_details,no_koin,' . $user->detail->id;
+            $rules['no_koin'] = 'nullable|numeric|min:1|max:999|unique:user_details,no_koin,' . $user->detail->id;
         }
 
         $request->validate($rules);
@@ -94,10 +95,16 @@ class ProfileController extends Controller
                 }
             }
 
-            // Update or create user details (removed RFID handling)
+            // Format no_koin - pad to 4 digits with leading zero
+            $formattedNoKoin = null;
+            if ($request->filled('no_koin')) {
+                $formattedNoKoin = str_pad($request->no_koin, 4, '0', STR_PAD_LEFT);
+            }
+
+            // Update or create user details
             $detailData = [
                 'nama' => $user->name, // Keep name synchronized
-                'no_koin' => $request->no_koin ? str_pad($request->no_koin, 4, '0', STR_PAD_LEFT) : null,
+                'no_koin' => $formattedNoKoin,
                 'prodi' => $request->prodi,
                 // RFID remains unchanged - only admin can modify
             ];
@@ -177,27 +184,131 @@ class ProfileController extends Controller
     }
 
     /**
-     * Handle file upload
+     * Get user's photo URL - try Google/Gravatar first, then default
+     * (Borrowed from CompleteProfileController)
+     */
+    private function getUserPhotoUrl($user)
+    {
+        try {
+            $email = $user->email;
+
+            // Try to get Gravatar (which often includes Google photos)
+            if (strpos($email, '@') !== false) {
+                $hash = md5(strtolower(trim($email)));
+                $gravatarUrl = "https://www.gravatar.com/avatar/{$hash}?s=200&d=404";
+
+                // Check if Gravatar exists by making a simple request
+                $context = stream_context_create([
+                    'http' => [
+                        'timeout' => 5,
+                        'method' => 'HEAD'
+                    ]
+                ]);
+
+                $headers = @get_headers($gravatarUrl, 0, $context);
+                if ($headers && strpos($headers[0], '200') !== false) {
+                    return $gravatarUrl;
+                }
+
+                // Try alternative: get Gravatar with default fallback to a specific image
+                $gravatarUrlWithDefault = "https://www.gravatar.com/avatar/{$hash}?s=200&d=mp";
+                return $gravatarUrlWithDefault;
+            }
+        } catch (\Exception $e) {
+            Log::warning('Could not fetch user photo: ' . $e->getMessage());
+        }
+
+        return asset('assets/img/default-avatar.png');
+    }
+
+    /**
+     * Download and save photo from URL
+     * (Borrowed from CompleteProfileController)
+     */
+    private function downloadAndSavePhoto($photoUrl, $prefix = 'profile')
+    {
+        try {
+            $uploadPath = public_path('profile_pictures');
+
+            if (!File::exists($uploadPath)) {
+                File::makeDirectory($uploadPath, 0755, true);
+            }
+
+            $response = Http::timeout(10)->get($photoUrl);
+
+            if ($response->successful()) {
+                $extension = 'jpg'; // Default to jpg
+
+                // Try to get extension from content type
+                $contentType = $response->header('Content-Type');
+                if (strpos($contentType, 'png') !== false) {
+                    $extension = 'png';
+                } elseif (strpos($contentType, 'jpeg') !== false || strpos($contentType, 'jpg') !== false) {
+                    $extension = 'jpg';
+                }
+
+                $filename = $prefix . '_' . uniqid() . '.' . $extension;
+                $filepath = $uploadPath . '/' . $filename;
+
+                File::put($filepath, $response->body());
+                return $filename;
+            }
+        } catch (\Exception $e) {
+            Log::warning('Could not download photo from URL: ' . $e->getMessage());
+        }
+
+        return null;
+    }
+
+    /**
+     * Handle file upload with improved error handling
+     * (Improved version from CompleteProfileController)
      */
     private function handleFileUpload($file)
     {
-        $uploadPath = public_path('profile_pictures');
+        try {
+            $uploadPath = public_path('profile_pictures');
 
-        if (!File::exists($uploadPath)) {
-            File::makeDirectory($uploadPath, 0755, true);
+            // Create directory if it doesn't exist
+            if (!File::exists($uploadPath)) {
+                File::makeDirectory($uploadPath, 0755, true);
+            }
+
+            // Check if directory is writable
+            if (!is_writable($uploadPath)) {
+                throw new \Exception('Upload directory is not writable. Please contact administrator.');
+            }
+
+            // Validate file
+            if (!$file->isValid()) {
+                throw new \Exception('Invalid file upload.');
+            }
+
+            // Check file size (10MB = 10485760 bytes)
+            if ($file->getSize() > 10485760) {
+                throw new \Exception('File size exceeds maximum limit of 10MB.');
+            }
+
+            // Check file type
+            $allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+            if (!in_array($file->getMimeType(), $allowedMimeTypes)) {
+                throw new \Exception('Invalid file type. Only JPG, JPEG, and PNG files are allowed.');
+            }
+
+            // Generate unique filename
+            $extension = $file->getClientOriginalExtension();
+            $filename = 'profile_' . uniqid() . '.' . $extension;
+
+            // Move file
+            if (!$file->move($uploadPath, $filename)) {
+                throw new \Exception('Failed to upload profile picture.');
+            }
+
+            return $filename;
+        } catch (\Exception $e) {
+            Log::error('File upload error: ' . $e->getMessage());
+            throw $e;
         }
-
-        if (!is_writable($uploadPath)) {
-            throw new \Exception('Upload directory is not writable. Please contact administrator.');
-        }
-
-        $filename = uniqid() . '.' . $file->getClientOriginalExtension();
-
-        if (!$file->move($uploadPath, $filename)) {
-            throw new \Exception('Failed to upload profile picture.');
-        }
-
-        return $filename;
     }
 
     /**
@@ -205,10 +316,15 @@ class ProfileController extends Controller
      */
     private function deleteOldPicture($filename)
     {
-        if ($filename && $filename !== 'default-avatar.png') {
+        if ($filename && $filename !== 'default-avatar.png' && !str_starts_with($filename, 'default_')) {
             $filepath = public_path('profile_pictures/' . $filename);
             if (File::exists($filepath)) {
-                File::delete($filepath);
+                try {
+                    File::delete($filepath);
+                    Log::info('Deleted old profile picture: ' . $filename);
+                } catch (\Exception $e) {
+                    Log::warning('Failed to delete old profile picture: ' . $e->getMessage());
+                }
             }
         }
     }
@@ -221,7 +337,12 @@ class ProfileController extends Controller
         if ($filename) {
             $filepath = public_path('profile_pictures/' . $filename);
             if (File::exists($filepath)) {
-                File::delete($filepath);
+                try {
+                    File::delete($filepath);
+                    Log::info('Cleaned up uploaded file after error: ' . $filename);
+                } catch (\Exception $e) {
+                    Log::warning('Failed to cleanup uploaded file: ' . $e->getMessage());
+                }
             }
         }
     }

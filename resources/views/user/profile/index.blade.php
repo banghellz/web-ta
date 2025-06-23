@@ -28,12 +28,12 @@
                             <div class="mb-4">
                                 <div class="row">
                                     <div class="col-auto">
-                                        <span class="avatar avatar-xl mb-3"
+                                        <span class="avatar avatar-xl mb-3" id="preview-avatar"
                                             style="background-image: url({{ $user->detail && $user->detail->pict ? asset('profile_pictures/' . $user->detail->pict) : asset('assets/img/default-avatar.png') }})"></span>
                                     </div>
                                     <div class="col">
                                         <label class="form-label">Profile Photo</label>
-                                        <input type="file" name="pict"
+                                        <input type="file" name="pict" id="pict"
                                             class="form-control @error('pict') is-invalid @enderror"
                                             accept="image/jpeg,image/png,image/jpg">
                                         <div class="text-muted mt-1">Upload new photo (JPG, PNG, max 10MB)</div>
@@ -95,16 +95,13 @@
                                         <label class="form-label">Coin Number</label>
                                         <div class="input-group">
                                             <span class="input-group-text">0</span>
-                                            <span class="input-group-text">0</span>
                                             <input type="text" name="no_koin" id="no_koin"
-                                                value="{{ old('no_koin') }}" required
                                                 class="form-control @error('no_koin') is-invalid @enderror"
-                                                placeholder="188" maxlength="3" pattern="[0-9]{1,3}">
-                                            @error('no_koin')
-                                                <div class="invalid-feedback">{{ $message }}</div>
-                                            @enderror
+                                                value="{{ old('no_koin', $user->detail && $user->detail->no_koin ? substr($user->detail->no_koin, 1) : '') }}"
+                                                placeholder="{{ $user->detail && $user->detail->no_koin ? substr($user->detail->no_koin, 1) : '188' }}"
+                                                maxlength="3" pattern="[0-9]{1,3}">
                                         </div>
-                                        <div class="text-muted mt-1">Enter 3 digits (e.g., 188 becomes 0188)</div>
+                                        <div class="text-muted mt-1">Enter 1-3 digits (e.g., 188 becomes 0188)</div>
                                         @error('no_koin')
                                             <div class="invalid-feedback">{{ $message }}</div>
                                         @enderror
@@ -240,7 +237,43 @@
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const noKoinInput = document.getElementById('no_koin');
+            const pictInput = document.getElementById('pict');
+            const previewAvatar = document.getElementById('preview-avatar');
             const form = document.querySelector('form');
+
+            // Preview uploaded image
+            if (pictInput && previewAvatar) {
+                pictInput.addEventListener('change', function(event) {
+                    const file = event.target.files[0];
+                    if (file) {
+                        // Validate file size (10MB)
+                        if (file.size > 10485760) {
+                            if (window.UnifiedToastSystem) {
+                                window.UnifiedToastSystem.error('File size exceeds maximum limit of 10MB');
+                            }
+                            this.value = '';
+                            return;
+                        }
+
+                        // Validate file type
+                        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+                        if (!allowedTypes.includes(file.type)) {
+                            if (window.UnifiedToastSystem) {
+                                window.UnifiedToastSystem.error(
+                                    'Invalid file type. Only JPG, JPEG, and PNG files are allowed');
+                            }
+                            this.value = '';
+                            return;
+                        }
+
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            previewAvatar.style.backgroundImage = `url(${e.target.result})`;
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                });
+            }
 
             // Format no_koin input
             if (noKoinInput) {
@@ -256,13 +289,13 @@
                     e.target.value = value;
                 });
 
-                // Format on form submission
-                form.addEventListener('submit', function(e) {
-                    const noKoinValue = noKoinInput.value;
-                    if (noKoinValue && noKoinValue.length > 0) {
-                        // Pad with zeros to make it 3 digits
-                        const paddedValue = noKoinValue.padStart(3, '0');
-                        noKoinInput.value = paddedValue;
+                // Validate on blur
+                noKoinInput.addEventListener('blur', function(e) {
+                    const value = e.target.value;
+                    if (value && (value < 1 || value > 999)) {
+                        if (window.UnifiedToastSystem) {
+                            window.UnifiedToastSystem.error('Coin number must be between 1 and 999');
+                        }
                     }
                 });
             }
@@ -275,10 +308,19 @@
                     const submitBtn = form.querySelector('button[type="submit"]');
                     const formData = new FormData(form);
 
+                    // Validate no_koin before submitting
+                    const noKoinValue = noKoinInput ? noKoinInput.value : '';
+                    if (noKoinValue && (noKoinValue < 1 || noKoinValue > 999)) {
+                        if (window.UnifiedToastSystem) {
+                            window.UnifiedToastSystem.error('Coin number must be between 1 and 999');
+                        }
+                        return;
+                    }
+
                     // Show loading state
                     if (submitBtn) {
                         submitBtn.disabled = true;
-                        submitBtn.innerHTML = '<i class="ti ti-loader me-1"></i>Updating...';
+                        submitBtn.innerHTML = '<i class="ti ti-loader me-1 spin"></i>Updating...';
                     }
 
                     // Submit via AJAX
@@ -295,7 +337,9 @@
                         .then(data => {
                             if (data.success) {
                                 // Show success toast
-                                window.UnifiedToastSystem.success(data.message);
+                                if (window.UnifiedToastSystem) {
+                                    window.UnifiedToastSystem.success(data.message);
+                                }
 
                                 // Redirect after short delay
                                 setTimeout(() => {
@@ -306,17 +350,24 @@
                                 if (data.errors) {
                                     Object.keys(data.errors).forEach(key => {
                                         data.errors[key].forEach(error => {
-                                            window.UnifiedToastSystem.error(error);
+                                            if (window.UnifiedToastSystem) {
+                                                window.UnifiedToastSystem.error(error);
+                                            }
                                         });
                                     });
                                 } else if (data.message) {
-                                    window.UnifiedToastSystem.error(data.message);
+                                    if (window.UnifiedToastSystem) {
+                                        window.UnifiedToastSystem.error(data.message);
+                                    }
                                 }
                             }
                         })
                         .catch(error => {
                             console.error('Error:', error);
-                            window.UnifiedToastSystem.error('An error occurred while updating profile');
+                            if (window.UnifiedToastSystem) {
+                                window.UnifiedToastSystem.error(
+                                    'An error occurred while updating profile');
+                            }
                         })
                         .finally(() => {
                             // Reset button state
@@ -328,6 +379,19 @@
                         });
                 });
             }
+
+            // Add CSS for spinning loader
+            const style = document.createElement('style');
+            style.textContent = `
+                .spin {
+                    animation: spin 1s linear infinite;
+                }
+                @keyframes spin {
+                    from { transform: rotate(0deg); }
+                    to { transform: rotate(360deg); }
+                }
+            `;
+            document.head.appendChild(style);
         });
     </script>
 </x-layouts.user_layout>
