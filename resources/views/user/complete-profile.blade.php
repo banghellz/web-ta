@@ -113,7 +113,7 @@
                                 <!-- Program Studi Field -->
                                 <div class="mb-3">
                                     <label for="prodi" class="form-label required">
-                                        Program Studi
+                                        Major
                                     </label>
                                     <select name="prodi" id="prodi" required
                                         class="form-select @error('prodi') is-invalid @enderror">
