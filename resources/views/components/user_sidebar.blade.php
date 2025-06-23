@@ -107,16 +107,6 @@
                         </a>
                     </li>
 
-                    <!-- Profile Menu Item -->
-                    <li class="nav-item">
-                        <a class="nav-link text-gray-400 fw-semibold" href="{{ route('user.profile.index') }}">
-                            <span class="nav-link-icon d-md-none d-lg-inline-block">
-                                <i class="ti ti-user"></i>
-                            </span>
-                            <span class="nav-link-title">Profile</span>
-                        </a>
-                    </li>
-
                     <!-- Logout - Fixed: Menggunakan POST method dan action yang benar -->
                     <li class="nav-item mt-auto">
                         <a class="nav-link text-red fw-semibold w-100 bg-transparent border-0"

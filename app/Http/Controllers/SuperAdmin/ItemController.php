@@ -50,103 +50,6 @@ class ItemController extends Controller
         ]);
     }
 
-    /**
-     * Store a newly created item in storage.
-     */
-    public function store(Request $request)
-    {
-        $validated = $request->validate([
-            'epc' => [
-                'required',
-                'string',
-                'max:255',
-                'unique:items,epc'
-            ],
-            'nama_barang' => [
-                'required',
-                'string',
-                'max:255'
-            ]
-        ], [
-            'epc.required' => 'EPC field is required.',
-            'epc.unique' => 'This EPC already exists in the system.',
-            'nama_barang.required' => 'Item name is required.'
-        ]);
-
-        try {
-            DB::beginTransaction();
-
-            $item = Item::create($validated);
-            $currentUser = Auth::user();
-
-            // Create notification
-            try {
-                if ($currentUser && class_exists('App\Models\Notification')) {
-                    Notification::toolAdded($item, $currentUser);
-                }
-            } catch (\Exception $notifError) {
-                Log::warning('Failed to create notification for item creation: ' . $notifError->getMessage());
-            }
-
-            DB::commit();
-
-            // IMPROVED: Force immediate cache clear
-            $this->clearStatsCache();
-            $this->updateGlobalTimestamp();
-
-            $successMessage = "Item '{$item->nama_barang}' has been added successfully!";
-            $stats = $this->getCurrentStats();
-
-            if ($request->expectsJson() || $request->ajax()) {
-                return response()->json([
-                    'success' => true,
-                    'message' => $successMessage,
-                    'item' => [
-                        'id' => $item->id,
-                        'epc' => $item->epc,
-                        'nama_barang' => $item->nama_barang,
-                        'status' => $item->status
-                    ],
-                    'stats' => $stats,
-                    'trigger_refresh' => true,
-                    'force_update' => true
-                ], 200);
-            }
-
-            return redirect()->route('superadmin.items.index')->with('success', $successMessage);
-        } catch (ValidationException $e) {
-            DB::rollBack();
-
-            if ($request->expectsJson() || $request->ajax()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Validation failed.',
-                    'errors' => $e->errors()
-                ], 422);
-            }
-
-            return redirect()->back()->withErrors($e->errors())->withInput();
-        } catch (\Exception $e) {
-            DB::rollBack();
-
-            Log::error('Failed to add item: ' . $e->getMessage(), [
-                'trace' => $e->getTraceAsString(),
-                'request_data' => $request->all()
-            ]);
-
-            $errorMessage = 'Failed to add item. Please try again.';
-
-            if ($request->expectsJson() || $request->ajax()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => $errorMessage,
-                    'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
-                ], 500);
-            }
-
-            return redirect()->back()->with('error', $errorMessage)->withInput();
-        }
-    }
 
     /**
      * Display the specified item.
@@ -237,180 +140,6 @@ class ItemController extends Controller
         ]);
     }
 
-    /**
-     * Update the specified item in storage.
-     */
-    public function update(Request $request, Item $item)
-    {
-        $validated = $request->validate([
-            'epc' => [
-                'required',
-                'string',
-                'max:255',
-                'unique:items,epc,' . $item->id
-            ],
-            'nama_barang' => [
-                'required',
-                'string',
-                'max:255'
-            ],
-            'status' => [
-                'required',
-                'in:available,borrowed,missing,out_of_stock'
-            ]
-        ], [
-            'epc.required' => 'EPC field is required.',
-            'epc.unique' => 'This EPC already exists in the system.',
-            'nama_barang.required' => 'Item name is required.',
-            'status.required' => 'Status is required.',
-            'status.in' => 'Invalid status selected.'
-        ]);
-
-        try {
-            DB::beginTransaction();
-
-            $oldName = $item->nama_barang;
-            $oldStatus = $item->status;
-            $currentUser = Auth::user();
-
-            // Create notification
-            try {
-                if ($currentUser && class_exists('App\Models\Notification')) {
-                    Notification::toolEdited($item, $currentUser);
-                }
-            } catch (\Exception $notifError) {
-                Log::warning('Failed to create notification for item update: ' . $notifError->getMessage());
-            }
-
-            // Special handling for status changes
-            if ($validated['status'] !== $oldStatus) {
-                if ($oldStatus === 'borrowed' && in_array($validated['status'], ['available', 'out_of_stock'])) {
-                    $validated['user_id'] = null;
-                } elseif ($validated['status'] === 'borrowed' && !$item->user_id) {
-                    throw new \Exception('Cannot set status to borrowed without assigning a borrower.');
-                } elseif ($oldStatus === 'missing' && $validated['status'] === 'available') {
-                    $validated['user_id'] = null;
-                }
-            }
-
-            $item->update($validated);
-            DB::commit();
-
-            // IMPROVED: Force immediate update
-            $this->clearStatsCache();
-            $this->updateGlobalTimestamp();
-
-            $successMessage = "Item '{$oldName}' has been updated successfully!";
-            $stats = $this->getCurrentStats();
-
-            if ($request->expectsJson() || $request->ajax()) {
-                return response()->json([
-                    'success' => true,
-                    'message' => $successMessage,
-                    'item' => $item->fresh(),
-                    'stats' => $stats,
-                    'trigger_refresh' => true,
-                    'force_update' => true
-                ]);
-            }
-
-            return redirect()->route('superadmin.items.index')->with('success', $successMessage);
-        } catch (\Exception $e) {
-            DB::rollBack();
-
-            Log::error('Failed to update item: ' . $e->getMessage());
-            $errorMessage = $e->getMessage() ?: 'Failed to update item. Please try again.';
-
-            if ($request->expectsJson() || $request->ajax()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => $errorMessage
-                ], 500);
-            }
-
-            return redirect()->back()->with('error', $errorMessage)->withInput();
-        }
-    }
-
-    /**
-     * SOFT DELETE: Remove the specified item from storage (soft delete)
-     */
-    public function destroy(Item $item)
-    {
-        try {
-            DB::beginTransaction();
-
-            $itemName = $item->nama_barang;
-            $itemId = $item->id;
-            $currentUser = Auth::user();
-
-            // Create notification before deleting
-            try {
-                if ($currentUser && class_exists('App\Models\Notification')) {
-                    Notification::toolDeleted($item, $currentUser);
-                }
-            } catch (\Exception $notifError) {
-                Log::warning('Failed to create notification for item deletion: ' . $notifError->getMessage());
-            }
-
-            // SOFT DELETE - menggunakan method delete() dari model yang sudah di-override
-            $item->delete(); // Ini akan throw exception jika item sedang dipinjam/missing
-
-            DB::commit();
-
-            // IMPROVED: Force immediate cache clear dan timestamp update
-            $this->clearStatsCache();
-            $this->updateGlobalTimestamp();
-
-            $successMessage = "Item '{$itemName}' has been moved to trash successfully!";
-            $stats = $this->getCurrentStats();
-
-            Log::info('Item soft deleted successfully', [
-                'item_id' => $itemId,
-                'item_name' => $itemName,
-                'deleted_by' => $currentUser->id ?? 'unknown',
-                'new_stats' => $stats
-            ]);
-
-            if (request()->expectsJson()) {
-                return response()->json([
-                    'success' => true,
-                    'message' => $successMessage,
-                    'stats' => $stats,
-                    'trigger_refresh' => true,
-                    'force_update' => true,
-                    'deleted_item_id' => $itemId
-                ], 200);
-            }
-
-            return redirect()->route('superadmin.items.index')->with('success', $successMessage);
-        } catch (\Exception $e) {
-            DB::rollBack();
-
-            Log::error('Failed to soft delete item: ' . $e->getMessage(), [
-                'item_id' => $item->id,
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            // Pesan error yang lebih spesifik
-            $errorMessage = $e->getMessage();
-            if (strpos($errorMessage, 'borrowed') !== false || strpos($errorMessage, 'missing') !== false) {
-                // Gunakan pesan error dari model
-                $errorMessage = $e->getMessage();
-            } else {
-                $errorMessage = 'Failed to delete item. Please try again.';
-            }
-
-            if (request()->expectsJson()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => $errorMessage
-                ], 400);
-            }
-
-            return redirect()->back()->with('error', $errorMessage);
-        }
-    }
 
     /**
      * NEW: Restore soft deleted item
@@ -896,26 +625,507 @@ class ItemController extends Controller
         });
     }
 
+
+    // UPDATE SuperAdmin ItemController - Add these methods and update existing ones
+
     /**
-     * HELPER: Clear stats cache
+     * IMPROVED: Clear stats cache (Updated to include user cache with tagging)
      */
     private function clearStatsCache()
     {
-        Cache::forget('items_stats');
-        Cache::forget('global_items_timestamp');
+        try {
+            // Clear superadmin cache
+            Cache::forget('items_stats');
+            Cache::forget('global_items_timestamp');
+            Cache::tags(['admin_items', 'admin_stats'])->flush();
+
+            // Clear user cache using the new system
+            \App\Http\Controllers\User\ItemController::clearUserStatsCache();
+
+            // Clear any related cache tags
+            Cache::tags(['items', 'stats', 'user_items', 'user_stats'])->flush();
+
+            Log::info('All item caches cleared successfully', [
+                'admin_id' => Auth::id(),
+                'timestamp' => now()->toISOString()
+            ]);
+
+            return true;
+        } catch (\Exception $e) {
+            Log::error('Failed to clear all caches: ' . $e->getMessage());
+            return false;
+        }
     }
 
     /**
-     * HELPER: Update global timestamp for immediate refresh
+     * IMPROVED: Update global timestamp (Updated to include user notifications)
      */
     private function updateGlobalTimestamp()
     {
-        Cache::put('global_items_timestamp', now()->toISOString(), 300); // 5 minutes
+        try {
+            $timestamp = now()->toISOString();
 
-        // Optional: Touch a random item to trigger database timestamp update
-        $randomItem = Item::inRandomOrder()->first();
-        if ($randomItem) {
-            $randomItem->touch();
+            // Update both admin and user timestamps
+            Cache::put('global_items_timestamp', $timestamp, 300); // 5 minutes
+            Cache::put('user_global_items_timestamp', $timestamp, 300); // 5 minutes
+
+            // Notify user views about the update
+            $this->notifyUserViews('timestamp_update');
+
+            // Optional: Touch a random item to trigger database timestamp update
+            $randomItem = Item::inRandomOrder()->first();
+            if ($randomItem) {
+                $randomItem->touch();
+            }
+
+            Log::info('Global timestamps updated', [
+                'timestamp' => $timestamp,
+                'admin_id' => Auth::id()
+            ]);
+
+            return true;
+        } catch (\Exception $e) {
+            Log::error('Failed to update global timestamp: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * IMPROVED: Notify all user views about changes with detailed logging
+     */
+    private function notifyUserViews($action = 'update', $itemData = null)
+    {
+        try {
+            // Clear user caches to force refresh
+            \App\Http\Controllers\User\ItemController::clearUserStatsCache();
+
+            // Optional: Send real-time notifications if you have broadcasting
+            // broadcast(new ItemUpdatedEvent($action, $itemData));
+
+            // Log the notification for debugging and analytics
+            Log::info('User views notified', [
+                'action' => $action,
+                'item_id' => $itemData['id'] ?? null,
+                'item_name' => $itemData['name'] ?? null,
+                'timestamp' => now()->toISOString(),
+                'admin_id' => Auth::id()
+            ]);
+
+            return true;
+        } catch (\Exception $e) {
+            Log::warning('Failed to notify user views: ' . $e->getMessage(), [
+                'action' => $action,
+                'item_data' => $itemData
+            ]);
+            return false;
+        }
+    }
+
+    /**
+     * UPDATED: Store method with enhanced user notification
+     */
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'epc' => [
+                'required',
+                'string',
+                'max:255',
+                'unique:items,epc'
+            ],
+            'nama_barang' => [
+                'required',
+                'string',
+                'max:255'
+            ]
+        ], [
+            'epc.required' => 'EPC field is required.',
+            'epc.unique' => 'This EPC already exists in the system.',
+            'nama_barang.required' => 'Item name is required.'
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            $item = Item::create($validated);
+            $currentUser = Auth::user();
+
+            // Create notification
+            try {
+                if ($currentUser && class_exists('App\Models\Notification')) {
+                    Notification::toolAdded($item, $currentUser);
+                }
+            } catch (\Exception $notifError) {
+                Log::warning('Failed to create notification for item creation: ' . $notifError->getMessage());
+            }
+
+            DB::commit();
+
+            // ENHANCED: Force immediate cache clear AND notify user views
+            $this->clearStatsCache();
+            $this->updateGlobalTimestamp();
+            $this->notifyUserViews('create', [
+                'id' => $item->id,
+                'name' => $item->nama_barang,
+                'status' => $item->status,
+                'epc' => $item->epc
+            ]);
+
+            $successMessage = "Item '{$item->nama_barang}' has been added successfully!";
+            $stats = $this->getCurrentStats();
+
+            Log::info('Item created successfully', [
+                'item_id' => $item->id,
+                'item_name' => $item->nama_barang,
+                'created_by' => $currentUser->id,
+                'user_views_notified' => true
+            ]);
+
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => $successMessage,
+                    'item' => [
+                        'id' => $item->id,
+                        'epc' => $item->epc,
+                        'nama_barang' => $item->nama_barang,
+                        'status' => $item->status
+                    ],
+                    'stats' => $stats,
+                    'trigger_refresh' => true,
+                    'force_update' => true,
+                    'user_views_updated' => true
+                ], 200);
+            }
+
+            return redirect()->route('superadmin.items.index')->with('success', $successMessage);
+        } catch (ValidationException $e) {
+            DB::rollBack();
+
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed.',
+                    'errors' => $e->errors()
+                ], 422);
+            }
+
+            return redirect()->back()->withErrors($e->errors())->withInput();
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            Log::error('Failed to add item: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'request_data' => $request->all(),
+                'admin_id' => Auth::id()
+            ]);
+
+            $errorMessage = 'Failed to add item. Please try again.';
+
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $errorMessage,
+                    'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
+                ], 500);
+            }
+
+            return redirect()->back()->with('error', $errorMessage)->withInput();
+        }
+    }
+
+    /**
+     * UPDATED: Update method with enhanced user notification
+     */
+    public function update(Request $request, Item $item)
+    {
+        $validated = $request->validate([
+            'epc' => [
+                'required',
+                'string',
+                'max:255',
+                'unique:items,epc,' . $item->id
+            ],
+            'nama_barang' => [
+                'required',
+                'string',
+                'max:255'
+            ],
+            'status' => [
+                'required',
+                'in:available,borrowed,missing,out_of_stock'
+            ]
+        ], [
+            'epc.required' => 'EPC field is required.',
+            'epc.unique' => 'This EPC already exists in the system.',
+            'nama_barang.required' => 'Item name is required.',
+            'status.required' => 'Status is required.',
+            'status.in' => 'Invalid status selected.'
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            $oldName = $item->nama_barang;
+            $oldStatus = $item->status;
+            $currentUser = Auth::user();
+
+            // Create notification
+            try {
+                if ($currentUser && class_exists('App\Models\Notification')) {
+                    Notification::toolEdited($item, $currentUser);
+                }
+            } catch (\Exception $notifError) {
+                Log::warning('Failed to create notification for item update: ' . $notifError->getMessage());
+            }
+
+            // Special handling for status changes
+            if ($validated['status'] !== $oldStatus) {
+                if ($oldStatus === 'borrowed' && in_array($validated['status'], ['available', 'out_of_stock'])) {
+                    $validated['user_id'] = null;
+                } elseif ($validated['status'] === 'borrowed' && !$item->user_id) {
+                    throw new \Exception('Cannot set status to borrowed without assigning a borrower.');
+                } elseif ($oldStatus === 'missing' && $validated['status'] === 'available') {
+                    $validated['user_id'] = null;
+                }
+            }
+
+            $item->update($validated);
+            DB::commit();
+
+            // ENHANCED: Force immediate update AND notify user views
+            $this->clearStatsCache();
+            $this->updateGlobalTimestamp();
+            $this->notifyUserViews('update', [
+                'id' => $item->id,
+                'name' => $item->nama_barang,
+                'status' => $item->status,
+                'old_status' => $oldStatus,
+                'epc' => $item->epc
+            ]);
+
+            $successMessage = "Item '{$oldName}' has been updated successfully!";
+            $stats = $this->getCurrentStats();
+
+            Log::info('Item updated successfully', [
+                'item_id' => $item->id,
+                'old_status' => $oldStatus,
+                'new_status' => $item->status,
+                'updated_by' => $currentUser->id,
+                'user_views_notified' => true
+            ]);
+
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => $successMessage,
+                    'item' => $item->fresh(),
+                    'stats' => $stats,
+                    'trigger_refresh' => true,
+                    'force_update' => true,
+                    'user_views_updated' => true
+                ]);
+            }
+
+            return redirect()->route('superadmin.items.index')->with('success', $successMessage);
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            Log::error('Failed to update item: ' . $e->getMessage(), [
+                'item_id' => $item->id,
+                'admin_id' => Auth::id()
+            ]);
+
+            $errorMessage = $e->getMessage() ?: 'Failed to update item. Please try again.';
+
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $errorMessage
+                ], 500);
+            }
+
+            return redirect()->back()->with('error', $errorMessage)->withInput();
+        }
+    }
+
+    /**
+     * UPDATED: Delete method with enhanced user notification
+     */
+    public function destroy(Item $item)
+    {
+        try {
+            DB::beginTransaction();
+
+            $itemName = $item->nama_barang;
+            $itemId = $item->id;
+            $currentUser = Auth::user();
+
+            // Create notification before deleting
+            try {
+                if ($currentUser && class_exists('App\Models\Notification')) {
+                    Notification::toolDeleted($item, $currentUser);
+                }
+            } catch (\Exception $notifError) {
+                Log::warning('Failed to create notification for item deletion: ' . $notifError->getMessage());
+            }
+
+            // SOFT DELETE
+            $item->delete();
+            DB::commit();
+
+            // ENHANCED: Force immediate cache clear and notify user views
+            $this->clearStatsCache();
+            $this->updateGlobalTimestamp();
+            $this->notifyUserViews('delete', [
+                'id' => $itemId,
+                'name' => $itemName
+            ]);
+
+            $successMessage = "Item '{$itemName}' has been moved to trash successfully!";
+            $stats = $this->getCurrentStats();
+
+            Log::info('Item soft deleted successfully', [
+                'item_id' => $itemId,
+                'item_name' => $itemName,
+                'deleted_by' => $currentUser->id,
+                'user_views_notified' => true,
+                'new_stats' => $stats
+            ]);
+
+            if (request()->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => $successMessage,
+                    'stats' => $stats,
+                    'trigger_refresh' => true,
+                    'force_update' => true,
+                    'deleted_item_id' => $itemId,
+                    'user_views_updated' => true
+                ], 200);
+            }
+
+            return redirect()->route('superadmin.items.index')->with('success', $successMessage);
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            Log::error('Failed to soft delete item: ' . $e->getMessage(), [
+                'item_id' => $item->id,
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            $errorMessage = $e->getMessage() ?: 'Failed to delete item. Please try again.';
+
+            if (request()->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $errorMessage
+                ], 400);
+            }
+
+            return redirect()->back()->with('error', $errorMessage);
+        }
+    }
+
+    /**
+     * NEW: Force refresh all views (admin and user) with cache warming
+     */
+    public function forceRefreshAll(Request $request)
+    {
+        try {
+            // Clear all caches
+            $this->clearStatsCache();
+            $this->updateGlobalTimestamp();
+
+            // Notify user views
+            $this->notifyUserViews('force_refresh_all');
+
+            // Warm up caches for better performance
+            $stats = $this->getCurrentStats();
+
+            // Try to warm user cache as well
+            try {
+                $userController = new \App\Http\Controllers\User\ItemController();
+                $userController->warmCache();
+            } catch (\Exception $e) {
+                Log::warning('Failed to warm user cache: ' . $e->getMessage());
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'All views refreshed successfully',
+                'timestamp' => $this->getLastDatabaseUpdate(),
+                'stats' => $stats,
+                'affected_views' => ['superadmin', 'user'],
+                'cache_warmed' => true
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Force refresh all error: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to refresh all views'
+            ], 500);
+        }
+    }
+
+    /**
+     * NEW: Warm all caches endpoint
+     */
+    public function warmAllCaches(Request $request)
+    {
+        try {
+            // Warm superadmin cache
+            $this->getCurrentStats();
+
+            // Warm user cache
+            $userController = new \App\Http\Controllers\User\ItemController();
+            $userController->warmCache();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'All caches warmed successfully',
+                'timestamp' => now()->toISOString()
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Warm all caches error: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to warm caches'
+            ], 500);
+        }
+    }
+
+    /**
+     * NEW: Get cache status for all views
+     */
+    public function getCacheStatus(Request $request)
+    {
+        if (!config('app.debug') && !$request->user()->isAdmin()) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        try {
+            $adminCacheStatus = [
+                'stats_cached' => Cache::has('items_stats'),
+                'timestamp_cached' => Cache::has('global_items_timestamp')
+            ];
+
+            $userCacheStatus = [
+                'stats_cached' => Cache::tags(['user_stats'])->has('user_items_stats'),
+                'timestamp_cached' => Cache::has('user_global_items_timestamp')
+            ];
+
+            return response()->json([
+                'admin_cache' => $adminCacheStatus,
+                'user_cache' => $userCacheStatus,
+                'timestamp' => now()->toISOString()
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to get cache status: ' . $e->getMessage()
+            ], 500);
         }
     }
 }
