@@ -469,15 +469,24 @@
                     table.column(2).search(selectedStatus).draw(); // Updated index
                 });
 
-                function loadUsers() {
-                    console.log('Loading users for assignment...');
+
+                // Updated loadUsers function with rfidId parameter
+                function loadUsers(rfidId = null) {
+                    console.log('Loading users for assignment...', rfidId ? `RFID ID: ${rfidId}` :
+                        'No RFID ID (create mode)');
 
                     // Tampilkan loading di select
                     const select = $('#assign-to-user');
                     select.empty().append('<option value="">Loading users...</option>');
 
+                    // Build URL with rfid_id parameter if provided
+                    let url = "/admin/rfid-tags/available-users";
+                    if (rfidId) {
+                        url += `?rfid_id=${rfidId}`;
+                    }
+
                     $.ajax({
-                        url: "/admin/rfid-tags/available-users", // Pastikan route ini ada
+                        url: url,
                         type: 'GET',
                         success: function(response) {
                             console.log('Users loaded successfully:', response);
@@ -487,10 +496,10 @@
                                     '<option value="">Select a user to assign (optional)</option>');
 
                                 response.data.forEach(function(user) {
-                                    // Tampilkan info apakah user sudah punya RFID
-                                    const hasRfidText = user.has_rfid ? ' (Has RFID)' :
-                                        ' (No RFID)';
-                                    const optionText = `${user.name} - ${user.nim}${hasRfidText}`;
+                                    // For edit mode, don't show RFID status as all users shown are available
+                                    const optionText = rfidId ?
+                                        `${user.name} - ${user.nim}` :
+                                        `${user.name} - ${user.nim}${user.has_rfid ? ' (Has RFID)' : ' (No RFID)'}`;
 
                                     select.append(
                                         `<option value="${user.id}" data-has-rfid="${user.has_rfid}">${optionText}</option>`
@@ -529,503 +538,503 @@
                         }
                     });
                 }
+            }
 
-                // Open the add RFID modal
-                $('#btn-add-rfid').on('click', function() {
-                    resetForm();
-                    $('#modal-title').text('Add New RFID Tag');
-                    $('#rfid-status').val('Available'); // Set default status
-                    $('#rfid-uid-group').show();
-                    $('#rfid-status-group').show();
-                    $('#assign-to-group').hide();
-                    $('#modal-rfid-form').modal('show');
-                    // Focus on the first input field
-                    setTimeout(function() {
-                        $('#rfid-uid-input').focus();
-                    }, 500);
-                });
+            // Open the add RFID modal
+            $('#btn-add-rfid').on('click', function() {
+                resetForm();
+                $('#modal-title').text('Add New RFID Tag');
+                $('#rfid-status').val('Available'); // Set default status
+                $('#rfid-uid-group').show();
+                $('#rfid-status-group').show();
+                $('#assign-to-group').hide();
+                $('#modal-rfid-form').modal('show');
+                // Focus on the first input field
+                setTimeout(function() {
+                    $('#rfid-uid-input').focus();
+                }, 500);
+            });
 
-                // PERBAIKAN: Fungsi edit RFID yang diperbaiki
-                $(document).on('click', '.btn-edit', function() {
-                    const id = $(this).data('id');
-                    resetForm();
+            // Updated edit button click handler
+            $(document).on('click', '.btn-edit', function() {
+                const id = $(this).data('id');
+                resetForm();
 
-                    // Show loading state
-                    $('#modal-title').text('Loading...');
-                    $('#modal-rfid-form').modal('show');
+                // Show loading state
+                $('#modal-title').text('Loading...');
+                $('#modal-rfid-form').modal('show');
 
-                    // Load users dulu sebelum load RFID details
-                    console.log('Starting edit process for RFID ID:', id);
-                    loadUsers();
+                // Load users dengan RFID ID untuk mode edit
+                console.log('Starting edit process for RFID ID:', id);
+                loadUsers(id); // Pass RFID ID to load only available users
 
-                    // Fetch RFID details
-                    $.ajax({
-                        url: `/admin/rfid-tags/${id}/edit`,
-                        type: 'GET',
-                        success: function(response) {
-                            console.log('RFID details loaded:', response);
+                // Fetch RFID details
+                $.ajax({
+                    url: `/admin/rfid-tags/${id}/edit`,
+                    type: 'GET',
+                    success: function(response) {
+                        console.log('RFID details loaded:', response);
 
-                            if (response.success && response.data) {
-                                const rfid = response.data;
-                                $('#rfid-id').val(rfid.id);
-                                $('#rfid-notes').val(rfid.name || '');
+                        if (response.success && response.data) {
+                            const rfid = response.data;
+                            $('#rfid-id').val(rfid.id);
+                            $('#rfid-notes').val(rfid.name || '');
 
-                                // Hide fields yang tidak perlu di edit
-                                $('#rfid-uid-group').hide();
-                                $('#rfid-status-group').hide();
-                                $('#assign-to-group').show();
+                            // Hide fields yang tidak perlu di edit
+                            $('#rfid-uid-group').hide();
+                            $('#rfid-status-group').hide();
+                            $('#assign-to-group').show();
 
-                                // Set assigned user jika ada
-                                if (rfid.assigned_user_id) {
-                                    // Tunggu sebentar untuk memastikan users sudah di-load
-                                    setTimeout(function() {
-                                        $('#assign-to-user').val(rfid.assigned_user_id);
-                                        console.log('Set assigned user to:', rfid
-                                            .assigned_user_id);
-                                    }, 500);
-                                }
-
-                                $('#modal-title').text('Edit RFID Tag');
-
-                                // Focus pada field pertama
+                            // Set assigned user jika ada
+                            if (rfid.assigned_user_id) {
+                                // Tunggu sebentar untuk memastikan users sudah di-load
                                 setTimeout(function() {
-                                    $('#rfid-notes').focus();
-                                }, 100);
-                            } else {
-                                console.error('Invalid RFID response format:', response);
-                                if (window.UnifiedToastSystem) {
-                                    window.UnifiedToastSystem.error('Invalid response format');
-                                }
-                                $('#modal-rfid-form').modal('hide');
+                                    $('#assign-to-user').val(rfid.assigned_user_id);
+                                    console.log('Set assigned user to:', rfid.assigned_user_id);
+                                }, 500);
                             }
-                        },
-                        error: function(xhr, status, error) {
-                            console.error('Edit error:', {
-                                status: xhr.status,
-                                statusText: xhr.statusText,
-                                responseText: xhr.responseText,
-                                error: error
-                            });
 
+                            $('#modal-title').text('Edit RFID Tag');
+
+                            // Focus pada field pertama
+                            setTimeout(function() {
+                                $('#rfid-notes').focus();
+                            }, 100);
+                        } else {
+                            console.error('Invalid RFID response format:', response);
                             if (window.UnifiedToastSystem) {
-                                window.UnifiedToastSystem.error('Failed to load RFID tag details');
+                                window.UnifiedToastSystem.error('Invalid response format');
                             }
                             $('#modal-rfid-form').modal('hide');
                         }
-                    });
-                });
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Edit error:', {
+                            status: xhr.status,
+                            statusText: xhr.statusText,
+                            responseText: xhr.responseText,
+                            error: error
+                        });
 
-                // Event handler untuk monitoring perubahan di select user
-                $('#assign-to-user').on('change', function() {
-                    const selectedUserId = $(this).val();
-                    const selectedOption = $(this).find('option:selected');
-                    const hasRfid = selectedOption.data('has-rfid');
-
-                    console.log('User selection changed:', {
-                        userId: selectedUserId,
-                        hasRfid: hasRfid
-                    });
-
-                    // Bisa tambahkan warning jika user sudah punya RFID
-                    if (selectedUserId && hasRfid) {
                         if (window.UnifiedToastSystem) {
-                            window.UnifiedToastSystem.warning('This user already has an RFID tag assigned');
+                            window.UnifiedToastSystem.error('Failed to load RFID tag details');
+                        }
+                        $('#modal-rfid-form').modal('hide');
+                    }
+                });
+            });
+
+            // Event handler untuk monitoring perubahan di select user
+            $('#assign-to-user').on('change', function() {
+                const selectedUserId = $(this).val();
+                const selectedOption = $(this).find('option:selected');
+                const hasRfid = selectedOption.data('has-rfid');
+
+                console.log('User selection changed:', {
+                    userId: selectedUserId,
+                    hasRfid: hasRfid
+                });
+
+                // Bisa tambahkan warning jika user sudah punya RFID
+                if (selectedUserId && hasRfid) {
+                    if (window.UnifiedToastSystem) {
+                        window.UnifiedToastSystem.warning('This user already has an RFID tag assigned');
+                    }
+                }
+            });
+
+            // Save RFID tag
+            $('#btn-save-rfid').on('click', function() {
+                const button = $(this);
+                const id = $('#rfid-id').val();
+                const isEdit = id !== '';
+                const url = isEdit ? `/admin/rfid-tags/${id}` : '/admin/rfid-tags';
+                const method = isEdit ? 'PUT' : 'POST';
+
+                let formData;
+
+                if (isEdit) {
+                    // For edit: only name and assignment
+                    formData = {
+                        name: $('#rfid-notes').val().trim(),
+                        assigned_user_id: $('#assign-to-user').val() || null
+                    };
+                } else {
+                    // For create: validate required fields
+                    const rfidUid = $('#rfid-uid-input').val().trim();
+                    const status = $('#rfid-status').val();
+
+                    if (!rfidUid) {
+                        $('#rfid-uid-input').addClass('is-invalid');
+                        $('#rfid-uid-error').text('RFID UID is required');
+                        $('#rfid-uid-input').focus();
+                        if (window.UnifiedToastSystem) {
+                            window.UnifiedToastSystem.warning('Please fill in the RFID UID field');
+                        }
+                        return;
+                    }
+
+                    if (!status) {
+                        $('#rfid-status').addClass('is-invalid');
+                        $('#rfid-status-error').text('Status is required');
+                        $('#rfid-status').focus();
+                        if (window.UnifiedToastSystem) {
+                            window.UnifiedToastSystem.warning('Please select a status');
+                        }
+                        return;
+                    }
+
+                    formData = {
+                        uid: rfidUid,
+                        status: status,
+                        notes: $('#rfid-notes').val().trim()
+                    };
+                }
+
+                // Reset validation errors
+                $('.is-invalid').removeClass('is-invalid');
+                $('.invalid-feedback').text('');
+
+                // Show loading state
+                setButtonLoading(button, true);
+
+                $.ajax({
+                    url: url,
+                    type: method,
+                    data: formData,
+                    headers: {
+                        'X-CSRF-TOKEN': csrfToken
+                    },
+                    success: function(response) {
+                        setButtonLoading(button, false);
+                        if (response.success) {
+                            $('#modal-rfid-form').modal('hide');
+                            table.ajax.reload();
+
+                            // Use unified toast system for success message
+                            if (window.UnifiedToastSystem) {
+                                const successMessage = response.message || (isEdit ?
+                                    'RFID tag updated successfully!' :
+                                    'RFID tag created successfully!'
+                                );
+                                window.UnifiedToastSystem.success(successMessage);
+                            }
+                        } else {
+                            if (window.UnifiedToastSystem) {
+                                window.UnifiedToastSystem.error(response.message ||
+                                    'Operation failed');
+                            }
+                        }
+                    },
+                    error: function(xhr) {
+                        setButtonLoading(button, false);
+                        console.error('Save error:', xhr);
+
+                        if (xhr.status === 422) {
+                            const response = xhr.responseJSON;
+                            if (response && response.errors) {
+                                // Handle validation errors
+                                if (response.errors.uid) {
+                                    $('#rfid-uid-input').addClass('is-invalid');
+                                    $('#rfid-uid-error').text(response.errors.uid[0]);
+                                }
+                                if (response.errors.name) {
+                                    $('#rfid-notes').addClass('is-invalid');
+                                    $('#rfid-notes-error').text(response.errors.name[0]);
+                                }
+                                if (response.errors.notes) {
+                                    $('#rfid-notes').addClass('is-invalid');
+                                    $('#rfid-notes-error').text(response.errors.notes[0]);
+                                }
+                                if (response.errors.status) {
+                                    $('#rfid-status').addClass('is-invalid');
+                                    $('#rfid-status-error').text(response.errors.status[0]);
+                                }
+                                if (response.errors.assigned_user_id) {
+                                    $('#assign-to-user').addClass('is-invalid');
+                                    $('#assign-to-error').text(response.errors.assigned_user_id[
+                                        0]);
+                                }
+
+                                // Show validation error toast
+                                if (window.UnifiedToastSystem) {
+                                    window.UnifiedToastSystem.warning(
+                                        'Please check the form for validation errors');
+                                }
+                            } else {
+                                if (window.UnifiedToastSystem) {
+                                    window.UnifiedToastSystem.error(response.message ||
+                                        'Validation failed');
+                                }
+                            }
+                        } else {
+                            const response = xhr.responseJSON;
+                            if (window.UnifiedToastSystem) {
+                                window.UnifiedToastSystem.error(response?.message ||
+                                    'Failed to save RFID tag. Please try again.');
+                            }
                         }
                     }
                 });
+            });
 
-                // Save RFID tag
-                $('#btn-save-rfid').on('click', function() {
-                    const button = $(this);
-                    const id = $('#rfid-id').val();
-                    const isEdit = id !== '';
-                    const url = isEdit ? `/admin/rfid-tags/${id}` : '/admin/rfid-tags';
-                    const method = isEdit ? 'PUT' : 'POST';
+            // Handle delete RFID click
+            $(document).on('click', '.delete-rfid', function(e) {
+                e.preventDefault();
 
-                    let formData;
+                const rfidId = $(this).data('rfid-id');
+                const rfidUid = $(this).data('rfid-uid');
 
-                    if (isEdit) {
-                        // For edit: only name and assignment
-                        formData = {
-                            name: $('#rfid-notes').val().trim(),
-                            assigned_user_id: $('#assign-to-user').val() || null
-                        };
-                    } else {
-                        // For create: validate required fields
-                        const rfidUid = $('#rfid-uid-input').val().trim();
-                        const status = $('#rfid-status').val();
+                rfidToDelete = {
+                    id: rfidId,
+                    uid: rfidUid
+                };
 
-                        if (!rfidUid) {
-                            $('#rfid-uid-input').addClass('is-invalid');
-                            $('#rfid-uid-error').text('RFID UID is required');
-                            $('#rfid-uid-input').focus();
+                $('#rfid-to-delete').text(rfidUid);
+                $('#modal-delete-rfid').modal('show');
+            });
+
+            // Handle release RFID click
+            $(document).on('click', '.release-rfid', function(e) {
+                e.preventDefault();
+
+                const rfidId = $(this).data('rfid-id');
+                const rfidUid = $(this).data('rfid-uid');
+
+                rfidToRelease = {
+                    id: rfidId,
+                    uid: rfidUid
+                };
+
+                $('#rfid-to-release').text(rfidUid);
+                $('#modal-release-rfid').modal('show');
+            });
+
+            // Handle confirm delete
+            $('#btn-confirm-delete').on('click', function() {
+                if (!rfidToDelete) return;
+
+                const button = $(this);
+                setButtonLoading(button, true);
+
+                // Use AJAX instead of form submission for better error handling
+                $.ajax({
+                    url: `/admin/rfid-tags/${rfidToDelete.id}`,
+                    type: 'DELETE',
+                    data: {
+                        _token: csrfToken
+                    },
+                    success: function(response) {
+                        setButtonLoading(button, false);
+
+                        if (response.success) {
+                            $('#modal-delete-rfid').modal('hide');
+                            table.ajax.reload();
+
+                            // Use unified toast system for success
                             if (window.UnifiedToastSystem) {
-                                window.UnifiedToastSystem.warning('Please fill in the RFID UID field');
+                                window.UnifiedToastSystem.success(response.message ||
+                                    'RFID tag deleted successfully!');
                             }
-                            return;
-                        }
-
-                        if (!status) {
-                            $('#rfid-status').addClass('is-invalid');
-                            $('#rfid-status-error').text('Status is required');
-                            $('#rfid-status').focus();
-                            if (window.UnifiedToastSystem) {
-                                window.UnifiedToastSystem.warning('Please select a status');
-                            }
-                            return;
-                        }
-
-                        formData = {
-                            uid: rfidUid,
-                            status: status,
-                            notes: $('#rfid-notes').val().trim()
-                        };
-                    }
-
-                    // Reset validation errors
-                    $('.is-invalid').removeClass('is-invalid');
-                    $('.invalid-feedback').text('');
-
-                    // Show loading state
-                    setButtonLoading(button, true);
-
-                    $.ajax({
-                        url: url,
-                        type: method,
-                        data: formData,
-                        headers: {
-                            'X-CSRF-TOKEN': csrfToken
-                        },
-                        success: function(response) {
-                            setButtonLoading(button, false);
-                            if (response.success) {
-                                $('#modal-rfid-form').modal('hide');
-                                table.ajax.reload();
-
-                                // Use unified toast system for success message
-                                if (window.UnifiedToastSystem) {
-                                    const successMessage = response.message || (isEdit ?
-                                        'RFID tag updated successfully!' :
-                                        'RFID tag created successfully!'
-                                    );
-                                    window.UnifiedToastSystem.success(successMessage);
-                                }
-                            } else {
-                                if (window.UnifiedToastSystem) {
-                                    window.UnifiedToastSystem.error(response.message ||
-                                        'Operation failed');
-                                }
-                            }
-                        },
-                        error: function(xhr) {
-                            setButtonLoading(button, false);
-                            console.error('Save error:', xhr);
-
-                            if (xhr.status === 422) {
-                                const response = xhr.responseJSON;
-                                if (response && response.errors) {
-                                    // Handle validation errors
-                                    if (response.errors.uid) {
-                                        $('#rfid-uid-input').addClass('is-invalid');
-                                        $('#rfid-uid-error').text(response.errors.uid[0]);
-                                    }
-                                    if (response.errors.name) {
-                                        $('#rfid-notes').addClass('is-invalid');
-                                        $('#rfid-notes-error').text(response.errors.name[0]);
-                                    }
-                                    if (response.errors.notes) {
-                                        $('#rfid-notes').addClass('is-invalid');
-                                        $('#rfid-notes-error').text(response.errors.notes[0]);
-                                    }
-                                    if (response.errors.status) {
-                                        $('#rfid-status').addClass('is-invalid');
-                                        $('#rfid-status-error').text(response.errors.status[0]);
-                                    }
-                                    if (response.errors.assigned_user_id) {
-                                        $('#assign-to-user').addClass('is-invalid');
-                                        $('#assign-to-error').text(response.errors.assigned_user_id[
-                                            0]);
-                                    }
-
-                                    // Show validation error toast
-                                    if (window.UnifiedToastSystem) {
-                                        window.UnifiedToastSystem.warning(
-                                            'Please check the form for validation errors');
-                                    }
-                                } else {
-                                    if (window.UnifiedToastSystem) {
-                                        window.UnifiedToastSystem.error(response.message ||
-                                            'Validation failed');
-                                    }
-                                }
-                            } else {
-                                const response = xhr.responseJSON;
-                                if (window.UnifiedToastSystem) {
-                                    window.UnifiedToastSystem.error(response?.message ||
-                                        'Failed to save RFID tag. Please try again.');
-                                }
-                            }
-                        }
-                    });
-                });
-
-                // Handle delete RFID click
-                $(document).on('click', '.delete-rfid', function(e) {
-                    e.preventDefault();
-
-                    const rfidId = $(this).data('rfid-id');
-                    const rfidUid = $(this).data('rfid-uid');
-
-                    rfidToDelete = {
-                        id: rfidId,
-                        uid: rfidUid
-                    };
-
-                    $('#rfid-to-delete').text(rfidUid);
-                    $('#modal-delete-rfid').modal('show');
-                });
-
-                // Handle release RFID click
-                $(document).on('click', '.release-rfid', function(e) {
-                    e.preventDefault();
-
-                    const rfidId = $(this).data('rfid-id');
-                    const rfidUid = $(this).data('rfid-uid');
-
-                    rfidToRelease = {
-                        id: rfidId,
-                        uid: rfidUid
-                    };
-
-                    $('#rfid-to-release').text(rfidUid);
-                    $('#modal-release-rfid').modal('show');
-                });
-
-                // Handle confirm delete
-                $('#btn-confirm-delete').on('click', function() {
-                    if (!rfidToDelete) return;
-
-                    const button = $(this);
-                    setButtonLoading(button, true);
-
-                    // Use AJAX instead of form submission for better error handling
-                    $.ajax({
-                        url: `/admin/rfid-tags/${rfidToDelete.id}`,
-                        type: 'DELETE',
-                        data: {
-                            _token: csrfToken
-                        },
-                        success: function(response) {
-                            setButtonLoading(button, false);
-
-                            if (response.success) {
-                                $('#modal-delete-rfid').modal('hide');
-                                table.ajax.reload();
-
-                                // Use unified toast system for success
-                                if (window.UnifiedToastSystem) {
-                                    window.UnifiedToastSystem.success(response.message ||
-                                        'RFID tag deleted successfully!');
-                                }
-                            } else {
-                                // Use unified toast system for error
-                                if (window.UnifiedToastSystem) {
-                                    window.UnifiedToastSystem.error(response.message ||
-                                        'Failed to delete RFID tag');
-                                }
-                            }
-                        },
-                        error: function(xhr, status, error) {
-                            setButtonLoading(button, false);
-
-                            let errorMessage = 'Failed to delete RFID tag. Please try again.';
-                            let toastType = 'error';
-
-                            if (xhr.responseJSON && xhr.responseJSON.message) {
-                                errorMessage = xhr.responseJSON.message;
-
-                                // Check if it's the "assigned to user" error (status 400)
-                                if (xhr.status === 400 && xhr.responseJSON.message.includes(
-                                        'assigned to a user')) {
-                                    toastType = 'warning';
-                                    errorMessage =
-                                        'Cannot delete RFID tag that is still assigned to a user. Please release it first.';
-                                }
-                            }
-
-                            // Use unified toast system with appropriate type
-                            if (window.UnifiedToastSystem) {
-                                if (toastType === 'warning') {
-                                    window.UnifiedToastSystem.warning(errorMessage);
-                                } else {
-                                    window.UnifiedToastSystem.error(errorMessage);
-                                }
-                            }
-
-                            // Close modal only if it's not the "assigned to user" error
-                            if (xhr.status !== 400) {
-                                $('#modal-delete-rfid').modal('hide');
-                            }
-                        }
-                    });
-                });
-
-                // Handle confirm release
-                $('#btn-confirm-release').on('click', function() {
-                    if (!rfidToRelease) return;
-
-                    const button = $(this);
-                    setButtonLoading(button, true);
-
-                    $.ajax({
-                        url: `/admin/rfid-tags/release/${rfidToRelease.id}`,
-                        type: 'POST',
-                        data: {
-                            _token: csrfToken
-                        },
-                        success: function(response) {
-                            setButtonLoading(button, false);
-
-                            if (response.success) {
-                                $('#modal-release-rfid').modal('hide');
-                                table.ajax.reload();
-
-                                // Use unified toast system for success
-                                if (window.UnifiedToastSystem) {
-                                    window.UnifiedToastSystem.success(response.message ||
-                                        'RFID tag released successfully!');
-                                }
-                            } else {
-                                // Use unified toast system for error
-                                if (window.UnifiedToastSystem) {
-                                    window.UnifiedToastSystem.error(response.message ||
-                                        'Failed to release RFID tag');
-                                }
-                            }
-                        },
-                        error: function(xhr, status, error) {
-                            setButtonLoading(button, false);
-                            console.error('Error releasing RFID tag:', error);
-
-                            let errorMessage = 'Failed to release RFID tag. Please try again.';
-                            if (xhr.responseJSON && xhr.responseJSON.message) {
-                                errorMessage = xhr.responseJSON.message;
-                            }
-
+                        } else {
                             // Use unified toast system for error
                             if (window.UnifiedToastSystem) {
+                                window.UnifiedToastSystem.error(response.message ||
+                                    'Failed to delete RFID tag');
+                            }
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        setButtonLoading(button, false);
+
+                        let errorMessage = 'Failed to delete RFID tag. Please try again.';
+                        let toastType = 'error';
+
+                        if (xhr.responseJSON && xhr.responseJSON.message) {
+                            errorMessage = xhr.responseJSON.message;
+
+                            // Check if it's the "assigned to user" error (status 400)
+                            if (xhr.status === 400 && xhr.responseJSON.message.includes(
+                                    'assigned to a user')) {
+                                toastType = 'warning';
+                                errorMessage =
+                                    'Cannot delete RFID tag that is still assigned to a user. Please release it first.';
+                            }
+                        }
+
+                        // Use unified toast system with appropriate type
+                        if (window.UnifiedToastSystem) {
+                            if (toastType === 'warning') {
+                                window.UnifiedToastSystem.warning(errorMessage);
+                            } else {
                                 window.UnifiedToastSystem.error(errorMessage);
                             }
                         }
-                    });
-                });
 
-                // Clear variables when modals are hidden
-                $('#modal-delete-rfid').on('hidden.bs.modal', function() {
-                    rfidToDelete = null;
-                    // Reset delete button state
-                    const deleteBtn = $('#btn-confirm-delete');
-                    if (deleteBtn.data('original-html')) {
-                        deleteBtn.prop('disabled', false).html(deleteBtn.data('original-html'));
-                    }
-                });
-
-                $('#modal-release-rfid').on('hidden.bs.modal', function() {
-                    rfidToRelease = null;
-                    // Reset release button state
-                    const releaseBtn = $('#btn-confirm-release');
-                    if (releaseBtn.data('original-html')) {
-                        releaseBtn.prop('disabled', false).html(releaseBtn.data('original-html'));
-                    }
-                });
-
-                $('#modal-rfid-form').on('hidden.bs.modal', function() {
-                    resetForm();
-                });
-
-                // Helper function to update the statistics
-                function updateStats(stats) {
-                    if (stats.total !== undefined) {
-                        $('#total-tags').text(stats.total.toLocaleString());
-                    }
-                    if (stats.available !== undefined) {
-                        $('#available-tags').text(stats.available.toLocaleString());
-                    }
-                    if (stats.used !== undefined) {
-                        $('#used-tags').text(stats.used.toLocaleString());
-                    }
-                }
-
-                // Reset form function
-                function resetForm() {
-                    $('#rfid-form')[0].reset();
-                    $('#rfid-id').val('');
-                    $('#rfid-status').val('Available'); // Reset to default status
-                    $('.is-invalid').removeClass('is-invalid');
-                    $('.invalid-feedback').text('');
-
-                    // Reset save button state
-                    const saveBtn = $('#btn-save-rfid');
-                    if (saveBtn.data('original-html')) {
-                        saveBtn.prop('disabled', false).html(saveBtn.data('original-html'));
-                    }
-                }
-
-                // Enhanced button loading state function
-                function setButtonLoading(button, loading = true) {
-                    if (loading) {
-                        button.prop('disabled', true);
-                        const originalHtml = button.html();
-                        button.data('original-html', originalHtml);
-
-                        // Different loading text based on button
-                        let loadingText = 'Loading...';
-                        if (button.attr('id') === 'btn-save-rfid') {
-                            loadingText = 'Saving...';
-                        } else if (button.attr('id') === 'btn-confirm-delete') {
-                            loadingText = 'Deleting...';
-                        } else if (button.attr('id') === 'btn-confirm-release') {
-                            loadingText = 'Releasing...';
-                        }
-
-                        button.html(
-                            '<span class="spinner-border spinner-border-sm me-2" role="status"></span>' +
-                            loadingText);
-                    } else {
-                        button.prop('disabled', false);
-                        const originalHtml = button.data('original-html');
-                        if (originalHtml) {
-                            button.html(originalHtml);
-                        }
-                    }
-                }
-
-                // Real-time validation for RFID UID
-                $('#rfid-uid-input').on('input', function() {
-                    const rfidUid = $(this).val().trim();
-                    if (rfidUid.length > 0) {
-                        // Remove validation error on input
-                        $(this).removeClass('is-invalid');
-                        $('#rfid-uid-error').text('');
-
-                        // Clean RFID UID - allow only alphanumeric, hyphens, and underscores
-                        const cleanRfidUid = rfidUid.replace(/[^a-zA-Z0-9_-]/g, '');
-                        if (cleanRfidUid !== rfidUid) {
-                            $(this).val(cleanRfidUid);
+                        // Close modal only if it's not the "assigned to user" error
+                        if (xhr.status !== 400) {
+                            $('#modal-delete-rfid').modal('hide');
                         }
                     }
                 });
+            });
 
-                // Handle form submission with Enter key
-                $('#rfid-form').on('keypress', function(e) {
-                    if (e.which === 13) {
-                        e.preventDefault();
-                        $('#btn-save-rfid').click();
+            // Handle confirm release
+            $('#btn-confirm-release').on('click', function() {
+                if (!rfidToRelease) return;
+
+                const button = $(this);
+                setButtonLoading(button, true);
+
+                $.ajax({
+                    url: `/admin/rfid-tags/release/${rfidToRelease.id}`,
+                    type: 'POST',
+                    data: {
+                        _token: csrfToken
+                    },
+                    success: function(response) {
+                        setButtonLoading(button, false);
+
+                        if (response.success) {
+                            $('#modal-release-rfid').modal('hide');
+                            table.ajax.reload();
+
+                            // Use unified toast system for success
+                            if (window.UnifiedToastSystem) {
+                                window.UnifiedToastSystem.success(response.message ||
+                                    'RFID tag released successfully!');
+                            }
+                        } else {
+                            // Use unified toast system for error
+                            if (window.UnifiedToastSystem) {
+                                window.UnifiedToastSystem.error(response.message ||
+                                    'Failed to release RFID tag');
+                            }
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        setButtonLoading(button, false);
+                        console.error('Error releasing RFID tag:', error);
+
+                        let errorMessage = 'Failed to release RFID tag. Please try again.';
+                        if (xhr.responseJSON && xhr.responseJSON.message) {
+                            errorMessage = xhr.responseJSON.message;
+                        }
+
+                        // Use unified toast system for error
+                        if (window.UnifiedToastSystem) {
+                            window.UnifiedToastSystem.error(errorMessage);
+                        }
                     }
                 });
+            });
 
-                // Initial load completed message
-                console.log('RFID Tags management initialized successfully');
+            // Clear variables when modals are hidden
+            $('#modal-delete-rfid').on('hidden.bs.modal', function() {
+                rfidToDelete = null;
+                // Reset delete button state
+                const deleteBtn = $('#btn-confirm-delete');
+                if (deleteBtn.data('original-html')) {
+                    deleteBtn.prop('disabled', false).html(deleteBtn.data('original-html'));
+                }
+            });
+
+            $('#modal-release-rfid').on('hidden.bs.modal', function() {
+                rfidToRelease = null;
+                // Reset release button state
+                const releaseBtn = $('#btn-confirm-release');
+                if (releaseBtn.data('original-html')) {
+                    releaseBtn.prop('disabled', false).html(releaseBtn.data('original-html'));
+                }
+            });
+
+            $('#modal-rfid-form').on('hidden.bs.modal', function() {
+                resetForm();
+            });
+
+            // Helper function to update the statistics
+            function updateStats(stats) {
+                if (stats.total !== undefined) {
+                    $('#total-tags').text(stats.total.toLocaleString());
+                }
+                if (stats.available !== undefined) {
+                    $('#available-tags').text(stats.available.toLocaleString());
+                }
+                if (stats.used !== undefined) {
+                    $('#used-tags').text(stats.used.toLocaleString());
+                }
+            }
+
+            // Reset form function
+            function resetForm() {
+                $('#rfid-form')[0].reset();
+                $('#rfid-id').val('');
+                $('#rfid-status').val('Available'); // Reset to default status
+                $('.is-invalid').removeClass('is-invalid');
+                $('.invalid-feedback').text('');
+
+                // Reset save button state
+                const saveBtn = $('#btn-save-rfid');
+                if (saveBtn.data('original-html')) {
+                    saveBtn.prop('disabled', false).html(saveBtn.data('original-html'));
+                }
+            }
+
+            // Enhanced button loading state function
+            function setButtonLoading(button, loading = true) {
+                if (loading) {
+                    button.prop('disabled', true);
+                    const originalHtml = button.html();
+                    button.data('original-html', originalHtml);
+
+                    // Different loading text based on button
+                    let loadingText = 'Loading...';
+                    if (button.attr('id') === 'btn-save-rfid') {
+                        loadingText = 'Saving...';
+                    } else if (button.attr('id') === 'btn-confirm-delete') {
+                        loadingText = 'Deleting...';
+                    } else if (button.attr('id') === 'btn-confirm-release') {
+                        loadingText = 'Releasing...';
+                    }
+
+                    button.html(
+                        '<span class="spinner-border spinner-border-sm me-2" role="status"></span>' +
+                        loadingText);
+                } else {
+                    button.prop('disabled', false);
+                    const originalHtml = button.data('original-html');
+                    if (originalHtml) {
+                        button.html(originalHtml);
+                    }
+                }
+            }
+
+            // Real-time validation for RFID UID
+            $('#rfid-uid-input').on('input', function() {
+                const rfidUid = $(this).val().trim();
+                if (rfidUid.length > 0) {
+                    // Remove validation error on input
+                    $(this).removeClass('is-invalid');
+                    $('#rfid-uid-error').text('');
+
+                    // Clean RFID UID - allow only alphanumeric, hyphens, and underscores
+                    const cleanRfidUid = rfidUid.replace(/[^a-zA-Z0-9_-]/g, '');
+                    if (cleanRfidUid !== rfidUid) {
+                        $(this).val(cleanRfidUid);
+                    }
+                }
+            });
+
+            // Handle form submission with Enter key
+            $('#rfid-form').on('keypress', function(e) {
+                if (e.which === 13) {
+                    e.preventDefault();
+                    $('#btn-save-rfid').click();
+                }
+            });
+
+            // Initial load completed message
+            console.log('RFID Tags management initialized successfully');
             });
 
             // Global refresh function for backward compatibility

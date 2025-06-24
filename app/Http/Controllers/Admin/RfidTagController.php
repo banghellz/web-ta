@@ -299,7 +299,6 @@ class RfidTagController extends Controller
         }
     }
 
-
     /**
      * Remove the specified RFID tag from storage.
      */
@@ -374,25 +373,49 @@ class RfidTagController extends Controller
     }
 
     /**
-     * Get available users for assignment - PERBAIKAN METHOD INI
+     * Get available users for assignment - UPDATED TO SHOW DIFFERENT USERS FOR EDIT
      */
-    public function getAvailableUsers()
+    public function getAvailableUsers(Request $request)
     {
         try {
-            // PERBAIKAN: Ganti 'userDetail' menjadi 'detail' sesuai nama method di model User
-            $users = User::with('detail')
-                ->whereHas('detail')
-                ->get()
-                ->map(function ($user) {
-                    return [
-                        'id' => $user->id,
-                        'name' => $user->name,
-                        'nim' => $user->detail->nim ?? 'No NIM',
-                        'email' => $user->email ?? '',
-                        'has_rfid' => !empty($user->detail->rfid_uid),
-                        'current_rfid' => $user->detail->rfid_uid ?? null
-                    ];
-                });
+            $rfidId = $request->get('rfid_id'); // Get RFID ID if provided
+
+            // Base query: users with details
+            $query = User::with('detail')->whereHas('detail');
+
+            if ($rfidId) {
+                // For edit mode: show users without RFID + current assigned user
+                $currentRfid = RfidTag::find($rfidId);
+                $currentUserId = $currentRfid && $currentRfid->userDetail ? $currentRfid->userDetail->user_id : null;
+
+                if ($currentUserId) {
+                    // Show users without RFID + current assigned user
+                    $query->where(function ($q) use ($currentUserId) {
+                        $q->whereHas('detail', function ($subQ) {
+                            $subQ->whereNull('rfid_uid');
+                        })->orWhere('id', $currentUserId);
+                    });
+                } else {
+                    // Show only users without RFID
+                    $query->whereHas('detail', function ($subQ) {
+                        $subQ->whereNull('rfid_uid');
+                    });
+                }
+            } else {
+                // For create mode: show all users with indication of RFID status
+                // No filtering needed for create mode
+            }
+
+            $users = $query->get()->map(function ($user) {
+                return [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'nim' => $user->detail->nim ?? 'No NIM',
+                    'email' => $user->email ?? '',
+                    'has_rfid' => !empty($user->detail->rfid_uid),
+                    'current_rfid' => $user->detail->rfid_uid ?? null
+                ];
+            });
 
             return response()->json([
                 'success' => true,
