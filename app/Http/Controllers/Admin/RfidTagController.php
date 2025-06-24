@@ -8,6 +8,7 @@ use App\Models\UserDetail;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Log;
 use Yajra\DataTables\DataTables;
 
 class RfidTagController extends Controller
@@ -226,6 +227,13 @@ class RfidTagController extends Controller
                 'assigned_user_id' => 'nullable|exists:users,id',
             ]);
 
+            // Debug log (opsional, bisa dihapus di production)
+            Log::info('RFID Update started', [
+                'rfid_id' => $rfidTag->id,
+                'rfid_uid' => $rfidTag->uid,
+                'assigned_user_id' => $validated['assigned_user_id'] ?? null
+            ]);
+
             // Update RFID tag notes/name
             $rfidTag->update([
                 'notes' => $validated['name'] ?? null
@@ -236,25 +244,41 @@ class RfidTagController extends Controller
                 if ($validated['assigned_user_id']) {
                     // Assign to user
                     $user = User::find($validated['assigned_user_id']);
+
                     if ($user && $user->detail) {
                         // Remove RFID from current user if assigned to someone else
                         UserDetail::where('rfid_uid', $rfidTag->uid)->update(['rfid_uid' => null]);
 
                         // Assign to new user
-                        $user->userDetail->update(['rfid_uid' => $rfidTag->uid]);
+                        $user->detail->update(['rfid_uid' => $rfidTag->uid]);
+
+                        // Mark RFID as used
                         $rfidTag->markAsUsed();
+
+                        Log::info('RFID assigned successfully', [
+                            'user_id' => $user->id,
+                            'user_name' => $user->name,
+                            'rfid_uid' => $rfidTag->uid
+                        ]);
+                    } else {
+                        Log::error('User does not have detail', ['user_id' => $validated['assigned_user_id']]);
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Selected user does not have user details.'
+                        ], 400);
                     }
                 } else {
                     // Unassign from user
                     UserDetail::where('rfid_uid', $rfidTag->uid)->update(['rfid_uid' => null]);
                     $rfidTag->markAsAvailable();
+
+                    Log::info('RFID unassigned successfully', ['rfid_uid' => $rfidTag->uid]);
                 }
             }
 
             return response()->json([
                 'success' => true,
-                'message' => 'RFID tag updated successfully.',
-                'data' => $rfidTag
+                'message' => 'RFID tag updated successfully.'
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
@@ -263,12 +287,18 @@ class RfidTagController extends Controller
                 'errors' => $e->errors()
             ], 422);
         } catch (\Exception $e) {
+            Log::error('RFID Update failed', [
+                'error' => $e->getMessage(),
+                'rfid_id' => $rfidTag->id ?? null
+            ]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update RFID tag: ' . $e->getMessage()
             ], 500);
         }
     }
+
 
     /**
      * Remove the specified RFID tag from storage.
