@@ -349,18 +349,18 @@ class RfidTagController extends Controller
     public function getAvailableUsers()
     {
         try {
-            // Ambil semua user yang memiliki user_detail
-            $users = User::with('userDetail')
-                ->whereHas('userDetail')
+            // PERBAIKAN: Ganti 'userDetail' menjadi 'detail' sesuai nama method di model User
+            $users = User::with('detail')
+                ->whereHas('detail')
                 ->get()
                 ->map(function ($user) {
                     return [
                         'id' => $user->id,
                         'name' => $user->name,
-                        'nim' => $user->userDetail->nim ?? 'No NIM',
+                        'nim' => $user->detail->nim ?? 'No NIM',
                         'email' => $user->email ?? '',
-                        'has_rfid' => !empty($user->userDetail->rfid_uid),
-                        'current_rfid' => $user->userDetail->rfid_uid ?? null
+                        'has_rfid' => !empty($user->detail->rfid_uid),
+                        'current_rfid' => $user->detail->rfid_uid ?? null
                     ];
                 });
 
