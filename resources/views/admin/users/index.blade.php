@@ -14,6 +14,10 @@
                     </h2>
                     <div class="text-muted mt-1">
                         {{ $content ?? 'Manage system users and their roles' }}
+                        <span class="badge bg-yellow-lt ms-2">
+                            <i class="ti ti-info-circle me-1"></i>
+                            Super Admin users are protected from modifications
+                        </span>
                     </div>
                 </div>
                 <div class="col-auto ms-auto">
@@ -35,6 +39,12 @@
             <div class="card">
                 <div class="card-header">
                     <h3 class="card-title">User Statistics</h3>
+                    <div class="card-actions">
+                        <div class="text-muted small">
+                            <i class="ti ti-shield-lock me-1"></i>
+                            Super Admin users are visible but protected
+                        </div>
+                    </div>
                 </div>
                 <div class="card-body">
                     <div class="row row-cards">
@@ -573,7 +583,11 @@
                         },
                         error: function(xhr) {
                             $select.val(originalRole);
-                            showNotification('error', 'Failed to update role. Please try again.');
+                            let errorMessage = 'Failed to update role. Please try again.';
+                            if (xhr.responseJSON && xhr.responseJSON.message) {
+                                errorMessage = xhr.responseJSON.message;
+                            }
+                            showNotification('error', errorMessage);
                             console.error('Role update error:', xhr.responseText);
                         },
                         complete: function() {
@@ -601,13 +615,26 @@
                             'X-CSRF-TOKEN': csrf
                         },
                         success: function(response) {
-                            $content.html(response.html);
+                            if (response.success) {
+                                $content.html(response.html);
+                            } else {
+                                $content.html(`
+                                    <div class="alert alert-danger mb-0">
+                                        <i class="ti ti-alert-circle me-2"></i>
+                                        ${response.message || 'Failed to load user details.'}
+                                    </div>
+                                `);
+                            }
                         },
                         error: function(xhr) {
+                            let errorMessage = 'Failed to load user details. Please try again.';
+                            if (xhr.responseJSON && xhr.responseJSON.message) {
+                                errorMessage = xhr.responseJSON.message;
+                            }
                             $content.html(`
                                 <div class="alert alert-danger mb-0">
                                     <i class="ti ti-alert-circle me-2"></i>
-                                    Failed to load user details. Please try again.
+                                    ${errorMessage}
                                 </div>
                             `);
                             console.error('User detail error:', xhr.responseText);
@@ -616,7 +643,9 @@
                 }
 
                 function showNotification(type, message) {
-                    if (typeof toastr !== 'undefined') {
+                    if (window.UnifiedToastSystem) {
+                        window.UnifiedToastSystem[type](message);
+                    } else if (typeof toastr !== 'undefined') {
                         toastr[type](message);
                     } else {
                         alert(message);
