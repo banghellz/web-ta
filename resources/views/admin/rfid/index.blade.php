@@ -1,4 +1,4 @@
-<!-- resources/views/superadmin/rfid/index.blade.php -->
+<!-- resources/views/admin/rfid/index.blade.php -->
 <x-layouts.admin_layout>
     <x-slot name="title">{{ $title }}</x-slot>
     <x-slot name="content">{{ $content }}</x-slot>
@@ -477,7 +477,7 @@
                     select.empty().append('<option value="">Loading users...</option>');
 
                     $.ajax({
-                        url: "/superadmin/rfid-tags/available-users", // Pastikan route ini ada
+                        url: "/admin/rfid-tags/available-users", // Pastikan route ini ada
                         type: 'GET',
                         success: function(response) {
                             console.log('Users loaded successfully:', response);
@@ -560,7 +560,7 @@
 
                     // Fetch RFID details
                     $.ajax({
-                        url: `/superadmin/rfid-tags/${id}/edit`,
+                        url: `/admin/rfid-tags/${id}/edit`,
                         type: 'GET',
                         success: function(response) {
                             console.log('RFID details loaded:', response);
