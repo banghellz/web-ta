@@ -182,6 +182,7 @@ Route::prefix('superadmin')
             Route::get('/{rfidTag}/edit', [RfidTagController::class, 'edit'])->name('edit');
             Route::put('/{rfidTag}', [RfidTagController::class, 'update'])->name('update');
             Route::delete('/{rfidTag}', [RfidTagController::class, 'destroy'])->name('destroy');
+            Route::get('/superadmin/users/available', [RfidTagController::class, 'getAvailableUsers']);
         });
 
         Route::prefix('profile')->name('profile.')->group(function () {
@@ -317,6 +318,7 @@ Route::prefix('admin')
             Route::get('/{rfidTag}/edit', [App\Http\Controllers\Admin\RfidTagController::class, 'edit'])->name('edit');
             Route::put('/{rfidTag}', [App\Http\Controllers\Admin\RfidTagController::class, 'update'])->name('update');
             Route::delete('/{rfidTag}', [App\Http\Controllers\Admin\RfidTagController::class, 'destroy'])->name('destroy');
+            Route::get('/admin/users/available', [App\Http\Controllers\Admin\RfidTagController::class, 'getAvailableUsers']);
         });
 
         Route::prefix('profile')->name('profile.')->group(function () {
