@@ -236,7 +236,7 @@ class RfidTagController extends Controller
                 if ($validated['assigned_user_id']) {
                     // Assign to user
                     $user = User::find($validated['assigned_user_id']);
-                    if ($user && $user->userDetail) {
+                    if ($user && $user->detail) {
                         // Remove RFID from current user if assigned to someone else
                         UserDetail::where('rfid_uid', $rfidTag->uid)->update(['rfid_uid' => null]);
 
