@@ -344,26 +344,38 @@ class RfidTagController extends Controller
     }
 
     /**
-     * Get available users for assignment
+     * Get available users for assignment - PERBAIKAN METHOD INI
      */
     public function getAvailableUsers()
     {
-        $users = User::with('userDetail')
-            ->whereHas('userDetail')
-            ->get()
-            ->map(function ($user) {
-                return [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                    'nim' => $user->userDetail->nim ?? null,
-                    'has_rfid' => !empty($user->userDetail->rfid_uid)
-                ];
-            });
+        try {
+            // Ambil semua user yang memiliki user_detail
+            $users = User::with('userDetail')
+                ->whereHas('userDetail')
+                ->get()
+                ->map(function ($user) {
+                    return [
+                        'id' => $user->id,
+                        'name' => $user->name,
+                        'nim' => $user->userDetail->nim ?? 'No NIM',
+                        'email' => $user->email ?? '',
+                        'has_rfid' => !empty($user->userDetail->rfid_uid),
+                        'current_rfid' => $user->userDetail->rfid_uid ?? null
+                    ];
+                });
 
-        return response()->json([
-            'success' => true,
-            'data' => $users
-        ]);
+            return response()->json([
+                'success' => true,
+                'data' => $users,
+                'message' => 'Users loaded successfully'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to load users: ' . $e->getMessage(),
+                'data' => []
+            ], 500);
+        }
     }
 
     /**

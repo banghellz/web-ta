@@ -318,7 +318,11 @@ Route::prefix('admin')
             Route::get('/{rfidTag}/edit', [App\Http\Controllers\Admin\RfidTagController::class, 'edit'])->name('edit');
             Route::put('/{rfidTag}', [App\Http\Controllers\Admin\RfidTagController::class, 'update'])->name('update');
             Route::delete('/{rfidTag}', [App\Http\Controllers\Admin\RfidTagController::class, 'destroy'])->name('destroy');
-            Route::get('/admin/users/available', [App\Http\Controllers\Admin\RfidTagController::class, 'getAvailableUsers']);
+            // PENTING: Route untuk mendapatkan daftar user yang tersedia
+            Route::get('/available-users', [App\Http\Controllers\Admin\RfidTagController::class, 'getAvailableUsers'])->name('available-users');
+
+            // Bulk operations
+            Route::post('/bulk-status', [App\Http\Controllers\Admin\RfidTagController::class, 'bulkUpdateStatus'])->name('bulk-status');
         });
 
         Route::prefix('profile')->name('profile.')->group(function () {

@@ -469,26 +469,63 @@
                     table.column(2).search(selectedStatus).draw(); // Updated index
                 });
 
-                // Load users for assignment
                 function loadUsers() {
+                    console.log('Loading users for assignment...');
+
+                    // Tampilkan loading di select
+                    const select = $('#assign-to-user');
+                    select.empty().append('<option value="">Loading users...</option>');
+
                     $.ajax({
-                        url: "/admin/users/available",
+                        url: "/superadmin/rfid-tags/available-users", // Pastikan route ini ada
                         type: 'GET',
                         success: function(response) {
-                            if (response.success) {
-                                const select = $('#assign-to-user');
+                            console.log('Users loaded successfully:', response);
+
+                            if (response.success && response.data) {
                                 select.empty().append(
                                     '<option value="">Select a user to assign (optional)</option>');
 
                                 response.data.forEach(function(user) {
+                                    // Tampilkan info apakah user sudah punya RFID
+                                    const hasRfidText = user.has_rfid ? ' (Has RFID)' :
+                                        ' (No RFID)';
+                                    const optionText = `${user.name} - ${user.nim}${hasRfidText}`;
+
                                     select.append(
-                                        `<option value="${user.id}">${user.name} (${user.nim || 'No NIM'})</option>`
+                                        `<option value="${user.id}" data-has-rfid="${user.has_rfid}">${optionText}</option>`
                                     );
                                 });
+
+                                console.log(`Loaded ${response.data.length} users`);
+                            } else {
+                                select.empty().append('<option value="">No users available</option>');
+                                console.error('Invalid response format:', response);
                             }
                         },
-                        error: function(xhr) {
-                            console.error('Failed to load users:', xhr);
+                        error: function(xhr, status, error) {
+                            console.error('Failed to load users:', {
+                                status: xhr.status,
+                                statusText: xhr.statusText,
+                                responseText: xhr.responseText,
+                                error: error
+                            });
+
+                            select.empty().append('<option value="">Failed to load users</option>');
+
+                            // Tampilkan error message
+                            if (window.UnifiedToastSystem) {
+                                let errorMessage = 'Failed to load users for assignment';
+
+                                if (xhr.status === 404) {
+                                    errorMessage =
+                                        'User assignment feature not available (route not found)';
+                                } else if (xhr.status === 500) {
+                                    errorMessage = 'Server error while loading users';
+                                }
+
+                                window.UnifiedToastSystem.error(errorMessage);
+                            }
                         }
                     });
                 }
@@ -508,7 +545,7 @@
                     }, 500);
                 });
 
-                // Open the edit RFID modal
+                // PERBAIKAN: Fungsi edit RFID yang diperbaiki
                 $(document).on('click', '.btn-edit', function() {
                     const id = $(this).data('id');
                     resetForm();
@@ -517,49 +554,84 @@
                     $('#modal-title').text('Loading...');
                     $('#modal-rfid-form').modal('show');
 
-                    // Load users for assignment
+                    // Load users dulu sebelum load RFID details
+                    console.log('Starting edit process for RFID ID:', id);
                     loadUsers();
 
                     // Fetch RFID details
                     $.ajax({
-                        url: `/admin/rfid-tags/${id}/edit`,
+                        url: `/superadmin/rfid-tags/${id}/edit`,
                         type: 'GET',
                         success: function(response) {
+                            console.log('RFID details loaded:', response);
+
                             if (response.success && response.data) {
                                 const rfid = response.data;
                                 $('#rfid-id').val(rfid.id);
                                 $('#rfid-notes').val(rfid.name || '');
 
-                                // Hide fields that shouldn't be editable
+                                // Hide fields yang tidak perlu di edit
                                 $('#rfid-uid-group').hide();
                                 $('#rfid-status-group').hide();
                                 $('#assign-to-group').show();
 
-                                // Set assigned user if any
+                                // Set assigned user jika ada
                                 if (rfid.assigned_user_id) {
-                                    $('#assign-to-user').val(rfid.assigned_user_id);
+                                    // Tunggu sebentar untuk memastikan users sudah di-load
+                                    setTimeout(function() {
+                                        $('#assign-to-user').val(rfid.assigned_user_id);
+                                        console.log('Set assigned user to:', rfid
+                                            .assigned_user_id);
+                                    }, 500);
                                 }
 
                                 $('#modal-title').text('Edit RFID Tag');
-                                // Focus on the first input field
+
+                                // Focus pada field pertama
                                 setTimeout(function() {
                                     $('#rfid-notes').focus();
                                 }, 100);
                             } else {
+                                console.error('Invalid RFID response format:', response);
                                 if (window.UnifiedToastSystem) {
                                     window.UnifiedToastSystem.error('Invalid response format');
                                 }
                                 $('#modal-rfid-form').modal('hide');
                             }
                         },
-                        error: function(xhr) {
-                            console.error('Edit error:', xhr);
+                        error: function(xhr, status, error) {
+                            console.error('Edit error:', {
+                                status: xhr.status,
+                                statusText: xhr.statusText,
+                                responseText: xhr.responseText,
+                                error: error
+                            });
+
                             if (window.UnifiedToastSystem) {
                                 window.UnifiedToastSystem.error('Failed to load RFID tag details');
                             }
                             $('#modal-rfid-form').modal('hide');
                         }
                     });
+                });
+
+                // Event handler untuk monitoring perubahan di select user
+                $('#assign-to-user').on('change', function() {
+                    const selectedUserId = $(this).val();
+                    const selectedOption = $(this).find('option:selected');
+                    const hasRfid = selectedOption.data('has-rfid');
+
+                    console.log('User selection changed:', {
+                        userId: selectedUserId,
+                        hasRfid: hasRfid
+                    });
+
+                    // Bisa tambahkan warning jika user sudah punya RFID
+                    if (selectedUserId && hasRfid) {
+                        if (window.UnifiedToastSystem) {
+                            window.UnifiedToastSystem.warning('This user already has an RFID tag assigned');
+                        }
+                    }
                 });
 
                 // Save RFID tag
