@@ -21,9 +21,9 @@ class UserController extends Controller
 {
     public function index()
     {
-        // Get user statistics (exclude superadmin from admin view)
-        $totalUsers = User::where('role', '!=', 'superadmin')->count();
-        $adminUsers = User::where('role', 'admin')->count();
+        // Get user statistics (include all users)
+        $totalUsers = User::count();
+        $adminUsers = User::whereIn('role', ['admin', 'superadmin'])->count();
         $guestUsers = User::where('role', 'guest')->count();
 
         return view('admin.users.index', [
@@ -37,8 +37,8 @@ class UserController extends Controller
 
     public function getData()
     {
-        // Admin can only see non-superadmin users
-        $users = User::query()->with('detail')->where('role', '!=', 'superadmin');
+        // Admin can see all users including superadmin
+        $users = User::query()->with('detail');
         $currentUserId = auth()->user()->uuid;
 
         return DataTables::of($users)
@@ -57,13 +57,24 @@ class UserController extends Controller
                 $roleColors = [
                     'guest' => 'secondary',
                     'user' => 'primary',
-                    'admin' => 'warning'
+                    'admin' => 'warning',
+                    'superadmin' => 'danger'
                 ];
 
                 // If this is the current user, disable the select
                 $isCurrentUser = $user->uuid === $currentUserId;
-                $disabled = $isCurrentUser ? 'disabled' : '';
-                $title = $isCurrentUser ? 'title="You cannot change your own role"' : '';
+                // If user is superadmin, admin cannot modify their role
+                $isSuperAdmin = $user->role === 'superadmin';
+
+                $disabled = ($isCurrentUser || $isSuperAdmin) ? 'disabled' : '';
+                $title = $isCurrentUser ? 'title="You cannot change your own role"' : ($isSuperAdmin ? 'title="You cannot modify Super Admin roles"' : '');
+
+                if ($isSuperAdmin) {
+                    // For superadmin, show read-only badge
+                    return '<span class="badge bg-danger">
+                                <i class="ti ti-shield-lock me-1"></i>Super Admin
+                            </span>';
+                }
 
                 $html = '<select data-user-id="' . $user->uuid . '" data-original-role="' . $user->role . '" class="role-select form-select form-select-sm" ' . $disabled . ' ' . $title . '>';
 
@@ -88,6 +99,7 @@ class UserController extends Controller
             ->addColumn('actions', function ($user) use ($currentUserId) {
                 $editUrl = route('admin.users.edit', $user->uuid);
                 $isCurrentUser = $user->uuid === $currentUserId;
+                $isSuperAdmin = $user->role === 'superadmin';
 
                 $actions = '
         <div class="d-flex justify-content-center align-items-center">
@@ -95,29 +107,65 @@ class UserController extends Controller
                 <button class="btn btn-actions" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                     <i class="ti ti-dots-vertical"></i>
                 </button>
-                <ul class="dropdown-menu dropdown-menu-end dropdown-menu-actions">
+                <ul class="dropdown-menu dropdown-menu-end dropdown-menu-actions">';
+
+                // Edit action
+                if ($isSuperAdmin) {
+                    $actions .= '
+                    <li>
+                        <span class="dropdown-item text-muted" title="You cannot edit Super Admin users">
+                            <i class="ti ti-edit me-2"></i>Edit (Protected)
+                        </span>
+                    </li>';
+                } else {
+                    $actions .= '
                     <li>
                         <a class="dropdown-item" href="' . $editUrl . '">
                             <i class="ti ti-edit me-2"></i>Edit
                         </a>
                     </li>';
-
-                // Add unassign RFID option if user has RFID
-                if ($user->detail && $user->detail->rfid_uid) {
-                    $actions .= '
-                    <li>
-                        <a class="dropdown-item text-warning unassign-rfid" href="javascript:void(0);" 
-                           data-id="' . $user->uuid . '" 
-                           data-name="' . e($user->name) . '">
-                            <i class="ti ti-credit-card-off me-2"></i>Unassign RFID
-                        </a>
-                    </li>';
                 }
 
-                // Add divider before delete only if not current user
-                if (!$isCurrentUser) {
+                // Unassign RFID action
+                if ($user->detail && $user->detail->rfid_uid) {
+                    if ($isSuperAdmin) {
+                        $actions .= '
+                        <li>
+                            <span class="dropdown-item text-muted" title="You cannot modify Super Admin RFID">
+                                <i class="ti ti-credit-card-off me-2"></i>Unassign RFID (Protected)
+                            </span>
+                        </li>';
+                    } else {
+                        $actions .= '
+                        <li>
+                            <a class="dropdown-item text-warning unassign-rfid" href="javascript:void(0);" 
+                               data-id="' . $user->uuid . '" 
+                               data-name="' . e($user->name) . '">
+                                <i class="ti ti-credit-card-off me-2"></i>Unassign RFID
+                            </a>
+                        </li>';
+                    }
+                }
+
+                // Delete action
+                $actions .= '<li><hr class="dropdown-divider"></li>';
+
+                if ($isCurrentUser) {
                     $actions .= '
-                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <span class="dropdown-item text-muted" title="You cannot delete your own account">
+                            <i class="ti ti-trash me-2"></i>Delete (Not allowed)
+                        </span>
+                    </li>';
+                } elseif ($isSuperAdmin) {
+                    $actions .= '
+                    <li>
+                        <span class="dropdown-item text-muted" title="You cannot delete Super Admin users">
+                            <i class="ti ti-trash me-2"></i>Delete (Protected)
+                        </span>
+                    </li>';
+                } else {
+                    $actions .= '
                     <li>
                         <a class="dropdown-item text-danger btn-delete" href="javascript:void(0);" 
                            data-id="' . $user->uuid . '" 
@@ -125,14 +173,6 @@ class UserController extends Controller
                            data-email="' . e($user->email) . '">
                             <i class="ti ti-trash me-2"></i>Delete
                         </a>
-                    </li>';
-                } else {
-                    $actions .= '
-                    <li><hr class="dropdown-divider"></li>
-                    <li>
-                        <span class="dropdown-item text-muted" title="You cannot delete your own account">
-                            <i class="ti ti-trash me-2"></i>Delete (Not allowed)
-                        </span>
                     </li>';
                 }
 
@@ -145,8 +185,8 @@ class UserController extends Controller
             })
             ->with([
                 'stats' => [
-                    'total_users' => User::where('role', '!=', 'superadmin')->count(),
-                    'admin_users' => User::where('role', 'admin')->count(),
+                    'total_users' => User::count(),
+                    'admin_users' => User::whereIn('role', ['admin', 'superadmin'])->count(),
                     'guest_users' => User::where('role', 'guest')->count(),
                 ]
             ])
@@ -197,13 +237,8 @@ class UserController extends Controller
         try {
             $user = User::with('detail.borrowedItems')->where('uuid', $uuid)->firstOrFail();
 
-            // Prevent admin from viewing superadmin details
-            if ($user->role === 'superadmin') {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'You cannot view Super Admin details'
-                ], 403);
-            }
+            // Admin can view superadmin details but cannot modify
+            // No restriction on viewing
 
             // Sync koin jika user bukan admin dan memiliki detail
             if ($user->detail) {
@@ -247,7 +282,8 @@ class UserController extends Controller
                     'role' => $user->role,
                     'has_detail' => $user->detail ? true : false,
                     'current_koin' => $user->detail ? $user->detail->koin : null,
-                    'borrowed_count' => $user->detail ? $user->detail->borrowedItems()->count() : 0
+                    'borrowed_count' => $user->detail ? $user->detail->borrowedItems()->count() : 0,
+                    'is_superadmin' => $user->role === 'superadmin'
                 ]
             ]);
         } catch (\Exception $e) {
@@ -577,13 +613,8 @@ class UserController extends Controller
         try {
             $user = User::with('detail.borrowedItems')->where('uuid', $uuid)->firstOrFail();
 
-            // Prevent admin from viewing superadmin coin info
-            if ($user->role === 'superadmin') {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'You cannot view Super Admin coin information'
-                ], 403);
-            }
+            // Admin can view superadmin coin info but cannot modify
+            // No restriction on viewing
 
             $userDetail = $user->detail;
 
@@ -615,6 +646,7 @@ class UserController extends Controller
                 'message' => 'Coin information retrieved successfully',
                 'user_detail' => $userDetail,
                 'is_admin' => $isAdmin,
+                'is_superadmin' => $user->role === 'superadmin',
                 'borrowed_count' => $borrowedCount,
                 'calculation_info' => [
                     'base_koin' => 10,

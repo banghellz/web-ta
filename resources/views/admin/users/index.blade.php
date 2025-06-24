@@ -16,7 +16,7 @@
                         {{ $content ?? 'Manage system users and their roles' }}
                         <span class="badge bg-yellow-lt ms-2">
                             <i class="ti ti-info-circle me-1"></i>
-                            Super Admin users are hidden from this view
+                            Super Admin users are protected from modifications
                         </span>
                     </div>
                 </div>
@@ -41,8 +41,8 @@
                     <h3 class="card-title">User Statistics</h3>
                     <div class="card-actions">
                         <div class="text-muted small">
-                            <i class="ti ti-eye-off me-1"></i>
-                            Super Admin users are excluded from these statistics
+                            <i class="ti ti-shield-lock me-1"></i>
+                            Super Admin users are visible but protected
                         </div>
                     </div>
                 </div>
@@ -137,7 +137,7 @@
                                         <option value="guest">Guest</option>
                                         <option value="user">User</option>
                                         <option value="admin">Admin</option>
-                                        <!-- Superadmin option removed for admin view -->
+                                        <option value="superadmin">Super Admin</option>
                                     </select>
                                 </div>
                             </div>
