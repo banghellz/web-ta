@@ -312,17 +312,15 @@ Route::prefix('admin')
             Route::get('/stats', [App\Http\Controllers\Admin\RfidTagController::class, 'getStats'])->name('stats');
             Route::get('/available', [App\Http\Controllers\Admin\RfidTagController::class, 'getAvailable'])->name('available');
             Route::post('/', [App\Http\Controllers\Admin\RfidTagController::class, 'store'])->name('store');
-            Route::post('/release/{rfidTag}', [App\Http\Controllers\Admin\RfidTagController::class, 'releaseFromUser'])->name('release');
+            // PENTING: Route untuk mendapatkan daftar user yang tersedia
+            Route::get('/available-users', [App\Http\Controllers\Admin\RfidTagController::class, 'getAvailableUsers'])->name('available-users');
+            // Bulk operations
             Route::post('/bulk-status', [App\Http\Controllers\Admin\RfidTagController::class, 'bulkUpdateStatus'])->name('bulk-status');
+            Route::post('/release/{rfidTag}', [App\Http\Controllers\Admin\RfidTagController::class, 'releaseFromUser'])->name('release');
             Route::get('/{rfidTag}', [App\Http\Controllers\Admin\RfidTagController::class, 'show'])->name('show');
             Route::get('/{rfidTag}/edit', [App\Http\Controllers\Admin\RfidTagController::class, 'edit'])->name('edit');
             Route::put('/{rfidTag}', [App\Http\Controllers\Admin\RfidTagController::class, 'update'])->name('update');
             Route::delete('/{rfidTag}', [App\Http\Controllers\Admin\RfidTagController::class, 'destroy'])->name('destroy');
-            // PENTING: Route untuk mendapatkan daftar user yang tersedia
-            Route::get('/available-users', [App\Http\Controllers\Admin\RfidTagController::class, 'getAvailableUsers'])->name('available-users');
-
-            // Bulk operations
-            Route::post('/bulk-status', [App\Http\Controllers\Admin\RfidTagController::class, 'bulkUpdateStatus'])->name('bulk-status');
         });
 
         Route::prefix('profile')->name('profile.')->group(function () {
