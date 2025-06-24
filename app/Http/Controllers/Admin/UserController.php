@@ -37,161 +37,165 @@ class UserController extends Controller
 
     public function getData()
     {
-        // Admin can see all users including superadmin
-        $users = User::query()->with('detail');
-        $currentUserId = auth()->user()->uuid;
+        try {
+            // Admin can see all users including superadmin
+            $users = User::query()->with('detail');
+            $currentUserId = auth()->user()->uuid;
 
-        return DataTables::of($users)
-            ->addIndexColumn()
-            ->addColumn('name_link', function ($user) {
-                return '<div class="d-flex align-items-center">' .
-                    '<div>' .
-                    '<a href="javascript:void(0);" class="name-detail text-decoration-none fw-medium" data-id="' . $user->uuid . '">' . $user->name . '</a>' .
-                    ($user->detail && $user->detail->nim ? '<div class="text-muted small">NIM: ' . $user->detail->nim . '</div>' : '') .
-                    '</div>' .
-                    '</div>';
-            })
-            ->addColumn('role_select', function ($user) use ($currentUserId) {
-                // Admin can only manage guest, user, and admin roles (NOT superadmin)
-                $roles = ['guest', 'user', 'admin'];
-                $roleColors = [
-                    'guest' => 'secondary',
-                    'user' => 'primary',
-                    'admin' => 'warning',
-                    'superadmin' => 'danger'
-                ];
+            return DataTables::of($users)
+                ->addIndexColumn()
+                ->addColumn('name_link', function ($user) {
+                    return '<div class="d-flex align-items-center">' .
+                        '<div>' .
+                        '<a href="javascript:void(0);" class="name-detail text-decoration-none fw-medium" data-id="' . $user->uuid . '">' . e($user->name) . '</a>' .
+                        ($user->detail && $user->detail->nim ? '<div class="text-muted small">NIM: ' . e($user->detail->nim) . '</div>' : '') .
+                        '</div>' .
+                        '</div>';
+                })
+                ->addColumn('role_select', function ($user) use ($currentUserId) {
+                    // Admin can only manage guest, user, and admin roles (NOT superadmin)
+                    $roles = ['guest', 'user', 'admin'];
 
-                // If this is the current user, disable the select
-                $isCurrentUser = $user->uuid === $currentUserId;
-                // If user is superadmin, admin cannot modify their role
-                $isSuperAdmin = $user->role === 'superadmin';
+                    // If this is the current user, disable the select
+                    $isCurrentUser = $user->uuid === $currentUserId;
+                    // If user is superadmin, admin cannot modify their role
+                    $isSuperAdmin = $user->role === 'superadmin';
 
-                $disabled = ($isCurrentUser || $isSuperAdmin) ? 'disabled' : '';
-                $title = $isCurrentUser ? 'title="You cannot change your own role"' : ($isSuperAdmin ? 'title="You cannot modify Super Admin roles"' : '');
+                    if ($isSuperAdmin) {
+                        // For superadmin, show read-only badge
+                        return '<span class="badge bg-danger">
+                                    <i class="ti ti-shield-lock me-1"></i>Super Admin
+                                </span>';
+                    }
 
-                if ($isSuperAdmin) {
-                    // For superadmin, show read-only badge
-                    return '<span class="badge bg-danger">
-                                <i class="ti ti-shield-lock me-1"></i>Super Admin
-                            </span>';
-                }
+                    $disabled = $isCurrentUser ? 'disabled' : '';
+                    $title = $isCurrentUser ? 'title="You cannot change your own role"' : '';
 
-                $html = '<select data-user-id="' . $user->uuid . '" data-original-role="' . $user->role . '" class="role-select form-select form-select-sm" ' . $disabled . ' ' . $title . '>';
+                    $html = '<select data-user-id="' . $user->uuid . '" data-original-role="' . $user->role . '" class="role-select form-select form-select-sm" ' . $disabled . ' ' . $title . '>';
 
-                foreach ($roles as $role) {
-                    $selected = $user->role === $role ? 'selected' : '';
-                    $html .= '<option value="' . $role . '" ' . $selected . '>' . ucfirst($role) . '</option>';
-                }
+                    foreach ($roles as $role) {
+                        $selected = $user->role === $role ? 'selected' : '';
+                        $html .= '<option value="' . $role . '" ' . $selected . '>' . ucfirst($role) . '</option>';
+                    }
 
-                $html .= '</select>';
-                return $html;
-            })
-            ->addColumn('rfid_status', function ($user) {
-                if ($user->detail && $user->detail->rfid_uid) {
-                    return '<span class="badge bg-info"><i class="ti ti-credit-card me-1"></i>Assigned</span>';
-                } else {
-                    return '<span class="badge bg-secondary"><i class="ti ti-credit-card-off me-1"></i>No RFID</span>';
-                }
-            })
-            ->addColumn('created_at_formatted', function ($user) {
-                return '<div class="text-muted">' . $user->created_at->format('d M Y') . '</div><div class="text-muted small">' . $user->created_at->format('H:i') . '</div>';
-            })
-            ->addColumn('actions', function ($user) use ($currentUserId) {
-                $editUrl = route('admin.users.edit', $user->uuid);
-                $isCurrentUser = $user->uuid === $currentUserId;
-                $isSuperAdmin = $user->role === 'superadmin';
+                    $html .= '</select>';
+                    return $html;
+                })
+                ->addColumn('rfid_status', function ($user) {
+                    if ($user->detail && $user->detail->rfid_uid) {
+                        return '<span class="badge bg-info"><i class="ti ti-credit-card me-1"></i>Assigned</span>';
+                    } else {
+                        return '<span class="badge bg-secondary"><i class="ti ti-credit-card-off me-1"></i>No RFID</span>';
+                    }
+                })
+                ->addColumn('created_at_formatted', function ($user) {
+                    return '<div class="text-muted">' . $user->created_at->format('d M Y') . '</div><div class="text-muted small">' . $user->created_at->format('H:i') . '</div>';
+                })
+                ->addColumn('actions', function ($user) use ($currentUserId) {
+                    $editUrl = route('admin.users.edit', $user->uuid);
+                    $isCurrentUser = $user->uuid === $currentUserId;
+                    $isSuperAdmin = $user->role === 'superadmin';
 
-                $actions = '
-        <div class="d-flex justify-content-center align-items-center">
-            <div class="dropdown">
-                <button class="btn btn-actions" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                    <i class="ti ti-dots-vertical"></i>
-                </button>
-                <ul class="dropdown-menu dropdown-menu-end dropdown-menu-actions">';
+                    $actions = '
+            <div class="d-flex justify-content-center align-items-center">
+                <div class="dropdown">
+                    <button class="btn btn-actions" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="ti ti-dots-vertical"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end dropdown-menu-actions">';
 
-                // Edit action
-                if ($isSuperAdmin) {
-                    $actions .= '
-                    <li>
-                        <span class="dropdown-item text-muted" title="You cannot edit Super Admin users">
-                            <i class="ti ti-edit me-2"></i>Edit (Protected)
-                        </span>
-                    </li>';
-                } else {
-                    $actions .= '
-                    <li>
-                        <a class="dropdown-item" href="' . $editUrl . '">
-                            <i class="ti ti-edit me-2"></i>Edit
-                        </a>
-                    </li>';
-                }
-
-                // Unassign RFID action
-                if ($user->detail && $user->detail->rfid_uid) {
+                    // Edit action
                     if ($isSuperAdmin) {
                         $actions .= '
                         <li>
-                            <span class="dropdown-item text-muted" title="You cannot modify Super Admin RFID">
-                                <i class="ti ti-credit-card-off me-2"></i>Unassign RFID (Protected)
+                            <span class="dropdown-item text-muted" title="You cannot edit Super Admin users">
+                                <i class="ti ti-edit me-2"></i>Edit (Protected)
                             </span>
                         </li>';
                     } else {
                         $actions .= '
                         <li>
-                            <a class="dropdown-item text-warning unassign-rfid" href="javascript:void(0);" 
-                               data-id="' . $user->uuid . '" 
-                               data-name="' . e($user->name) . '">
-                                <i class="ti ti-credit-card-off me-2"></i>Unassign RFID
+                            <a class="dropdown-item" href="' . $editUrl . '">
+                                <i class="ti ti-edit me-2"></i>Edit
                             </a>
                         </li>';
                     }
-                }
 
-                // Delete action
-                $actions .= '<li><hr class="dropdown-divider"></li>';
+                    // Unassign RFID action
+                    if ($user->detail && $user->detail->rfid_uid) {
+                        if ($isSuperAdmin) {
+                            $actions .= '
+                            <li>
+                                <span class="dropdown-item text-muted" title="You cannot modify Super Admin RFID">
+                                    <i class="ti ti-credit-card-off me-2"></i>Unassign RFID (Protected)
+                                </span>
+                            </li>';
+                        } else {
+                            $actions .= '
+                            <li>
+                                <a class="dropdown-item text-warning unassign-rfid" href="javascript:void(0);" 
+                                   data-id="' . $user->uuid . '" 
+                                   data-name="' . e($user->name) . '">
+                                    <i class="ti ti-credit-card-off me-2"></i>Unassign RFID
+                                </a>
+                            </li>';
+                        }
+                    }
 
-                if ($isCurrentUser) {
+                    // Delete action
+                    $actions .= '<li><hr class="dropdown-divider"></li>';
+
+                    if ($isCurrentUser) {
+                        $actions .= '
+                        <li>
+                            <span class="dropdown-item text-muted" title="You cannot delete your own account">
+                                <i class="ti ti-trash me-2"></i>Delete (Not allowed)
+                            </span>
+                        </li>';
+                    } elseif ($isSuperAdmin) {
+                        $actions .= '
+                        <li>
+                            <span class="dropdown-item text-muted" title="You cannot delete Super Admin users">
+                                <i class="ti ti-trash me-2"></i>Delete (Protected)
+                            </span>
+                        </li>';
+                    } else {
+                        $actions .= '
+                        <li>
+                            <a class="dropdown-item text-danger btn-delete" href="javascript:void(0);" 
+                               data-id="' . $user->uuid . '" 
+                               data-name="' . e($user->name) . '" 
+                               data-email="' . e($user->email) . '">
+                                <i class="ti ti-trash me-2"></i>Delete
+                            </a>
+                        </li>';
+                    }
+
                     $actions .= '
-                    <li>
-                        <span class="dropdown-item text-muted" title="You cannot delete your own account">
-                            <i class="ti ti-trash me-2"></i>Delete (Not allowed)
-                        </span>
-                    </li>';
-                } elseif ($isSuperAdmin) {
-                    $actions .= '
-                    <li>
-                        <span class="dropdown-item text-muted" title="You cannot delete Super Admin users">
-                            <i class="ti ti-trash me-2"></i>Delete (Protected)
-                        </span>
-                    </li>';
-                } else {
-                    $actions .= '
-                    <li>
-                        <a class="dropdown-item text-danger btn-delete" href="javascript:void(0);" 
-                           data-id="' . $user->uuid . '" 
-                           data-name="' . e($user->name) . '" 
-                           data-email="' . e($user->email) . '">
-                            <i class="ti ti-trash me-2"></i>Delete
-                        </a>
-                    </li>';
-                }
+                    </ul>
+                </div>
+            </div>';
 
-                $actions .= '
-                </ul>
-            </div>
-        </div>';
+                    return $actions;
+                })
+                ->with([
+                    'stats' => [
+                        'total_users' => User::count(),
+                        'admin_users' => User::whereIn('role', ['admin', 'superadmin'])->count(),
+                        'guest_users' => User::where('role', 'guest')->count(),
+                    ]
+                ])
+                ->rawColumns(['name_link', 'role_select', 'rfid_status', 'created_at_formatted', 'actions'])
+                ->toJson();
+        } catch (\Exception $e) {
+            Log::error('DataTables error in admin users: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
 
-                return $actions;
-            })
-            ->with([
-                'stats' => [
-                    'total_users' => User::count(),
-                    'admin_users' => User::whereIn('role', ['admin', 'superadmin'])->count(),
-                    'guest_users' => User::where('role', 'guest')->count(),
-                ]
-            ])
-            ->rawColumns(['name_link', 'role_select', 'rfid_status', 'created_at_formatted', 'actions'])
-            ->toJson();
+            return response()->json([
+                'error' => 'Failed to load users data: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     public function updateRole(Request $request)
