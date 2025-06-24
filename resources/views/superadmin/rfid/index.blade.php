@@ -141,7 +141,6 @@
                                 <tr>
                                     <th class="w-1">No</th>
                                     <th>RFID UID</th>
-                                    <th>Tag Name</th>
                                     <th>Status</th>
                                     <th>Assigned To</th>
                                     <th>Created At</th>
@@ -158,21 +157,6 @@
         </div>
     </div>
 
-    <!-- Modal for RFID Tag Details -->
-    <div class="modal modal-blur fade" id="modal-rfid-detail" tabindex="-1" role="dialog" aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">RFID Tag Details</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body" id="rfid-detail-content">
-                    <!-- Content will be loaded here -->
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- Modal for Adding/Editing RFID Tags -->
     <div class="modal modal-blur fade" id="modal-rfid-form" tabindex="-1" role="dialog" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered" role="document">
@@ -184,7 +168,7 @@
                 <div class="modal-body">
                     <form id="rfid-form">
                         <input type="hidden" id="rfid-id">
-                        <div class="mb-3">
+                        <div class="mb-3" id="rfid-uid-group">
                             <label class="form-label required">RFID UID</label>
                             <input type="text" class="form-control" id="rfid-uid-input" required
                                 placeholder="Enter RFID UID">
@@ -198,7 +182,7 @@
                             <div class="invalid-feedback" id="rfid-notes-error"></div>
                             <small class="form-hint">Optional description for the tag</small>
                         </div>
-                        <div class="mb-3">
+                        <div class="mb-3" id="rfid-status-group">
                             <label class="form-label required">Status</label>
                             <select class="form-select" id="rfid-status" required>
                                 <option value="Available">Available</option>
@@ -206,6 +190,14 @@
                             </select>
                             <div class="invalid-feedback" id="rfid-status-error"></div>
                             <small class="form-hint">Current status of the RFID tag</small>
+                        </div>
+                        <div class="mb-3" id="assign-to-group" style="display: none;">
+                            <label class="form-label">Assign To User</label>
+                            <select class="form-select" id="assign-to-user">
+                                <option value="">Select a user to assign (optional)</option>
+                            </select>
+                            <div class="invalid-feedback" id="assign-to-error"></div>
+                            <small class="form-hint">Assign this RFID tag to a specific user</small>
                         </div>
                     </form>
                 </div>
@@ -325,19 +317,6 @@
                 text-align: center !important;
             }
 
-            /* Clickable RFID name styling */
-            .rfid-detail-clickable {
-                cursor: pointer;
-                color: var(--tblr-primary);
-                text-decoration: none;
-                transition: color 0.15s ease-in-out;
-            }
-
-            .rfid-detail-clickable:hover {
-                color: var(--tblr-primary-darken);
-                text-decoration: underline;
-            }
-
             /* Loading spinner for modal */
             .modal-loading {
                 display: flex;
@@ -403,13 +382,6 @@
                             }
                         },
                         {
-                            data: 'notes_display',
-                            name: 'notes',
-                            render: function(data, type, row) {
-                                return data;
-                            }
-                        },
-                        {
                             data: 'status',
                             name: 'status',
                             className: 'text-center',
@@ -445,8 +417,8 @@
                         }
                     ],
                     order: [
-                        [5, 'desc']
-                    ], // Order by created_at descending
+                        [4, 'desc']
+                    ], // Order by created_at descending (updated index)
                     dom: '<"d-flex justify-content-between align-items-center mb-3"<"d-flex align-items-center"l><"d-flex"f>>t<"d-flex justify-content-between align-items-center mt-3"<"text-muted"i><"d-flex"p>>',
                     language: {
                         search: '',
@@ -467,52 +439,6 @@
                     lengthMenu: [10, 25, 50, 100],
                     pageLength: 25,
                     responsive: true
-                });
-
-                // Handle RFID detail click to show details
-                $(document).on('click', '.rfid-detail-clickable', function(e) {
-                    e.preventDefault();
-
-                    const rfidId = $(this).data('rfid-id');
-
-                    // Show modal with loading state
-                    $('#rfid-detail-content').html(`
-            <div class="modal-loading">
-                <div class="spinner-border spinner-border-sm text-primary" role="status">
-                    <span class="visually-hidden">Loading...</span>
-                </div>
-                <span class="ms-2">Loading RFID tag details...</span>
-            </div>
-        `);
-
-                    $('#modal-rfid-detail').modal('show');
-
-                    // Load RFID details via AJAX
-                    $.ajax({
-                        url: `/superadmin/rfid-tags/${rfidId}`,
-                        type: 'GET',
-                        success: function(response) {
-                            if (response.success) {
-                                $('#rfid-detail-content').html(response.html);
-                            } else {
-                                $('#rfid-detail-content').html(`
-                        <div class="alert alert-danger">
-                            <i class="ti ti-alert-triangle me-2"></i>
-                            Failed to load RFID tag details. Please try again.
-                        </div>
-                    `);
-                            }
-                        },
-                        error: function(xhr, status, error) {
-                            console.error('Error loading RFID tag details:', error);
-                            $('#rfid-detail-content').html(`
-                    <div class="alert alert-danger">
-                        <i class="ti ti-alert-triangle me-2"></i>
-                        Error loading RFID tag details. Please try again.
-                    </div>
-                `);
-                        }
-                    });
                 });
 
                 // Handle refresh button
@@ -540,14 +466,41 @@
                 // Status filter
                 $('#status-filter').on('change', function() {
                     const selectedStatus = $(this).val();
-                    table.column(3).search(selectedStatus).draw();
+                    table.column(2).search(selectedStatus).draw(); // Updated index
                 });
+
+                // Load users for assignment
+                function loadUsers() {
+                    $.ajax({
+                        url: "/superadmin/users/available",
+                        type: 'GET',
+                        success: function(response) {
+                            if (response.success) {
+                                const select = $('#assign-to-user');
+                                select.empty().append(
+                                    '<option value="">Select a user to assign (optional)</option>');
+
+                                response.data.forEach(function(user) {
+                                    select.append(
+                                        `<option value="${user.id}">${user.name} (${user.nim || 'No NIM'})</option>`
+                                        );
+                                });
+                            }
+                        },
+                        error: function(xhr) {
+                            console.error('Failed to load users:', xhr);
+                        }
+                    });
+                }
 
                 // Open the add RFID modal
                 $('#btn-add-rfid').on('click', function() {
                     resetForm();
                     $('#modal-title').text('Add New RFID Tag');
                     $('#rfid-status').val('Available'); // Set default status
+                    $('#rfid-uid-group').show();
+                    $('#rfid-status-group').show();
+                    $('#assign-to-group').hide();
                     $('#modal-rfid-form').modal('show');
                     // Focus on the first input field
                     setTimeout(function() {
@@ -564,6 +517,9 @@
                     $('#modal-title').text('Loading...');
                     $('#modal-rfid-form').modal('show');
 
+                    // Load users for assignment
+                    loadUsers();
+
                     // Fetch RFID details
                     $.ajax({
                         url: `/superadmin/rfid-tags/${id}/edit`,
@@ -572,20 +528,22 @@
                             if (response.success && response.data) {
                                 const rfid = response.data;
                                 $('#rfid-id').val(rfid.id);
-                                $('#rfid-uid-input').val(rfid.tag_id);
                                 $('#rfid-notes').val(rfid.name || '');
 
-                                // Set status based on is_active value
-                                if (rfid.is_active) {
-                                    $('#rfid-status').val('Available');
-                                } else {
-                                    $('#rfid-status').val('Used');
+                                // Hide fields that shouldn't be editable
+                                $('#rfid-uid-group').hide();
+                                $('#rfid-status-group').hide();
+                                $('#assign-to-group').show();
+
+                                // Set assigned user if any
+                                if (rfid.assigned_user_id) {
+                                    $('#assign-to-user').val(rfid.assigned_user_id);
                                 }
 
                                 $('#modal-title').text('Edit RFID Tag');
                                 // Focus on the first input field
                                 setTimeout(function() {
-                                    $('#rfid-uid-input').focus();
+                                    $('#rfid-notes').focus();
                                 }, 100);
                             } else {
                                 if (window.UnifiedToastSystem) {
@@ -612,41 +570,39 @@
                     const url = isEdit ? `/superadmin/rfid-tags/${id}` : '/superadmin/rfid-tags';
                     const method = isEdit ? 'PUT' : 'POST';
 
-                    // Validate required fields
-                    const rfidUid = $('#rfid-uid-input').val().trim();
-                    const status = $('#rfid-status').val();
-
-                    if (!rfidUid) {
-                        $('#rfid-uid-input').addClass('is-invalid');
-                        $('#rfid-uid-error').text('RFID UID is required');
-                        $('#rfid-uid-input').focus();
-                        if (window.UnifiedToastSystem) {
-                            window.UnifiedToastSystem.warning('Please fill in the RFID UID field');
-                        }
-                        return;
-                    }
-
-                    if (!status) {
-                        $('#rfid-status').addClass('is-invalid');
-                        $('#rfid-status-error').text('Status is required');
-                        $('#rfid-status').focus();
-                        if (window.UnifiedToastSystem) {
-                            window.UnifiedToastSystem.warning('Please select a status');
-                        }
-                        return;
-                    }
-
-                    // Prepare form data based on whether it's create or update
                     let formData;
+
                     if (isEdit) {
-                        // For update: use the format expected by update method
+                        // For edit: only name and assignment
                         formData = {
-                            tag_id: rfidUid,
                             name: $('#rfid-notes').val().trim(),
-                            is_active: status === 'Available'
+                            assigned_user_id: $('#assign-to-user').val() || null
                         };
                     } else {
-                        // For create: use the format expected by store method
+                        // For create: validate required fields
+                        const rfidUid = $('#rfid-uid-input').val().trim();
+                        const status = $('#rfid-status').val();
+
+                        if (!rfidUid) {
+                            $('#rfid-uid-input').addClass('is-invalid');
+                            $('#rfid-uid-error').text('RFID UID is required');
+                            $('#rfid-uid-input').focus();
+                            if (window.UnifiedToastSystem) {
+                                window.UnifiedToastSystem.warning('Please fill in the RFID UID field');
+                            }
+                            return;
+                        }
+
+                        if (!status) {
+                            $('#rfid-status').addClass('is-invalid');
+                            $('#rfid-status-error').text('Status is required');
+                            $('#rfid-status').focus();
+                            if (window.UnifiedToastSystem) {
+                                window.UnifiedToastSystem.warning('Please select a status');
+                            }
+                            return;
+                        }
+
                         formData = {
                             uid: rfidUid,
                             status: status,
@@ -696,14 +652,10 @@
                             if (xhr.status === 422) {
                                 const response = xhr.responseJSON;
                                 if (response && response.errors) {
-                                    // Handle validation errors for both create and update
+                                    // Handle validation errors
                                     if (response.errors.uid) {
                                         $('#rfid-uid-input').addClass('is-invalid');
                                         $('#rfid-uid-error').text(response.errors.uid[0]);
-                                    }
-                                    if (response.errors.tag_id) {
-                                        $('#rfid-uid-input').addClass('is-invalid');
-                                        $('#rfid-uid-error').text(response.errors.tag_id[0]);
                                     }
                                     if (response.errors.name) {
                                         $('#rfid-notes').addClass('is-invalid');
@@ -716,6 +668,11 @@
                                     if (response.errors.status) {
                                         $('#rfid-status').addClass('is-invalid');
                                         $('#rfid-status-error').text(response.errors.status[0]);
+                                    }
+                                    if (response.errors.assigned_user_id) {
+                                        $('#assign-to-user').addClass('is-invalid');
+                                        $('#assign-to-error').text(response.errors.assigned_user_id[
+                                            0]);
                                     }
 
                                     // Show validation error toast

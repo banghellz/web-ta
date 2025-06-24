@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\SuperAdmin;
 
 use App\Models\RfidTag;
+use App\Models\User;
+use App\Models\UserDetail;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -42,21 +44,6 @@ class RfidTagController extends Controller
                     '</span>' .
                     '<div><strong>' . $tag->uid . '</strong></div>' .
                     '</div>';
-            })
-            ->addColumn('notes_display', function ($tag) {
-                if ($tag->notes) {
-                    return '<div class="text-wrap">' .
-                        '<a href="#" class="rfid-detail-clickable" data-rfid-id="' . $tag->id . '">' .
-                        $tag->notes .
-                        '</a>' .
-                        '</div>';
-                } else {
-                    return '<div class="text-wrap">' .
-                        '<a href="#" class="rfid-detail-clickable text-muted" data-rfid-id="' . $tag->id . '">' .
-                        'RFID Tag #' . $tag->id .
-                        '</a>' .
-                        '</div>';
-                }
             })
             ->addColumn('status', function ($tag) {
                 $iconClass = '';
@@ -139,24 +126,9 @@ class RfidTagController extends Controller
 
                 return $actions;
             })
-            ->rawColumns(['rfid_uid', 'notes_display', 'status', 'assigned_to', 'created_at_formatted', 'actions'])
+            ->rawColumns(['rfid_uid', 'status', 'assigned_to', 'created_at_formatted', 'actions'])
             ->with('stats', $this->getStatistics())
             ->make(true);
-    }
-
-    /**
-     * Show the specified RFID tag details.
-     */
-    public function show(RfidTag $rfidTag)
-    {
-        $rfidTag->load(['userDetail.user']);
-
-        $html = view('superadmin.rfid.detail-partial', compact('rfidTag'))->render();
-
-        return response()->json([
-            'success' => true,
-            'html' => $html
-        ]);
     }
 
     /**
@@ -189,13 +161,14 @@ class RfidTagController extends Controller
      */
     public function edit(RfidTag $rfidTag)
     {
+        $rfidTag->load(['userDetail.user']);
+
         return response()->json([
             'success' => true,
             'data' => [
                 'id' => $rfidTag->id,
-                'tag_id' => $rfidTag->uid,
                 'name' => $rfidTag->notes,
-                'is_active' => $rfidTag->status === 'Available'
+                'assigned_user_id' => $rfidTag->userDetail ? $rfidTag->userDetail->user_id : null
             ]
         ]);
     }
@@ -249,21 +222,34 @@ class RfidTagController extends Controller
     {
         try {
             $validated = $request->validate([
-                'tag_id' => [
-                    'required',
-                    'string',
-                    'max:50',
-                    Rule::unique('rfid_tags', 'uid')->ignore($rfidTag->id),
-                ],
                 'name' => 'nullable|string|max:255',
-                'is_active' => 'boolean',
+                'assigned_user_id' => 'nullable|exists:users,id',
             ]);
 
+            // Update RFID tag notes/name
             $rfidTag->update([
-                'uid' => $validated['tag_id'],
-                'status' => ($validated['is_active'] ?? true) ? 'Available' : 'Used',
                 'notes' => $validated['name'] ?? null
             ]);
+
+            // Handle user assignment
+            if (isset($validated['assigned_user_id'])) {
+                if ($validated['assigned_user_id']) {
+                    // Assign to user
+                    $user = User::find($validated['assigned_user_id']);
+                    if ($user && $user->userDetail) {
+                        // Remove RFID from current user if assigned to someone else
+                        UserDetail::where('rfid_uid', $rfidTag->uid)->update(['rfid_uid' => null]);
+
+                        // Assign to new user
+                        $user->userDetail->update(['rfid_uid' => $rfidTag->uid]);
+                        $rfidTag->markAsUsed();
+                    }
+                } else {
+                    // Unassign from user
+                    UserDetail::where('rfid_uid', $rfidTag->uid)->update(['rfid_uid' => null]);
+                    $rfidTag->markAsAvailable();
+                }
+            }
 
             return response()->json([
                 'success' => true,
@@ -354,6 +340,29 @@ class RfidTagController extends Controller
         return response()->json([
             'success' => true,
             'data' => $availableTags
+        ]);
+    }
+
+    /**
+     * Get available users for assignment
+     */
+    public function getAvailableUsers()
+    {
+        $users = User::with('userDetail')
+            ->whereHas('userDetail')
+            ->get()
+            ->map(function ($user) {
+                return [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'nim' => $user->userDetail->nim ?? null,
+                    'has_rfid' => !empty($user->userDetail->rfid_uid)
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'data' => $users
         ]);
     }
 
