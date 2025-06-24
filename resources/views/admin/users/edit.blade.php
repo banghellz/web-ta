@@ -27,15 +27,32 @@
                             <div class="mb-4">
                                 <div class="row">
                                     <div class="col-auto">
-                                        <span class="avatar avatar-xl mb-3"
+                                        <span class="avatar avatar-xl mb-3" id="preview-avatar"
                                             style="background-image: url({{ $user->detail && $user->detail->pict ? asset('profile_pictures/' . $user->detail->pict) : asset('assets/img/default-avatar.png') }})"></span>
                                     </div>
                                     <div class="col">
                                         <label class="form-label">Profile Photo</label>
-                                        <input type="file" name="pict"
+                                        <input type="file" name="pict" id="pict"
                                             class="form-control @error('pict') is-invalid @enderror"
                                             accept="image/jpeg,image/png,image/jpg">
-                                        <div class="text-muted mt-1">Upload new photo (JPG, PNG, max 10MB)</div>
+
+                                        <!-- File size warning alert -->
+                                        <div class="alert alert-warning mt-2 d-none" id="fileSizeWarning">
+                                            <div class="d-flex">
+                                                <div>
+                                                    <i class="ti ti-alert-triangle me-2"></i>
+                                                </div>
+                                                <div>
+                                                    <strong>File terlalu besar!</strong>
+                                                    <div class="text-secondary">
+                                                        Ukuran file yang dipilih melebihi 1MB. Silakan pilih file yang
+                                                        lebih kecil.
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="text-muted mt-1">Upload new photo (JPG, PNG, max 1MB)</div>
                                         @error('pict')
                                             <div class="invalid-feedback">{{ $message }}</div>
                                         @enderror
@@ -71,7 +88,7 @@
                                         You cannot change your own role for security reasons.
                                     </div>
                                 @else
-                                    <!-- Other users can have their role changed -->
+                                    <!-- Admin can only set guest, user, admin roles (NOT superadmin) -->
                                     <select name="role" class="form-select @error('role') is-invalid @enderror"
                                         required>
                                         <option value="admin"
@@ -80,11 +97,15 @@
                                         <option value="user"
                                             {{ old('role', $user->role) == 'user' ? 'selected' : '' }}>
                                             User</option>
-                                        <option value="superadmin"
-                                            {{ old('role', $user->role) == 'superadmin' ? 'selected' : '' }}>Super
-                                            Admin
-                                        </option>
+                                        <option value="guest"
+                                            {{ old('role', $user->role) == 'guest' ? 'selected' : '' }}>
+                                            Guest</option>
+                                        <!-- Superadmin option removed for admin users -->
                                     </select>
+                                    <div class="text-muted mt-1">
+                                        <i class="ti ti-info-circle me-1"></i>
+                                        As an admin, you can only assign Guest, User, or Admin roles.
+                                    </div>
                                 @endif
                                 @error('role')
                                     <div class="invalid-feedback">{{ $message }}</div>
@@ -217,7 +238,7 @@
                                 <button type="reset" class="btn btn-outline-secondary me-1">
                                     <i class="ti ti-refresh me-1"></i>Reset
                                 </button>
-                                <button type="submit" class="btn btn-primary">
+                                <button type="submit" class="btn btn-primary" id="submitBtn">
                                     <i class="ti ti-device-floppy me-1"></i>Save Changes
                                 </button>
                             </div>
@@ -234,11 +255,70 @@
             const refreshButton = document.getElementById('refresh-rfid-tags');
             const rfidSelect = document.getElementById('rfid_uid');
             const form = document.querySelector('form');
+            const pictInput = document.getElementById('pict');
+            const previewAvatar = document.getElementById('preview-avatar');
+            const fileSizeWarning = document.getElementById('fileSizeWarning');
+            const submitBtn = document.getElementById('submitBtn');
+
+            let isFileSizeValid = true;
+
+            // File size validation and preview
+            pictInput.addEventListener('change', function(event) {
+                const file = event.target.files[0];
+
+                if (file) {
+                    // Check file size (1MB = 1024 * 1024 bytes)
+                    const maxSizeInBytes = 1024 * 1024; // 1MB
+
+                    if (file.size > maxSizeInBytes) {
+                        // Show warning
+                        fileSizeWarning.classList.remove('d-none');
+                        isFileSizeValid = false;
+
+                        // Disable submit button
+                        submitBtn.disabled = true;
+                        submitBtn.innerHTML = '<i class="ti ti-alert-triangle me-1"></i>File Terlalu Besar';
+
+                        // Clear the input
+                        pictInput.value = '';
+
+                        return;
+                    } else {
+                        // Hide warning and enable submit
+                        fileSizeWarning.classList.add('d-none');
+                        isFileSizeValid = true;
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = '<i class="ti ti-device-floppy me-1"></i>Save Changes';
+                    }
+
+                    // Preview the image
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        previewAvatar.style.backgroundImage = `url(${e.target.result})`;
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    // Reset when no file selected
+                    fileSizeWarning.classList.add('d-none');
+                    isFileSizeValid = true;
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="ti ti-device-floppy me-1"></i>Save Changes';
+                }
+            });
 
             // Handle form submission with AJAX and toast
             if (form) {
                 form.addEventListener('submit', function(e) {
                     e.preventDefault(); // Prevent default form submission
+
+                    // Check if file size is valid
+                    if (!isFileSizeValid) {
+                        if (window.UnifiedToastSystem) {
+                            window.UnifiedToastSystem.error(
+                                'Silakan pilih file gambar dengan ukuran maksimal 1MB.');
+                        }
+                        return false;
+                    }
 
                     const submitBtn = form.querySelector('button[type="submit"]');
                     const formData = new FormData(form);

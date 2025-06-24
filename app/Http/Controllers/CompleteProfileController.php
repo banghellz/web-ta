@@ -38,7 +38,11 @@ class CompleteProfileController extends Controller
             'nim' => 'required|integer|min:0|unique:user_details,nim',
             'no_koin' => 'required|numeric|digits:4', // Changed to require exactly 4 digits
             'prodi' => 'required|string|max:50',
-            'pict' => 'nullable|image|mimes:jpg,jpeg,png|max:10480', // Made optional since we can use Google photo
+            'pict' => 'nullable|image|mimes:jpg,jpeg,png|max:1024', // Changed to 1MB (1024 KB)
+        ], [
+            'pict.max' => 'Ukuran file gambar tidak boleh lebih dari 1MB.',
+            'pict.image' => 'File yang diupload harus berupa gambar.',
+            'pict.mimes' => 'Format gambar harus JPG, JPEG, atau PNG.',
         ]);
 
         try {
@@ -237,7 +241,7 @@ class CompleteProfileController extends Controller
     }
 
     /**
-     * Handle file upload
+     * Handle file upload with size validation
      */
     private function handleFileUpload($file)
     {
@@ -249,6 +253,12 @@ class CompleteProfileController extends Controller
 
         if (!is_writable($uploadPath)) {
             throw new \Exception('Direktori upload tidak dapat ditulis. Silakan hubungi administrator.');
+        }
+
+        // Additional size check (1MB = 1024 * 1024 bytes)
+        $maxSizeInBytes = 1024 * 1024; // 1MB in bytes
+        if ($file->getSize() > $maxSizeInBytes) {
+            throw new \Exception('Ukuran file gambar tidak boleh lebih dari 1MB.');
         }
 
         $filename = uniqid() . '.' . $file->getClientOriginalExtension();

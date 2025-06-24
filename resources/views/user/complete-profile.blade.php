@@ -52,7 +52,7 @@
                             @endif
 
                             <form method="POST" action="{{ route('user.complete-profile.store') }}"
-                                enctype="multipart/form-data">
+                                enctype="multipart/form-data" id="profileForm">
                                 @csrf
 
                                 <!-- Profile Picture Section -->
@@ -67,7 +67,24 @@
                                             <input type="file" name="pict" id="pict"
                                                 class="form-control @error('pict') is-invalid @enderror"
                                                 accept="image/jpeg,image/png,image/jpg">
-                                            <div class="form-hint">JPG, JPEG, or PNG format. Maximum file size: 2MB.
+
+                                            <!-- File size warning alert -->
+                                            <div class="alert alert-warning mt-2 d-none" id="fileSizeWarning">
+                                                <div class="d-flex">
+                                                    <div>
+                                                        <i class="ti ti-alert-triangle me-2"></i>
+                                                    </div>
+                                                    <div>
+                                                        <strong>File terlalu besar!</strong>
+                                                        <div class="text-secondary">
+                                                            Ukuran file yang dipilih melebihi 1MB. Silakan pilih file
+                                                            yang lebih kecil.
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="form-hint">JPG, JPEG, or PNG format. Maximum file size: 1MB.
                                                 Your Google Account photo will be used automatically.</div>
                                             @error('pict')
                                                 <div class="invalid-feedback">{{ $message }}</div>
@@ -144,7 +161,7 @@
                                 </a>
                             </div>
                             <div>
-                                <button type="submit" class="btn btn-primary">
+                                <button type="submit" class="btn btn-primary" id="submitBtn">
                                     <i class="ti ti-check me-1"></i>Save Profile
                                 </button>
                             </div>
@@ -163,16 +180,67 @@
                 const pictInput = document.getElementById('pict');
                 const previewAvatar = document.getElementById('preview-avatar');
                 const noKoinInput = document.getElementById('no_koin');
+                const fileSizeWarning = document.getElementById('fileSizeWarning');
+                const submitBtn = document.getElementById('submitBtn');
+                const profileForm = document.getElementById('profileForm');
 
-                // Preview uploaded image
+                let isFileSizeValid = true;
+
+                // Preview uploaded image and validate file size
                 pictInput.addEventListener('change', function(event) {
                     const file = event.target.files[0];
+
                     if (file) {
+                        // Check file size (1MB = 1024 * 1024 bytes)
+                        const maxSizeInBytes = 1024 * 1024; // 1MB
+
+                        if (file.size > maxSizeInBytes) {
+                            // Show warning
+                            fileSizeWarning.classList.remove('d-none');
+                            isFileSizeValid = false;
+
+                            // Disable submit button
+                            submitBtn.disabled = true;
+                            submitBtn.innerHTML = '<i class="ti ti-alert-triangle me-1"></i>File Terlalu Besar';
+
+                            // Clear the input
+                            pictInput.value = '';
+
+                            // Show toast notification if available
+                            if (window.UnifiedToastSystem) {
+                                window.UnifiedToastSystem.error(
+                                    `File terlalu besar! Ukuran file: ${(file.size / (1024 * 1024)).toFixed(2)}MB. Maksimal 1MB.`
+                                );
+                            }
+
+                            return;
+                        } else {
+                            // Hide warning and enable submit
+                            fileSizeWarning.classList.add('d-none');
+                            isFileSizeValid = true;
+                            submitBtn.disabled = false;
+                            submitBtn.innerHTML = '<i class="ti ti-check me-1"></i>Save Profile';
+                        }
+
+                        // Preview the image
                         const reader = new FileReader();
                         reader.onload = function(e) {
                             previewAvatar.style.backgroundImage = `url(${e.target.result})`;
                         };
                         reader.readAsDataURL(file);
+
+                        // Show success toast for valid file
+                        if (window.UnifiedToastSystem) {
+                            window.UnifiedToastSystem.success(
+                                `File berhasil dipilih! Ukuran: ${(file.size / (1024 * 1024)).toFixed(2)}MB`
+                            );
+                        }
+                    } else {
+                        // Reset when no file selected
+                        fileSizeWarning.classList.add('d-none');
+                        isFileSizeValid = true;
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = '<i class="ti ti-check me-1"></i>Save Profile';
                     }
                 });
 
@@ -189,15 +257,40 @@
                     e.target.value = value;
                 });
 
-                // Handle form submission to format no_koin
-                document.querySelector('form').addEventListener('submit', function(e) {
+                // Handle form submission
+                profileForm.addEventListener('submit', function(e) {
+                    // Check if file size is valid
+                    if (!isFileSizeValid) {
+                        e.preventDefault();
+                        if (window.UnifiedToastSystem) {
+                            window.UnifiedToastSystem.error(
+                                'Silakan pilih file gambar dengan ukuran maksimal 1MB.');
+                        }
+                        return false;
+                    }
+
+                    // Format no_koin
                     const noKoinValue = noKoinInput.value;
                     if (noKoinValue) {
                         // Pad with zeros to make it 4 digits
                         const paddedValue = noKoinValue.padStart(4, '0');
                         noKoinInput.value = paddedValue;
                     }
+
+                    // Show loading state
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML =
+                        '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Menyimpan...';
                 });
+
+                // Utility function to format file size
+                function formatFileSize(bytes) {
+                    if (bytes === 0) return '0 Bytes';
+                    const k = 1024;
+                    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                    const i = Math.floor(Math.log(bytes) / Math.log(k));
+                    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+                }
 
                 // Show success message if any
                 @if (session('success'))
@@ -210,6 +303,19 @@
                 @if (session('error'))
                     if (window.UnifiedToastSystem) {
                         window.UnifiedToastSystem.error('{{ session('error') }}');
+                    }
+                @endif
+
+                // Show email notification messages
+                @if (session('email_sent'))
+                    if (window.UnifiedToastSystem) {
+                        window.UnifiedToastSystem.info('{{ session('email_sent') }}');
+                    }
+                @endif
+
+                @if (session('email_failed'))
+                    if (window.UnifiedToastSystem) {
+                        window.UnifiedToastSystem.warning('{{ session('email_failed') }}');
                     }
                 @endif
             });

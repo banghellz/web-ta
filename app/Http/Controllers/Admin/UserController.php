@@ -21,9 +21,9 @@ class UserController extends Controller
 {
     public function index()
     {
-        // Get user statistics
-        $totalUsers = User::count();
-        $adminUsers = User::whereIn('role', ['admin', 'superadmin'])->count();
+        // Get user statistics (exclude superadmin from admin view)
+        $totalUsers = User::where('role', '!=', 'superadmin')->count();
+        $adminUsers = User::where('role', 'admin')->count();
         $guestUsers = User::where('role', 'guest')->count();
 
         return view('admin.users.index', [
@@ -37,13 +37,13 @@ class UserController extends Controller
 
     public function getData()
     {
-        $users = User::query()->with('detail');
+        // Admin can only see non-superadmin users
+        $users = User::query()->with('detail')->where('role', '!=', 'superadmin');
         $currentUserId = auth()->user()->uuid;
 
         return DataTables::of($users)
             ->addIndexColumn()
             ->addColumn('name_link', function ($user) {
-
                 return '<div class="d-flex align-items-center">' .
                     '<div>' .
                     '<a href="javascript:void(0);" class="name-detail text-decoration-none fw-medium" data-id="' . $user->uuid . '">' . $user->name . '</a>' .
@@ -52,12 +52,12 @@ class UserController extends Controller
                     '</div>';
             })
             ->addColumn('role_select', function ($user) use ($currentUserId) {
-                $roles = ['guest', 'user', 'admin', 'super'];
+                // Admin can only manage guest, user, and admin roles (NOT superadmin)
+                $roles = ['guest', 'user', 'admin'];
                 $roleColors = [
                     'guest' => 'secondary',
                     'user' => 'primary',
-                    'admin' => 'warning',
-                    'superadmin' => 'danger'
+                    'admin' => 'warning'
                 ];
 
                 // If this is the current user, disable the select
@@ -145,8 +145,8 @@ class UserController extends Controller
             })
             ->with([
                 'stats' => [
-                    'total_users' => User::count(),
-                    'admin_users' => User::whereIn('role', ['admin', 'superadmin'])->count(),
+                    'total_users' => User::where('role', '!=', 'superadmin')->count(),
+                    'admin_users' => User::where('role', 'admin')->count(),
                     'guest_users' => User::where('role', 'guest')->count(),
                 ]
             ])
@@ -158,10 +158,18 @@ class UserController extends Controller
     {
         $request->validate([
             'user_id' => 'required|exists:users,uuid',
-            'role' => 'required|in:guest,user,admin,admin'
+            'role' => 'required|in:guest,user,admin' // Admin cannot set superadmin role
         ]);
 
         $user = User::where('uuid', $request->user_id)->firstOrFail();
+
+        // Prevent admin from modifying superadmin users
+        if ($user->role === 'superadmin') {
+            return response()->json([
+                'success' => false,
+                'message' => 'You cannot modify Super Admin users'
+            ], 403);
+        }
 
         // Prevent user from changing their own role
         if ($user->uuid === auth()->user()->uuid) {
@@ -182,15 +190,20 @@ class UserController extends Controller
     }
 
     /**
-     * Show user details
-     */
-    /**
      * Show user details dengan sync koin
      */
     public function show($uuid)
     {
         try {
             $user = User::with('detail.borrowedItems')->where('uuid', $uuid)->firstOrFail();
+
+            // Prevent admin from viewing superadmin details
+            if ($user->role === 'superadmin') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You cannot view Super Admin details'
+                ], 403);
+            }
 
             // Sync koin jika user bukan admin dan memiliki detail
             if ($user->detail) {
@@ -248,12 +261,19 @@ class UserController extends Controller
             ], 500);
         }
     }
+
     /**
      * Show edit form
      */
     public function edit($uuid)
     {
         $user = User::with('detail')->where('uuid', $uuid)->firstOrFail();
+
+        // Prevent admin from editing superadmin users
+        if ($user->role === 'superadmin') {
+            return redirect()->route('admin.users.index')
+                ->with('error', 'You cannot edit Super Admin users');
+        }
 
         // Get available RFID tags and the current user's RFID tag
         $availableRfidTags = RfidTag::where('status', 'Available')->get();
@@ -280,6 +300,21 @@ class UserController extends Controller
      */
     public function update(Request $request, $uuid)
     {
+        // Get user first to check if it's superadmin
+        $user = User::where('uuid', $uuid)->firstOrFail();
+
+        // Prevent admin from updating superadmin users
+        if ($user->role === 'superadmin') {
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You cannot modify Super Admin users'
+                ], 403);
+            }
+            return redirect()->route('admin.users.index')
+                ->with('error', 'You cannot modify Super Admin users');
+        }
+
         $validationRules = [
             'name' => 'required|string|max:255',
             'email' => [
@@ -288,12 +323,12 @@ class UserController extends Controller
                 'max:255',
                 Rule::unique('users')->ignore($uuid, 'uuid')
             ],
-            'role' => 'required|in:superadmin,user,admin,guest',
+            'role' => 'required|in:user,admin,guest', // Admin cannot set superadmin role
             'nim' => 'nullable|string|max:20',
             'no_koin' => 'nullable|string|max:50',
             'prodi' => 'nullable|string|max:100',
             'rfid_uid' => 'nullable|string|exists:rfid_tags,uid',
-            'pict' => 'nullable|image|mimes:jpeg,png,jpg|max:10240' // Max 10MB
+            'pict' => 'nullable|image|mimes:jpeg,png,jpg|max:1024' // Changed to 1MB
         ];
 
         try {
@@ -307,9 +342,6 @@ class UserController extends Controller
             }
             throw $e;
         }
-
-        // Get user
-        $user = User::where('uuid', $uuid)->firstOrFail();
 
         // Prevent user from changing their own role
         if ($user->uuid === auth()->user()->uuid && $request->role !== $user->role) {
@@ -438,6 +470,14 @@ class UserController extends Controller
 
         $user = User::where('uuid', $uuid)->firstOrFail();
 
+        // Prevent admin from deleting superadmin users
+        if ($user->role === 'superadmin') {
+            return response()->json([
+                'success' => false,
+                'message' => 'You cannot delete Super Admin users'
+            ], 403);
+        }
+
         // Prevent user from deleting their own account
         if ($user->uuid === auth()->user()->uuid) {
             return response()->json([
@@ -499,6 +539,14 @@ class UserController extends Controller
     {
         $user = User::with('detail')->where('uuid', $uuid)->firstOrFail();
 
+        // Prevent admin from unassigning RFID from superadmin users
+        if ($user->role === 'superadmin') {
+            return response()->json([
+                'success' => false,
+                'message' => 'You cannot modify Super Admin RFID assignments'
+            ], 403);
+        }
+
         if ($user->detail && $user->detail->rfid_uid) {
             // Mark RFID tag as available
             $rfidTag = RfidTag::where('uid', $user->detail->rfid_uid)->first();
@@ -520,17 +568,22 @@ class UserController extends Controller
             'message' => 'No RFID tag assigned to this user'
         ], 400);
     }
+
     /**
      * Get fresh coin information for a user
-     * 
-     * @param string $uuid
-     * @return \Illuminate\Http\JsonResponse
      */
     public function getCoinInfo($uuid)
     {
         try {
-            // FIX: Gunakan where('uuid') bukan find()
             $user = User::with('detail.borrowedItems')->where('uuid', $uuid)->firstOrFail();
+
+            // Prevent admin from viewing superadmin coin info
+            if ($user->role === 'superadmin') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You cannot view Super Admin coin information'
+                ], 403);
+            }
 
             $userDetail = $user->detail;
 
@@ -544,7 +597,7 @@ class UserController extends Controller
             // Check if user is admin
             $adminRoles = [
                 'admin',
-                'admin',
+                'superadmin',
                 'super_admin',
                 'Admin',
                 'SuperAdmin',
@@ -584,15 +637,19 @@ class UserController extends Controller
 
     /**
      * Sync user koin berdasarkan jumlah item yang dipinjam
-     * 
-     * @param string $uuid (BUKAN $userId)
-     * @return \Illuminate\Http\JsonResponse
      */
     public function syncKoin($uuid)
     {
         try {
-            // FIX: Gunakan where('uuid') bukan find(), parameter juga $uuid bukan $userId
             $user = User::with('detail.borrowedItems')->where('uuid', $uuid)->firstOrFail();
+
+            // Prevent admin from syncing superadmin coins
+            if ($user->role === 'superadmin') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You cannot sync Super Admin coins'
+                ], 403);
+            }
 
             $userDetail = $user->detail;
 
@@ -639,8 +696,8 @@ class UserController extends Controller
             $userDetail->refresh();
 
             Log::info('User koin synchronized by admin', [
-                'user_id' => $user->id, // Database ID untuk internal
-                'user_uuid' => $user->uuid, // UUID untuk tracking
+                'user_id' => $user->id,
+                'user_uuid' => $user->uuid,
                 'user_name' => $user->name,
                 'old_koin' => $oldKoin,
                 'new_koin' => $userDetail->koin,
@@ -665,7 +722,7 @@ class UserController extends Controller
             ]);
         } catch (\Exception $e) {
             Log::error('Failed to sync user koin by admin: ' . $e->getMessage(), [
-                'uuid' => $uuid, // Log UUID yang diterima
+                'uuid' => $uuid,
                 'admin_id' => auth()->id(),
                 'trace' => $e->getTraceAsString()
             ]);

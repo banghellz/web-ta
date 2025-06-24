@@ -15,18 +15,6 @@
                         Track tools that have been marked as missing
                     </div>
                 </div>
-                <div class="col-auto">
-                    <div class="btn-list">
-                        <button id="refresh-btn" class="btn btn-primary">
-                            <i class="ti ti-refresh me-1"></i>
-                            Refresh
-                        </button>
-                        <a href="{{ route('user.missing-tools.export') }}" class="btn btn-outline-primary">
-                            <i class="ti ti-download me-1"></i>
-                            Export CSV
-                        </a>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
