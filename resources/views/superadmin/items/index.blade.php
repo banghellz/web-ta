@@ -441,6 +441,14 @@
                 }
 
                 // === CHECK ONLY STATUS CHANGES ===
+                // Tracking untuk average delay calculation
+                let delayTracker = {
+                    delays: [],
+                    changeCount: 0,
+                    totalDelay: 0,
+                    averageDelay: 0
+                };
+
                 function checkStatusUpdates() {
                     // Catat waktu mulai check
                     const checkStartTime = performance.now();
@@ -509,11 +517,40 @@
 
                                         // Hitung delay jika server timestamp tersedia
                                         let delayInfo = '';
+                                        let currentDelay = 0;
+
                                         if (item.updated_at) {
                                             const serverChangeTime = new Date(item.updated_at);
                                             const detectionTime = new Date();
-                                            const delay = detectionTime - serverChangeTime;
-                                            delayInfo = ` [Delay: ${delay}ms]`;
+                                            currentDelay = detectionTime - serverChangeTime;
+                                            delayInfo = ` [Delay: ${currentDelay}ms]`;
+
+                                            // Track delay untuk average calculation
+                                            delayTracker.delays.push(currentDelay);
+                                            delayTracker.changeCount++;
+                                            delayTracker.totalDelay += currentDelay;
+
+                                            // Hitung dan tampilkan average setiap 10 perubahan
+                                            if (delayTracker.changeCount % 10 === 0) {
+                                                delayTracker.averageDelay = delayTracker
+                                                    .totalDelay / delayTracker.changeCount;
+                                                const last10Average = delayTracker.delays.slice(-10)
+                                                    .reduce((a, b) => a + b, 0) / 10;
+
+                                                console.log(
+                                                    `📊 AVERAGE DELAY REPORT (${delayTracker.changeCount} changes):`
+                                                );
+                                                console.log(
+                                                    `   📈 Overall Average: ${delayTracker.averageDelay.toFixed(2)}ms`
+                                                );
+                                                console.log(
+                                                    `   🔟 Last 10 Changes Average: ${last10Average.toFixed(2)}ms`
+                                                );
+                                                console.log(
+                                                    `   📊 Min/Max in last 10: ${Math.min(...delayTracker.delays.slice(-10))}ms / ${Math.max(...delayTracker.delays.slice(-10))}ms`
+                                                );
+                                                console.log('─'.repeat(50));
+                                            }
                                         }
 
                                         console.log(
