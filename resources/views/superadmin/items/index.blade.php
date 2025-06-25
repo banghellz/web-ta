@@ -408,7 +408,7 @@
                 let isPollingEnabled = true;
                 let pollingFailureCount = 0;
 
-                const POLLING_INTERVAL = 500; // 1 seconds
+                const POLLING_INTERVAL = 1500; // 1 seconds
                 const MAX_FAILURES = 3;
 
                 // Store current item statuses for comparison
