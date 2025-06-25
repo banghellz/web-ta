@@ -522,8 +522,13 @@
                                         if (item.updated_at) {
                                             const serverChangeTime = new Date(item.updated_at);
                                             const detectionTime = new Date();
-                                            currentDelay = detectionTime - serverChangeTime;
+                                            currentDelay = Math.abs(detectionTime.getTime() -
+                                                serverChangeTime.getTime());
                                             delayInfo = ` [Delay: ${currentDelay}ms]`;
+
+                                            console.log(
+                                                `🔍 Debug timestamps - Server: ${serverChangeTime.toISOString()}, Detection: ${detectionTime.toISOString()}, Delay: ${currentDelay}ms`
+                                                );
 
                                             // Track delay untuk average calculation
                                             delayTracker.delays.push(currentDelay);
@@ -548,6 +553,9 @@
                                                 );
                                                 console.log(
                                                     `   📊 Min/Max in last 10: ${Math.min(...delayTracker.delays.slice(-10))}ms / ${Math.max(...delayTracker.delays.slice(-10))}ms`
+                                                );
+                                                console.log(
+                                                    `   🔍 Debug - Total delay: ${delayTracker.totalDelay}ms, Count: ${delayTracker.changeCount}`
                                                 );
                                                 console.log('─'.repeat(50));
                                             }
