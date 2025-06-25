@@ -486,7 +486,7 @@
 
                                 console.log(`🔄 Status changes detected at ${changeDetectedTime}`);
 
-                                // Log detail perubahan dengan delay calculation yang diperbaiki
+                                // Log detail perubahan dengan debug timestamp
                                 if (response.changed_items && response.changed_items.length > 0) {
                                     console.group(
                                         `📦 ${response.changed_items.length} Item(s) Changed - Detection Delay Analysis`
@@ -508,29 +508,66 @@
                                         const prevEmoji = statusEmoji[previousStatus] || '❓';
                                         const newEmoji = statusEmoji[item.status] || '❓';
 
+                                        // DEBUG: Log raw timestamp dari server
+                                        console.log(`🔍 DEBUG Item #${item.id}:`, {
+                                            updated_at_raw: item.updated_at,
+                                            current_time: detectionTimestamp.toISOString(),
+                                            item_data: item
+                                        });
+
                                         // Hitung delay dari waktu update di database ke waktu deteksi (dalam MS)
                                         let delayInfo = '';
                                         if (item.updated_at) {
                                             try {
-                                                // Parse timestamp dari server dengan benar
-                                                const dbUpdateTime = new Date(item.updated_at);
+                                                // Coba beberapa format parsing timestamp
+                                                let dbUpdateTime;
+
+                                                // Format 1: ISO string langsung
+                                                dbUpdateTime = new Date(item.updated_at);
+
+                                                // Jika gagal, coba format lain
+                                                if (isNaN(dbUpdateTime.getTime())) {
+                                                    // Format 2: Timestamp with timezone
+                                                    dbUpdateTime = new Date(item.updated_at.replace(
+                                                        /\s/, 'T'));
+                                                }
+
+                                                console.log(
+                                                    `🕒 Parsed DB time for item #${item.id}:`, {
+                                                        original: item.updated_at,
+                                                        parsed: dbUpdateTime.toISOString(),
+                                                        isValid: !isNaN(dbUpdateTime.getTime())
+                                                    });
 
                                                 // Validasi apakah parsing berhasil
                                                 if (isNaN(dbUpdateTime.getTime())) {
-                                                    delayInfo = ' ❓ Delay: invalid timestamp';
+                                                    delayInfo =
+                                                    ' ❓ Delay: invalid timestamp format';
                                                 } else {
                                                     const delayMs = detectionTimestamp.getTime() -
                                                         dbUpdateTime.getTime();
 
-                                                    // Pastikan delay masuk akal (tidak negatif dan tidak terlalu besar)
+                                                    console.log(
+                                                        `⏱️ Delay calculation for item #${item.id}:`, {
+                                                            detection_time: detectionTimestamp
+                                                                .getTime(),
+                                                            db_time: dbUpdateTime.getTime(),
+                                                            delay_ms: delayMs,
+                                                            delay_readable: `${delayMs}ms`
+                                                        });
+
+                                                    // Pastikan delay masuk akal
                                                     if (delayMs < 0) {
                                                         delayInfo =
                                                             ' ⚡ Delay: <0ms (future timestamp)';
                                                     } else if (delayMs >
-                                                        86400000) { // Lebih dari 1 hari
-                                                        delayInfo = ' 🐌 Delay: >1day (old data)';
+                                                        3600000) { // Lebih dari 1 jam
+                                                        const delayHours = (delayMs / 3600000)
+                                                            .toFixed(1);
+                                                        delayInfo =
+                                                            ` 🐌 Delay: ${delayHours}h (old data)`;
                                                     } else {
-                                                        // Format delay
+                                                        // Format delay dalam ms
                                                         let delayEmoji = '';
                                                         if (delayMs < 500) delayEmoji =
                                                         '⚡'; // Very fast
@@ -541,13 +578,13 @@
                                                         else delayEmoji = '🐌'; // Slow
 
                                                         delayInfo =
-                                                            ` ${delayEmoji} Delay: ${delayMs.toFixed(0)}ms`;
+                                                            ` ${delayEmoji} Delay: ${Math.round(delayMs)}ms`;
                                                     }
                                                 }
                                             } catch (e) {
                                                 delayInfo = ' ❓ Delay: parse error';
-                                                console.warn('Error parsing timestamp:', item
-                                                    .updated_at, e);
+                                                console.warn('Error parsing timestamp for item',
+                                                    item.id, ':', item.updated_at, e);
                                             }
                                         } else {
                                             delayInfo = ' ❓ Delay: no timestamp';
@@ -558,17 +595,24 @@
                                             );
                                     });
 
-                                    // Hitung rata-rata delay dalam MS
+                                    // Hitung rata-rata delay dalam MS (hanya untuk data fresh)
                                     const validDelays = [];
                                     response.changed_items.forEach(item => {
                                         if (item.updated_at) {
                                             try {
-                                                const dbUpdateTime = new Date(item.updated_at);
+                                                let dbUpdateTime = new Date(item.updated_at);
+
+                                                // Coba format alternatif jika gagal
+                                                if (isNaN(dbUpdateTime.getTime())) {
+                                                    dbUpdateTime = new Date(item.updated_at.replace(
+                                                        /\s/, 'T'));
+                                                }
+
                                                 if (!isNaN(dbUpdateTime.getTime())) {
                                                     const delayMs = detectionTimestamp.getTime() -
                                                         dbUpdateTime.getTime();
                                                     if (delayMs >= 0 && delayMs <=
-                                                        86400000) { // Valid range
+                                                        3600000) { // Valid range: 0ms - 1 hour
                                                         validDelays.push(delayMs);
                                                     }
                                                 }
@@ -585,11 +629,12 @@
                                         const maxDelay = Math.max(...validDelays);
 
                                         console.log(
-                                            `📊 Delay Summary: Avg: ${avgDelay}ms, Min: ${minDelay}ms, Max: ${maxDelay}ms`
+                                            `📊 Delay Summary: Avg: ${avgDelay}ms, Min: ${minDelay}ms, Max: ${maxDelay}ms (${validDelays.length} valid items)`
                                             );
                                     } else {
                                         console.log(
-                                            `📊 Delay Summary: No valid timestamps to calculate delay`);
+                                            `📊 Delay Summary: No fresh data (all items > 1 hour old or invalid timestamps)`
+                                            );
                                     }
 
                                     console.groupEnd();
