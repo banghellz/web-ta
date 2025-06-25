@@ -702,17 +702,31 @@ class ItemController extends Controller
             $hasUpdates = false;
             $updateInfo = [];
 
+            // Get latest database update timestamp
             $latestDbUpdate = $this->getLastDatabaseUpdate();
             $currentTime = now()->toISOString();
 
-            // IMPROVED: Better comparison logic
+            Log::info('Check updates called', [
+                'client_last_update' => $clientLastUpdate,
+                'latest_db_update' => $latestDbUpdate,
+                'current_time' => $currentTime
+            ]);
+
+            // IMPROVED: Better comparison logic dengan debug info
             if ($latestDbUpdate && $clientLastUpdate) {
                 try {
                     $dbTime = Carbon::parse($latestDbUpdate);
                     $clientTime = Carbon::parse($clientLastUpdate);
 
-                    // Add a small buffer to avoid false positives (1 second)
-                    $hasUpdates = $dbTime->greaterThan($clientTime->addSecond());
+                    // Remove the buffer - direct comparison
+                    $hasUpdates = $dbTime->greaterThan($clientTime);
+
+                    Log::info('Timestamp comparison', [
+                        'db_time' => $dbTime->toISOString(),
+                        'client_time' => $clientTime->toISOString(),
+                        'db_greater_than_client' => $hasUpdates,
+                        'diff_seconds' => $dbTime->diffInSeconds($clientTime, false)
+                    ]);
 
                     if ($hasUpdates) {
                         // Get recent changes for context
@@ -734,46 +748,62 @@ class ItemController extends Controller
                                 ];
                             })->toArray();
                         }
+
+                        Log::info('Updates detected', [
+                            'recent_changes_count' => $recentChanges->count(),
+                            'changes' => $updateInfo
+                        ]);
                     }
                 } catch (\Exception $e) {
-                    Log::warning('Failed to parse timestamps: ' . $e->getMessage());
-                    $hasUpdates = false;
+                    Log::warning('Failed to parse timestamps: ' . $e->getMessage(), [
+                        'client_last_update' => $clientLastUpdate,
+                        'latest_db_update' => $latestDbUpdate
+                    ]);
+                    $hasUpdates = true; // Force refresh on parse error
                 }
             } elseif ($latestDbUpdate && !$clientLastUpdate) {
+                // First load - always has updates
                 $hasUpdates = true;
+                Log::info('First load detected - forcing refresh');
             } else {
                 $hasUpdates = false;
+                Log::info('No updates detected - no database changes');
             }
 
-            // Get stats hanya jika ada update
-            $currentStats = null;
-            if ($hasUpdates) {
-                $currentStats = $this->getCurrentStats();
-            }
+            // ALWAYS get current stats for consistency
+            $currentStats = $this->getCurrentStats();
 
-            return response()->json([
+            $response = [
                 'has_updates' => $hasUpdates,
                 'current_time' => $currentTime,
                 'latest_db_update' => $latestDbUpdate,
                 'client_last_update' => $clientLastUpdate,
                 'updates' => $updateInfo,
-                'stats' => $currentStats,
+                'stats' => $currentStats, // Always include stats
                 'debug' => [
-                    'detection_method' => 'database_timestamp',
-                    'latest_item_update' => $latestDbUpdate
+                    'detection_method' => 'improved_database_timestamp',
+                    'latest_item_update' => $latestDbUpdate,
+                    'comparison_result' => $hasUpdates,
+                    'items_count' => Item::count()
                 ]
-            ]);
+            ];
+
+            Log::info('Check updates response', $response);
+
+            return response()->json($response);
         } catch (\Exception $e) {
-            Log::error('Check updates error: ' . $e->getMessage());
+            Log::error('Check updates error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
 
             return response()->json([
                 'has_updates' => false,
                 'current_time' => now()->toISOString(),
-                'error' => 'Failed to check updates: ' . $e->getMessage()
+                'error' => 'Failed to check updates: ' . $e->getMessage(),
+                'stats' => $this->getCurrentStats()
             ], 500);
         }
     }
-
     /**
      * Check if EPC already exists (for real-time validation)
      */
@@ -910,12 +940,20 @@ class ItemController extends Controller
      */
     private function updateGlobalTimestamp()
     {
+        Cache::forget('items_stats');
+        Cache::forget('global_items_timestamp');
+
+        // Update global timestamp
         Cache::put('global_items_timestamp', now()->toISOString(), 300); // 5 minutes
 
-        // Optional: Touch a random item to trigger database timestamp update
-        $randomItem = Item::inRandomOrder()->first();
-        if ($randomItem) {
-            $randomItem->touch();
+        // IMPORTANT: Touch a recent item to ensure database timestamp updates
+        $recentItem = Item::orderBy('updated_at', 'desc')->first();
+        if ($recentItem) {
+            $recentItem->touch();
+            Log::info('Touched recent item to update database timestamp', [
+                'item_id' => $recentItem->id,
+                'new_updated_at' => $recentItem->fresh()->updated_at
+            ]);
         }
     }
 }
