@@ -457,7 +457,7 @@
                 let isPollingEnabled = true;
                 let pollingFailureCount = 0;
 
-                const POLLING_INTERVAL = 5000; // 5 seconds
+                const POLLING_INTERVAL = 1000; // 5 seconds
                 const MAX_FAILURES = 3;
 
                 // Store current item statuses for comparison
@@ -519,7 +519,7 @@
                                 // Update current statuses map
                                 if (response.current_statuses) {
                                     currentItemStatuses = new Map(Object.entries(response
-                                    .current_statuses));
+                                        .current_statuses));
                                 }
                             }
                         },
