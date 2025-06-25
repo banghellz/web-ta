@@ -447,28 +447,20 @@
 
     @push('scripts')
         <script>
-            // === IMPROVED REAL-TIME SYSTEM ===
             $(function() {
-                // Ensure jQuery is loaded
-                if (typeof $ === 'undefined') {
-                    console.error('jQuery is not loaded! Real-time updates will not work.');
-                    return;
-                }
-
                 const csrfToken = "{{ csrf_token() }}";
                 let itemToDelete = null;
                 let itemToMarkMissing = null;
 
-                // === ENHANCED REAL-TIME CONFIGURATION ===
+                // === SIMPLIFIED REAL-TIME CONFIGURATION ===
                 let pollingInterval = null;
                 let clientLastUpdate = null;
                 let isPollingEnabled = true;
                 let pollingFailureCount = 0;
-                let lastKnownItemCount = {{ $totalItems ?? 0 }};
 
-                // Optimized intervals
-                const POLLING_INTERVAL = 3000; // 3 seconds
-                const MAX_FAILURES = 3;
+                // OPTIMIZED: Faster intervals for better responsiveness
+                const POLLING_INTERVAL = 3000; // 3 seconds instead of 15
+                const MAX_FAILURES = 3; // Reduced from 5
                 const RETRY_DELAY = 2000; // 2 seconds
 
                 let currentStats = {
@@ -478,11 +470,11 @@
                     missing_items: {{ $missingItems ?? 0 }}
                 };
 
-                // === ENHANCED AJAX WITH BETTER DEBUGGING ===
+                // === OPTIMIZED AJAX WITH BETTER ERROR HANDLING ===
                 function makeOptimizedRequest(url, options = {}) {
                     const defaultOptions = {
-                        timeout: 8000,
-                        retries: 1,
+                        timeout: 5000, // Reduced from 8000
+                        retries: 1, // Reduced from 2
                         retryDelay: 1000
                     };
 
@@ -491,31 +483,24 @@
                         ...options
                     };
 
+                    // Circuit breaker
+                    if (pollingFailureCount >= MAX_FAILURES) {
+                        return Promise.reject(new Error('Circuit breaker open'));
+                    }
+
                     function attemptRequest(attempt = 1) {
                         return new Promise((resolve, reject) => {
-                            console.log(`Making request to: ${url} (attempt ${attempt})`);
-
                             $.ajax({
                                     url: url,
                                     timeout: config.timeout,
-                                    cache: false, // Prevent caching
                                     ...config.ajaxOptions
                                 })
-                                .done((data, textStatus, jqXHR) => {
-                                    console.log('Request successful:', {
-                                        url,
-                                        status: jqXHR.status,
-                                        data
-                                    });
-                                    resolve(data);
-                                })
+                                .done(resolve)
                                 .fail((xhr, status, error) => {
                                     console.warn(`Request failed (attempt ${attempt}):`, {
-                                        url,
                                         status: xhr.status,
                                         statusText: xhr.statusText,
-                                        error,
-                                        responseText: xhr.responseText
+                                        error
                                     });
 
                                     if (attempt < config.retries && xhr.status >= 500) {
@@ -532,17 +517,14 @@
                     return attemptRequest();
                 }
 
-                // === ENHANCED POLLING SYSTEM ===
+                // === SIMPLIFIED POLLING SYSTEM ===
                 function startPolling() {
                     if (pollingInterval) clearInterval(pollingInterval);
 
-                    console.log(`🚀 Starting enhanced polling - interval: ${POLLING_INTERVAL}ms`);
+                    console.log(`Starting optimized polling - interval: ${POLLING_INTERVAL}ms`);
 
                     pollingInterval = setInterval(() => {
-                        if (!isPollingEnabled || document.hidden) {
-                            console.log('⏸️ Polling skipped - page hidden or disabled');
-                            return;
-                        }
+                        if (!isPollingEnabled || document.hidden) return;
                         checkForDatabaseUpdates();
                     }, POLLING_INTERVAL);
                 }
@@ -551,95 +533,63 @@
                     if (pollingInterval) {
                         clearInterval(pollingInterval);
                         pollingInterval = null;
-                        console.log('⏹️ Polling stopped');
                     }
                 }
 
                 function checkForDatabaseUpdates() {
-                    console.log('🔍 Checking for database updates...', {
-                        clientLastUpdate,
-                        isPollingEnabled,
-                        pollingFailureCount
-                    });
+                    console.log('Checking for database updates...');
+
 
                     makeOptimizedRequest("/superadmin/items/check-updates", {
                             ajaxOptions: {
                                 type: 'GET',
                                 data: {
-                                    last_update: clientLastUpdate,
-                                    _: Date.now() // Cache buster
+                                    last_update: clientLastUpdate
                                 }
                             }
                         })
                         .then(response => {
-                            console.log('✅ Update check response:', response);
+                            console.log('Update check response:', response);
 
                             pollingFailureCount = 0;
 
-                            // ALWAYS update stats regardless of has_updates
-                            if (response.stats) {
-                                updateStats(response.stats);
-                            }
-
                             if (response.has_updates) {
-                                console.log('🔄 Changes detected - refreshing table');
+                                console.log('Changes detected - refreshing table');
                                 performSilentRefresh();
 
-                                // Show subtle notification for major changes
-                                if (response.updates && response.updates.length > 0) {
-                                    console.log('📝 Recent changes:', response.updates);
-                                    showItemsToast('Data updated in real-time', 'info', true);
+                                if (response.stats) {
+                                    updateStats(response.stats);
                                 }
-                            } else {
-                                console.log('✨ No changes detected');
                             }
 
-                            // Update client timestamp
+                            // Update timestamp
                             if (response.latest_db_update) {
-                                const oldTimestamp = clientLastUpdate;
                                 clientLastUpdate = response.latest_db_update;
-
-                                if (oldTimestamp !== clientLastUpdate) {
-                                    console.log('⏰ Updated client timestamp:', {
-                                        old: oldTimestamp,
-                                        new: clientLastUpdate
-                                    });
-                                }
-                            }
-
-                            // Debug info
-                            if (response.debug) {
-                                console.log('🔧 Debug info:', response.debug);
                             }
                         })
                         .catch(xhr => {
                             pollingFailureCount++;
-                            console.error('❌ Update check failed:', {
-                                status: xhr.status,
-                                statusText: xhr.statusText,
-                                failureCount: pollingFailureCount
-                            });
+                            console.error('Update check failed:', xhr.status);
 
                             if (pollingFailureCount >= MAX_FAILURES) {
-                                console.warn('🚨 Max failures reached - temporarily stopping polling');
-                                showItemsToast('Connection lost. Auto-refresh disabled temporarily.', 'warning');
+                                showItemsToast('Connection lost. Auto-refresh disabled.', 'warning');
                                 stopPolling();
 
                                 // Retry after delay
                                 setTimeout(() => {
-                                    console.log('🔄 Retrying polling after connection failure...');
                                     pollingFailureCount = 0;
                                     startPolling();
                                 }, RETRY_DELAY * 3);
+                            } else {
+
                             }
                         });
                 }
 
-                // === ENHANCED UTILITY FUNCTIONS ===
-                function showItemsToast(message, type = 'success', isAutoUpdate = false) {
-                    if (isAutoUpdate) {
-                        console.log(`🔔 Auto-update: ${message}`);
-                        // Only show toast for significant changes
+                // === UTILITY FUNCTIONS ===
+                function showItemsToast(message, type = 'success', skipAutoUpdate = false) {
+                    if (skipAutoUpdate) {
+                        console.log('Auto-update (silent):', message);
                         return;
                     }
 
@@ -652,46 +602,9 @@
                     }
                 }
 
-                function updateStats(stats) {
-                    console.log('📊 Updating stats:', stats);
-
-                    function animateStatUpdate(element, newValue) {
-                        const $element = $(element);
-                        const currentValue = parseInt($element.text().replace(/,/g, '')) || 0;
-
-                        if (currentValue !== newValue) {
-                            console.log(`📈 Stat change: ${element} ${currentValue} → ${newValue}`);
-
-                            $element.addClass('stat-updating');
-                            $element.text(newValue.toLocaleString());
-
-                            setTimeout(() => $element.removeClass('stat-updating'), 600);
-                            return true;
-                        }
-                        return false;
-                    }
-
-                    let hasChanges = false;
-                    const elementMap = {
-                        'total_items': '#total-items',
-                        'available_items': '#available-items',
-                        'borrowed_items': '#borrowed-items',
-                        'missing_items': '#missing-items'
-                    };
-
-                    Object.keys(stats).forEach(key => {
-                        const element = elementMap[key];
-                        if (element && stats[key] !== undefined) {
-                            if (animateStatUpdate(element, stats[key])) {
-                                hasChanges = true;
-                                currentStats[key] = stats[key];
-                            }
-                        }
-                    });
-
-                    if (hasChanges) {
-                        console.log('📊 Stats updated with changes');
-                        updateLastRefreshTime();
+                function refreshNotifications() {
+                    if (typeof window.refreshNotifications === 'function') {
+                        window.refreshNotifications();
                     }
                 }
 
@@ -700,94 +613,135 @@
                     $('#last-updated-time').text(now.toLocaleTimeString());
                 }
 
-                function performSilentRefresh() {
-                    console.log('🔄 Performing silent table refresh...');
+                function updateStats(stats) {
+                    function animateStatUpdate(element, newValue) {
+                        const $element = $(element);
+                        const currentValue = parseInt($element.text().replace(/,/g, '')) || 0;
 
-                    if (!table || !table.ajax) {
-                        console.error('❌ DataTable not available for refresh');
-                        return;
+                        if (currentValue !== newValue) {
+                            $element.addClass('stat-updating');
+                            $element.text(newValue.toLocaleString());
+                            setTimeout(() => $element.removeClass('stat-updating'), 500);
+                        }
                     }
 
-                    table.ajax.reload(function(json) {
-                        console.log('✅ DataTable reloaded:', json);
+                    Object.keys(stats).forEach(key => {
+                        const elementMap = {
+                            'total_items': '#total-items',
+                            'available_items': '#available-items',
+                            'borrowed_items': '#borrowed-items',
+                            'missing_items': '#missing-items'
+                        };
 
+                        const element = elementMap[key];
+                        if (element && stats[key] !== undefined && stats[key] !== currentStats[key]) {
+                            animateStatUpdate(element, stats[key]);
+                            currentStats[key] = stats[key];
+                        }
+                    });
+                }
+
+                function updateStatusBadge($badge, newStatus) {
+                    const statusConfig = {
+                        'available': {
+                            icon: 'ti-check',
+                            class: 'bg-success',
+                            text: 'Available'
+                        },
+                        'borrowed': {
+                            icon: 'ti-user',
+                            class: 'bg-warning',
+                            text: 'Borrowed'
+                        },
+                        'missing': {
+                            icon: 'ti-alert-triangle',
+                            class: 'bg-dark',
+                            text: 'Missing'
+                        },
+                        'out_of_stock': {
+                            icon: 'ti-x',
+                            class: 'bg-danger',
+                            text: 'Out of Stock'
+                        }
+                    };
+
+                    const config = statusConfig[newStatus] || {
+                        icon: 'ti-help',
+                        class: 'bg-secondary',
+                        text: 'Unknown'
+                    };
+
+                    $badge.removeClass('bg-success bg-warning bg-dark bg-danger bg-secondary')
+                        .addClass('status-updating')
+                        .addClass(config.class)
+                        .attr('data-status', newStatus)
+                        .html(`<i class="ti ${config.icon} me-1"></i>${config.text}`);
+
+                    setTimeout(() => $badge.removeClass('status-updating'), 800);
+                }
+
+                function performSilentRefresh() {
+                    console.log('Performing silent table refresh...');
+
+                    table.ajax.reload(function(json) {
                         updateLastRefreshTime();
 
-                        // Update client timestamp from DataTable response
                         if (json && (json.refresh_timestamp || json.last_db_update)) {
                             clientLastUpdate = json.refresh_timestamp || json.last_db_update;
-                            console.log('⏰ Updated timestamp from DataTable:', clientLastUpdate);
                         }
-
-                        // Update stats from DataTable response
-                        if (json && json.stats) {
-                            updateStats(json.stats);
-                        }
-                    }, false); // false = don't reset pagination
+                    }, false);
                 }
 
                 function performManualRefresh() {
-                    console.log('🔄 Performing manual refresh...');
-
                     const $refreshBtn = $('#reload-items');
-                    $refreshBtn.addClass('refreshing').prop('disabled', true);
+
+                    $refreshBtn.addClass('refreshing');
 
                     table.ajax.reload(function(json) {
-                        $refreshBtn.removeClass('refreshing').prop('disabled', false);
+                        $refreshBtn.removeClass('refreshing');
                         showItemsToast('Data refreshed successfully!', 'success');
                         updateLastRefreshTime();
 
                         if (json && (json.refresh_timestamp || json.last_db_update)) {
                             clientLastUpdate = json.refresh_timestamp || json.last_db_update;
                         }
-
-                        if (json && json.stats) {
-                            updateStats(json.stats);
-                        }
                     }, false);
                 }
 
-                // === DATATABLE INITIALIZATION WITH ENHANCED DEBUGGING ===
+                function triggerImmediateUpdate() {
+                    console.log('Triggering immediate update...');
+                    performSilentRefresh();
+                }
+
+                // === DATATABLE INITIALIZATION ===
                 const table = $('#itemsTable').DataTable({
                     processing: true,
                     serverSide: true,
                     ajax: {
                         url: "/superadmin/items/data/items",
                         type: 'GET',
-                        timeout: 10000,
-                        cache: false, // Prevent caching
-                        data: function(d) {
-                            // Add cache buster
-                            d._ = Date.now();
-                            return d;
-                        },
+                        timeout: 10000, // Reduced timeout
                         dataSrc: function(json) {
-                            console.log('📋 DataTable loaded successfully:', json);
+                            console.log('DataTable loaded successfully');
 
-                            // Initialize or update stats
-                            if (json.stats) {
-                                updateStats(json.stats);
-                            }
-
+                            updateStats(json.stats || {});
                             updateLastRefreshTime();
 
-                            // Initialize clientLastUpdate if not set
+                            // Initialize clientLastUpdate
                             if (!clientLastUpdate && (json.refresh_timestamp || json.last_db_update)) {
                                 clientLastUpdate = json.refresh_timestamp || json.last_db_update;
-                                console.log('🏁 Initialized clientLastUpdate:', clientLastUpdate);
+                                console.log('Initialized clientLastUpdate:', clientLastUpdate);
                             }
 
                             pollingFailureCount = 0;
                             return json.data;
                         },
                         error: function(xhr, error, code) {
-                            console.error('❌ DataTable Ajax Error:', {
+                            console.error('DataTable Ajax Error:', {
                                 status: xhr.status,
                                 error: error,
-                                code: code,
-                                responseText: xhr.responseText
+                                code: code
                             });
-
                             pollingFailureCount++;
 
                             if (pollingFailureCount >= MAX_FAILURES) {
@@ -795,9 +749,7 @@
                             }
                         }
                     },
-                    columns: [
-                        // ... (kolom columns sama seperti sebelumnya)
-                        {
+                    columns: [{
                             data: 'DT_RowIndex',
                             name: 'DT_RowIndex',
                             orderable: false,
@@ -873,37 +825,56 @@
                         {
                             data: 'created_at_formatted',
                             name: 'created_at',
-                            className: 'text-center'
+                            className: 'text-center',
+                            render: function(data, type, row) {
+                                return '<div class="text-muted">' + data + '</div>';
+                            }
                         },
                         {
                             data: null,
                             name: 'actions',
                             orderable: false,
                             searchable: false,
-                            className: 'text-center',
+                            className: 'text-center align-middle',
+                            width: '80px',
                             render: function(data, type, row) {
-                                // Actions dropdown (sama seperti sebelumnya)
                                 let actions = `
                         <div class="d-flex justify-content-center align-items-center">
                             <div class="dropdown">
-                                <button class="btn btn-actions" type="button" data-bs-toggle="dropdown">
+                                <button class="btn btn-actions" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                                     <i class="ti ti-dots-vertical"></i>
                                 </button>
-                                <ul class="dropdown-menu dropdown-menu-end">
-                                    <li><a class="dropdown-item" href="/superadmin/items/${row.id}/edit">
-                                        <i class="ti ti-edit me-2"></i>Edit</a></li>`;
+                                <ul class="dropdown-menu dropdown-menu-end dropdown-menu-actions">
+                                    <li>
+                                        <a class="dropdown-item" href="/superadmin/items/${row.id}/edit">
+                                            <i class="ti ti-edit me-2"></i>Edit
+                                        </a>
+                                    </li>`;
 
                                 if (row.status === 'borrowed') {
-                                    actions += `<li><a class="dropdown-item text-warning mark-missing" href="#" 
-                                       data-item-id="${row.id}" data-item-name="${row.nama_barang}">
-                                       <i class="ti ti-alert-triangle me-2"></i>Mark as Missing</a></li>`;
+                                    actions += `
+                            <li>
+                                <a class="dropdown-item text-warning mark-missing" href="#" 
+                                   data-item-id="${row.id}" 
+                                   data-item-name="${row.nama_barang}">
+                                    <i class="ti ti-alert-triangle me-2"></i>Mark as Missing
+                                </a>
+                            </li>`;
                                 }
 
-                                actions += `<li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item text-danger delete-item" href="#" 
-                                       data-item-id="${row.id}" data-item-name="${row.nama_barang}">
-                                       <i class="ti ti-trash me-2"></i>Move to Trash</a></li>
-                                </ul></div></div>`;
+                                actions += `
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <a class="dropdown-item text-danger delete-item" href="#" 
+                                   data-item-id="${row.id}" 
+                                   data-item-name="${row.nama_barang}"
+                                   data-item-status="${row.status}">
+                                    <i class="ti ti-trash me-2"></i>Move to Trash
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>`;
 
                                 return actions;
                             }
@@ -912,32 +883,46 @@
                     order: [
                         [4, 'desc']
                     ],
-                    pageLength: 25,
-                    responsive: true,
+                    dom: '<"d-flex justify-content-between align-items-center mb-3"<"d-flex align-items-center"l><"d-flex"f>>t<"d-flex justify-content-between align-items-center mt-3"<"text-muted"i><"d-flex"p>>',
                     language: {
+                        search: '',
+                        searchPlaceholder: 'Search items...',
+                        lengthMenu: '_MENU_ entries per page',
                         processing: "Loading items...",
-                        emptyTable: "No items found"
-                    }
+                        emptyTable: "No items found",
+                        info: "Showing _START_ to _END_ of _TOTAL_ items",
+                        infoEmpty: "Showing 0 to 0 of 0 items",
+                        infoFiltered: "(filtered from _MAX_ total items)",
+                        paginate: {
+                            first: "First",
+                            last: "Last",
+                            next: "Next",
+                            previous: "Previous"
+                        }
+                    },
+                    lengthMenu: [10, 25, 50, 100],
+                    pageLength: 25,
+                    responsive: true
                 });
 
-                // Store table reference globally
                 window.itemsDataTable = table;
 
                 // === PAGE VISIBILITY HANDLING ===
                 document.addEventListener('visibilitychange', function() {
                     if (document.hidden) {
-                        console.log('👁️ Page hidden - pausing activities');
+                        console.log('Page hidden - pausing activities');
                         isPollingEnabled = false;
                     } else {
-                        console.log('👁️ Page visible - resuming activities');
+                        console.log('Page visible - resuming activities');
                         isPollingEnabled = true;
                         pollingFailureCount = Math.max(0, pollingFailureCount - 1);
 
-                        // Immediate check when page becomes visible
+
+
+                        // Resume polling after a short delay
                         setTimeout(() => {
-                            console.log('🔄 Immediate check after page visibility');
                             checkForDatabaseUpdates();
-                        }, 500);
+                        }, 1000);
                     }
                 });
 
@@ -948,35 +933,240 @@
 
                 $('#status-filter').on('change', function() {
                     const selectedStatus = $(this).val();
-                    console.log('🔍 Filtering by status:', selectedStatus);
                     table.column(3).search(selectedStatus).draw();
+                });
+
+                // Item detail modal
+                $(document).on('click', '.item-name-clickable', function(e) {
+                    e.preventDefault();
+                    const itemId = $(this).data('item-id');
+
+                    $('#item-detail-content').html(`
+            <div class="modal-loading">
+                <div class="spinner-border spinner-border-sm text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <span class="ms-2">Loading item details...</span>
+            </div>
+        `);
+
+                    $('#modal-item-detail').modal('show');
+
+                    $.ajax({
+                        url: `/superadmin/items/${itemId}`,
+                        type: 'GET',
+                        timeout: 10000,
+                        success: function(response) {
+                            if (response.success) {
+                                $('#item-detail-content').html(response.html);
+                            } else {
+                                $('#item-detail-content').html(`
+                        <div class="alert alert-danger">
+                            <i class="ti ti-alert-triangle me-2"></i>
+                            Failed to load item details. Please try again.
+                        </div>
+                    `);
+                            }
+                        },
+                        error: function(xhr, status, error) {
+                            console.error('Error loading item details:', error);
+                            $('#item-detail-content').html(`
+                    <div class="alert alert-danger">
+                        <i class="ti ti-alert-triangle me-2"></i>
+                        Error loading item details. Please try again.
+                    </div>
+                `);
+                        }
+                    });
+                });
+
+                // Delete item (SOFT DELETE)
+                $(document).on('click', '.delete-item', function(e) {
+                    e.preventDefault();
+                    const itemId = $(this).data('item-id');
+                    const itemName = $(this).data('item-name');
+                    const itemStatus = $(this).data('item-status');
+
+                    itemToDelete = {
+                        id: itemId,
+                        name: itemName
+                    };
+                    $('#item-to-delete').text(itemName);
+                    $('#modal-delete-item').modal('show');
+                });
+
+                // Mark as missing
+                $(document).on('click', '.mark-missing', function(e) {
+                    e.preventDefault();
+                    const itemId = $(this).data('item-id');
+                    const itemName = $(this).data('item-name');
+
+                    itemToMarkMissing = {
+                        id: itemId,
+                        name: itemName
+                    };
+                    $('#item-to-mark-missing').text(itemName);
+                    $('#modal-mark-missing').modal('show');
+                });
+
+                // Confirm delete (SOFT DELETE)
+                $('#btn-confirm-delete').on('click', function() {
+                    if (!itemToDelete) return;
+
+                    const $btn = $(this);
+                    const originalText = $btn.html();
+                    $btn.prop('disabled', true).html('<i class="ti ti-loader-2 me-1 spinning"></i>Moving...');
+
+                    $.ajax({
+                        url: `/superadmin/items/${itemToDelete.id}`,
+                        type: 'DELETE',
+                        data: {
+                            _token: csrfToken
+                        },
+                        timeout: 10000,
+                        success: function(response) {
+                            if (response.success) {
+                                showItemsToast(response.message ||
+                                    'Item moved to trash successfully!', 'success');
+                                refreshNotifications();
+
+                                if (response.force_update || response.trigger_refresh) {
+                                    triggerImmediateUpdate();
+                                }
+
+                                // Update stats immediately
+                                if (response.stats) {
+                                    updateStats(response.stats);
+                                }
+                            } else {
+                                showItemsToast(response.message || 'Failed to move item to trash.',
+                                    'error');
+                            }
+                        },
+                        error: function(xhr, status, error) {
+                            let errorMessage = 'Failed to move item to trash. Please try again.';
+                            if (xhr.responseJSON && xhr.responseJSON.message) {
+                                errorMessage = xhr.responseJSON.message;
+                            }
+                            showItemsToast(errorMessage, 'error');
+                        },
+                        complete: function() {
+                            $btn.prop('disabled', false).html(originalText);
+                            $('#modal-delete-item').modal('hide');
+                        }
+                    });
+                });
+
+                // Confirm mark missing
+                $('#btn-confirm-mark-missing').on('click', function() {
+                    if (!itemToMarkMissing) return;
+
+                    const $btn = $(this);
+                    const originalText = $btn.html();
+                    $btn.prop('disabled', true).html(
+                        '<i class="ti ti-loader-2 me-1 spinning"></i>Processing...');
+
+                    $.ajax({
+                        url: `/superadmin/missing-tools/mark-missing/${itemToMarkMissing.id}`,
+                        type: 'POST',
+                        data: {
+                            _token: csrfToken
+                        },
+                        timeout: 10000,
+                        success: function(response) {
+                            if (response.success) {
+                                showItemsToast(response.message ||
+                                    'Item marked as missing successfully!', 'warning');
+                                refreshNotifications();
+                                triggerImmediateUpdate();
+
+                                // Update stats immediately
+                                if (response.stats) {
+                                    updateStats(response.stats);
+                                }
+                            } else {
+                                showItemsToast(response.message ||
+                                    'Failed to mark item as missing.', 'error');
+                            }
+                        },
+                        error: function(xhr, status, error) {
+                            console.error('Error marking item as missing:', error);
+                            showItemsToast('Failed to mark item as missing. Please try again.',
+                                'error');
+                        },
+                        complete: function() {
+                            $btn.prop('disabled', false).html(originalText);
+                            $('#modal-mark-missing').modal('hide');
+                        }
+                    });
+                });
+
+                // Modal cleanup
+                $('#modal-delete-item').on('hidden.bs.modal', function() {
+                    itemToDelete = null;
+                });
+
+                $('#modal-mark-missing').on('hidden.bs.modal', function() {
+                    itemToMarkMissing = null;
+                });
+
+                // Handle successful item creation from modal
+                $(document).on('itemAdded', function(event, data) {
+                    console.log('Item added event received:', data);
+                    triggerImmediateUpdate();
+
+                    // Update stats immediately
+                    if (data.stats) {
+                        updateStats(data.stats);
+                    }
+                });
+
+                // === WINDOW UNLOAD HANDLING ===
+                window.addEventListener('beforeunload', function() {
+                    stopPolling();
                 });
 
                 // === INITIALIZATION ===
                 updateLastRefreshTime();
 
-                // Start polling immediately
-                console.log('🚀 Initializing enhanced real-time system...');
+
+                // Start optimized polling immediately
                 startPolling();
 
-                // === GLOBAL DEBUG FUNCTION ===
+                // Show Laravel session messages
+                @if (session('success'))
+                    showItemsToast("{{ session('success') }}", 'success');
+                @endif
+
+                @if (session('error'))
+                    showItemsToast("{{ session('error') }}", 'error');
+                @endif
+
+                @if (session('warning'))
+                    showItemsToast("{{ session('warning') }}", 'warning');
+                @endif
+
+                @if (session('info'))
+                    showItemsToast("{{ session('info') }}", 'info');
+                @endif
+
+                // === GLOBAL FUNCTIONS ===
+                window.refreshItemsTable = function(silent = true) {
+                    if ($('#itemsTable').DataTable()) {
+                        $('#itemsTable').DataTable().ajax.reload(null, false);
+                    }
+                };
+
                 window.debugItemsRealTime = function() {
-                    console.log('=== ENHANCED REAL-TIME DEBUG INFO ===');
+                    console.log('=== OPTIMIZED REAL-TIME DEBUG INFO ===');
                     console.log('Client Last Update:', clientLastUpdate);
                     console.log('Polling Interval:', POLLING_INTERVAL);
                     console.log('Failure Count:', pollingFailureCount);
                     console.log('Active Polling:', !!pollingInterval);
                     console.log('Polling Enabled:', isPollingEnabled);
-                    console.log('Current Stats:', currentStats);
-                    console.log('Page Hidden:', document.hidden);
-                    console.log('DataTable Available:', !!table);
-
-                    // Test immediate update check
-                    console.log('--- Testing immediate update check ---');
-                    checkForDatabaseUpdates();
                 };
 
-                console.log('✅ Enhanced real-time system initialized successfully!');
+                console.log(`Optimized real-time system initialized with ${POLLING_INTERVAL}ms interval`);
             });
         </script>
     @endpush
