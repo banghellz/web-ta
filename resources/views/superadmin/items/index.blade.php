@@ -442,6 +442,17 @@
 
                 // === CHECK ONLY STATUS CHANGES ===
                 function checkStatusUpdates() {
+                    // Catat waktu mulai check
+                    const checkStartTime = performance.now();
+                    const checkTimestamp = new Date();
+                    const timeString = checkTimestamp.toLocaleTimeString('id-ID', {
+                        hour12: false,
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit',
+                        fractionalSecondDigits: 3
+                    });
+
                     // Send current statuses to server for comparison
                     const currentStatusesObj = Object.fromEntries(currentItemStatuses);
 
@@ -454,12 +465,53 @@
                         },
                         timeout: 8000,
                         success: function(response) {
-                            console.log('Status check response:', response);
+                            // Hitung durasi request
+                            const checkEndTime = performance.now();
+                            const requestDuration = (checkEndTime - checkStartTime).toFixed(2);
+
+                            console.log(
+                                `⏱️ Status check completed in ${requestDuration}ms at ${timeString}`,
+                                response);
 
                             pollingFailureCount = 0;
 
                             if (response.has_status_changes === true) {
-                                console.log('Status changes detected');
+                                const changeTime = new Date().toLocaleTimeString('id-ID', {
+                                    hour12: false,
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                    second: '2-digit'
+                                });
+
+                                console.log(`🔄 Status changes detected at ${changeTime}`);
+
+                                // Log detail perubahan untuk setiap item
+                                if (response.changed_items && response.changed_items.length > 0) {
+                                    console.group(
+                                        `📦 ${response.changed_items.length} Item(s) Changed - ${changeTime}`
+                                        );
+
+                                    response.changed_items.forEach((item, index) => {
+                                        const previousStatus = currentItemStatuses.get(item.id
+                                            .toString()) || 'unknown';
+                                        const statusEmoji = {
+                                            'available': '✅',
+                                            'borrowed': '👤',
+                                            'missing': '⚠️',
+                                            'out_of_stock': '❌'
+                                        };
+
+                                        const prevEmoji = statusEmoji[previousStatus] || '❓';
+                                        const newEmoji = statusEmoji[item.status] || '❓';
+
+                                        console.log(
+                                            `${prevEmoji} ➡️ ${newEmoji} Item #${item.id}: ${previousStatus} → ${item.status} (${changeTime})`
+                                            );
+                                    });
+
+                                    console.groupEnd();
+                                }
+
                                 updateItemStatuses(response.changed_items || []);
 
                                 // Update stats if provided
@@ -470,20 +522,48 @@
                                 // Update current statuses map
                                 if (response.current_statuses) {
                                     currentItemStatuses = new Map(Object.entries(response
-                                        .current_statuses));
+                                    .current_statuses));
+                                }
+                            } else {
+                                // Log occasional "no changes" untuk monitoring
+                                if (Math.random() < 0.05) { // 5% chance
+                                    console.log(
+                                        `✅ No status changes - checked in ${requestDuration}ms at ${timeString}`
+                                        );
                                 }
                             }
                         },
                         error: function(xhr, status, error) {
+                            const checkEndTime = performance.now();
+                            const requestDuration = (checkEndTime - checkStartTime).toFixed(2);
+                            const errorTime = new Date().toLocaleTimeString('id-ID', {
+                                hour12: false,
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                second: '2-digit'
+                            });
+
                             pollingFailureCount++;
-                            console.error('Status check failed:', xhr.status, error);
+                            console.error(
+                                `❌ Status check failed after ${requestDuration}ms at ${errorTime}:`, xhr
+                                .status, error);
 
                             if (pollingFailureCount >= MAX_FAILURES) {
+                                console.warn(
+                                    `🔌 Connection lost at ${errorTime} after ${MAX_FAILURES} failures. Auto-refresh disabled.`
+                                    );
                                 showItemsToast('Connection lost. Auto-refresh disabled.', 'warning');
                                 stopPolling();
 
                                 // Retry after delay
                                 setTimeout(() => {
+                                    const retryTime = new Date().toLocaleTimeString('id-ID', {
+                                        hour12: false,
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                        second: '2-digit'
+                                    });
+                                    console.log(`🔄 Attempting to reconnect at ${retryTime}...`);
                                     pollingFailureCount = 0;
                                     startPolling();
                                 }, 10000);
