@@ -480,16 +480,19 @@
                                     hour12: false,
                                     hour: '2-digit',
                                     minute: '2-digit',
-                                    second: '2-digit'
+                                    second: '2-digit',
+                                    fractionalSecondDigits: 3
                                 });
 
-                                console.log(`🔄 Status changes detected at ${changeTime}`);
+                                console.log(
+                                    `🔄 Status changes detected at ${changeTime} (Request: ${requestDuration}ms)`
+                                    );
 
-                                // Log detail perubahan untuk setiap item
+                                // Log detail perubahan untuk setiap item dengan delay tracking
                                 if (response.changed_items && response.changed_items.length > 0) {
                                     console.group(
                                         `📦 ${response.changed_items.length} Item(s) Changed - ${changeTime}`
-                                        );
+                                    );
 
                                     response.changed_items.forEach((item, index) => {
                                         const previousStatus = currentItemStatuses.get(item.id
@@ -504,9 +507,18 @@
                                         const prevEmoji = statusEmoji[previousStatus] || '❓';
                                         const newEmoji = statusEmoji[item.status] || '❓';
 
+                                        // Hitung delay jika server timestamp tersedia
+                                        let delayInfo = '';
+                                        if (item.updated_at) {
+                                            const serverChangeTime = new Date(item.updated_at);
+                                            const detectionTime = new Date();
+                                            const delay = detectionTime - serverChangeTime;
+                                            delayInfo = ` [Delay: ${delay}ms]`;
+                                        }
+
                                         console.log(
-                                            `${prevEmoji} ➡️ ${newEmoji} Item #${item.id}: ${previousStatus} → ${item.status} (${changeTime})`
-                                            );
+                                            `${prevEmoji} ➡️ ${newEmoji} Item #${item.id}: ${previousStatus} → ${item.status} (${changeTime})${delayInfo}`
+                                        );
                                     });
 
                                     console.groupEnd();
@@ -525,11 +537,11 @@
                                     .current_statuses));
                                 }
                             } else {
-                                // Log occasional "no changes" untuk monitoring
+                                // Log occasional "no changes" untuk monitoring dengan milisecond
                                 if (Math.random() < 0.05) { // 5% chance
                                     console.log(
                                         `✅ No status changes - checked in ${requestDuration}ms at ${timeString}`
-                                        );
+                                    );
                                 }
                             }
                         },
@@ -540,7 +552,8 @@
                                 hour12: false,
                                 hour: '2-digit',
                                 minute: '2-digit',
-                                second: '2-digit'
+                                second: '2-digit',
+                                fractionalSecondDigits: 3
                             });
 
                             pollingFailureCount++;
@@ -551,7 +564,7 @@
                             if (pollingFailureCount >= MAX_FAILURES) {
                                 console.warn(
                                     `🔌 Connection lost at ${errorTime} after ${MAX_FAILURES} failures. Auto-refresh disabled.`
-                                    );
+                                );
                                 showItemsToast('Connection lost. Auto-refresh disabled.', 'warning');
                                 stopPolling();
 
@@ -561,7 +574,8 @@
                                         hour12: false,
                                         hour: '2-digit',
                                         minute: '2-digit',
-                                        second: '2-digit'
+                                        second: '2-digit',
+                                        fractionalSecondDigits: 3
                                     });
                                     console.log(`🔄 Attempting to reconnect at ${retryTime}...`);
                                     pollingFailureCount = 0;
