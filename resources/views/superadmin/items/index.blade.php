@@ -458,10 +458,9 @@
                 let isPollingEnabled = true;
                 let pollingFailureCount = 0;
 
-                // OPTIMIZED: Faster intervals for better responsiveness
-                const POLLING_INTERVAL = 3000; // 3 seconds instead of 15
-                const MAX_FAILURES = 3; // Reduced from 5
-                const RETRY_DELAY = 2000; // 2 seconds
+                const POLLING_INTERVAL = 5000; // 5 seconds
+                const MAX_FAILURES = 3;
+                const RETRY_DELAY = 3000;
 
                 let currentStats = {
                     total_items: {{ $totalItems ?? 0 }},
@@ -470,62 +469,15 @@
                     missing_items: {{ $missingItems ?? 0 }}
                 };
 
-                // === OPTIMIZED AJAX WITH BETTER ERROR HANDLING ===
-                function makeOptimizedRequest(url, options = {}) {
-                    const defaultOptions = {
-                        timeout: 5000, // Reduced from 8000
-                        retries: 1, // Reduced from 2
-                        retryDelay: 1000
-                    };
-
-                    const config = {
-                        ...defaultOptions,
-                        ...options
-                    };
-
-                    // Circuit breaker
-                    if (pollingFailureCount >= MAX_FAILURES) {
-                        return Promise.reject(new Error('Circuit breaker open'));
-                    }
-
-                    function attemptRequest(attempt = 1) {
-                        return new Promise((resolve, reject) => {
-                            $.ajax({
-                                    url: url,
-                                    timeout: config.timeout,
-                                    ...config.ajaxOptions
-                                })
-                                .done(resolve)
-                                .fail((xhr, status, error) => {
-                                    console.warn(`Request failed (attempt ${attempt}):`, {
-                                        status: xhr.status,
-                                        statusText: xhr.statusText,
-                                        error
-                                    });
-
-                                    if (attempt < config.retries && xhr.status >= 500) {
-                                        setTimeout(() => {
-                                            attemptRequest(attempt + 1).then(resolve).catch(reject);
-                                        }, config.retryDelay * attempt);
-                                    } else {
-                                        reject(xhr);
-                                    }
-                                });
-                        });
-                    }
-
-                    return attemptRequest();
-                }
-
-                // === SIMPLIFIED POLLING SYSTEM ===
+                // === FIXED POLLING SYSTEM ===
                 function startPolling() {
                     if (pollingInterval) clearInterval(pollingInterval);
 
-                    console.log(`Starting optimized polling - interval: ${POLLING_INTERVAL}ms`);
+                    console.log('Starting real-time polling...');
 
                     pollingInterval = setInterval(() => {
                         if (!isPollingEnabled || document.hidden) return;
-                        checkForDatabaseUpdates();
+                        checkForUpdates();
                     }, POLLING_INTERVAL);
                 }
 
@@ -536,40 +488,39 @@
                     }
                 }
 
-                function checkForDatabaseUpdates() {
-                    console.log('Checking for database updates...');
-
-
-                    makeOptimizedRequest("/superadmin/items/check-updates", {
-                            ajaxOptions: {
-                                type: 'GET',
-                                data: {
-                                    last_update: clientLastUpdate
-                                }
-                            }
-                        })
-                        .then(response => {
+                // === FIXED UPDATE CHECKER ===
+                function checkForUpdates() {
+                    $.ajax({
+                        url: "/superadmin/items/check-updates",
+                        type: 'GET',
+                        data: {
+                            last_update: clientLastUpdate
+                        },
+                        timeout: 8000,
+                        success: function(response) {
                             console.log('Update check response:', response);
 
                             pollingFailureCount = 0;
 
-                            if (response.has_updates) {
-                                console.log('Changes detected - refreshing table');
+                            // Update client timestamp FIRST
+                            if (response.latest_db_update) {
+                                clientLastUpdate = response.latest_db_update;
+                            }
+
+                            // Check for updates
+                            if (response.has_updates === true) {
+                                console.log('Updates detected - refreshing table');
                                 performSilentRefresh();
 
+                                // Update stats if provided
                                 if (response.stats) {
                                     updateStats(response.stats);
                                 }
                             }
-
-                            // Update timestamp
-                            if (response.latest_db_update) {
-                                clientLastUpdate = response.latest_db_update;
-                            }
-                        })
-                        .catch(xhr => {
+                        },
+                        error: function(xhr, status, error) {
                             pollingFailureCount++;
-                            console.error('Update check failed:', xhr.status);
+                            console.error('Update check failed:', xhr.status, error);
 
                             if (pollingFailureCount >= MAX_FAILURES) {
                                 showItemsToast('Connection lost. Auto-refresh disabled.', 'warning');
@@ -579,32 +530,58 @@
                                 setTimeout(() => {
                                     pollingFailureCount = 0;
                                     startPolling();
-                                }, RETRY_DELAY * 3);
-                            } else {
-
+                                }, RETRY_DELAY * 2);
                             }
-                        });
+                        }
+                    });
+                }
+
+                // === FIXED SILENT REFRESH ===
+                function performSilentRefresh() {
+                    if (!table) return;
+
+                    console.log('Performing silent table refresh...');
+
+                    table.ajax.reload(function(json) {
+                        console.log('Table refreshed silently');
+                        updateLastRefreshTime();
+
+                        // Update client timestamp from table response
+                        if (json && json.last_db_update) {
+                            clientLastUpdate = json.last_db_update;
+                        }
+
+                        // Update stats from table response
+                        if (json && json.stats) {
+                            updateStats(json.stats);
+                        }
+                    }, false); // false = don't reset pagination
+                }
+
+                // === MANUAL REFRESH ===
+                function performManualRefresh() {
+                    const $refreshBtn = $('#reload-items');
+                    $refreshBtn.addClass('refreshing');
+
+                    table.ajax.reload(function(json) {
+                        $refreshBtn.removeClass('refreshing');
+                        showItemsToast('Data refreshed successfully!', 'success');
+                        updateLastRefreshTime();
+
+                        if (json && json.last_db_update) {
+                            clientLastUpdate = json.last_db_update;
+                        }
+                    }, false);
                 }
 
                 // === UTILITY FUNCTIONS ===
-                function showItemsToast(message, type = 'success', skipAutoUpdate = false) {
-                    if (skipAutoUpdate) {
-                        console.log('Auto-update (silent):', message);
-                        return;
-                    }
-
+                function showItemsToast(message, type = 'success') {
                     if (window.UnifiedToastSystem) {
                         window.UnifiedToastSystem.show(type, message);
                     } else if (typeof window.showNotificationToast === 'function') {
                         window.showNotificationToast(message, type);
                     } else {
                         console.log(`${type.toUpperCase()}: ${message}`);
-                    }
-                }
-
-                function refreshNotifications() {
-                    if (typeof window.refreshNotifications === 'function') {
-                        window.refreshNotifications();
                     }
                 }
 
@@ -641,73 +618,6 @@
                     });
                 }
 
-                function updateStatusBadge($badge, newStatus) {
-                    const statusConfig = {
-                        'available': {
-                            icon: 'ti-check',
-                            class: 'bg-success',
-                            text: 'Available'
-                        },
-                        'borrowed': {
-                            icon: 'ti-user',
-                            class: 'bg-warning',
-                            text: 'Borrowed'
-                        },
-                        'missing': {
-                            icon: 'ti-alert-triangle',
-                            class: 'bg-dark',
-                            text: 'Missing'
-                        },
-                        'out_of_stock': {
-                            icon: 'ti-x',
-                            class: 'bg-danger',
-                            text: 'Out of Stock'
-                        }
-                    };
-
-                    const config = statusConfig[newStatus] || {
-                        icon: 'ti-help',
-                        class: 'bg-secondary',
-                        text: 'Unknown'
-                    };
-
-                    $badge.removeClass('bg-success bg-warning bg-dark bg-danger bg-secondary')
-                        .addClass('status-updating')
-                        .addClass(config.class)
-                        .attr('data-status', newStatus)
-                        .html(`<i class="ti ${config.icon} me-1"></i>${config.text}`);
-
-                    setTimeout(() => $badge.removeClass('status-updating'), 800);
-                }
-
-                function performSilentRefresh() {
-                    console.log('Performing silent table refresh...');
-
-                    table.ajax.reload(function(json) {
-                        updateLastRefreshTime();
-
-                        if (json && (json.refresh_timestamp || json.last_db_update)) {
-                            clientLastUpdate = json.refresh_timestamp || json.last_db_update;
-                        }
-                    }, false);
-                }
-
-                function performManualRefresh() {
-                    const $refreshBtn = $('#reload-items');
-
-                    $refreshBtn.addClass('refreshing');
-
-                    table.ajax.reload(function(json) {
-                        $refreshBtn.removeClass('refreshing');
-                        showItemsToast('Data refreshed successfully!', 'success');
-                        updateLastRefreshTime();
-
-                        if (json && (json.refresh_timestamp || json.last_db_update)) {
-                            clientLastUpdate = json.refresh_timestamp || json.last_db_update;
-                        }
-                    }, false);
-                }
-
                 function triggerImmediateUpdate() {
                     console.log('Triggering immediate update...');
                     performSilentRefresh();
@@ -720,28 +630,24 @@
                     ajax: {
                         url: "/superadmin/items/data/items",
                         type: 'GET',
-                        timeout: 10000, // Reduced timeout
+                        timeout: 10000,
                         dataSrc: function(json) {
                             console.log('DataTable loaded successfully');
 
-                            updateStats(json.stats || {});
-                            updateLastRefreshTime();
-
-                            // Initialize clientLastUpdate
-                            if (!clientLastUpdate && (json.refresh_timestamp || json.last_db_update)) {
-                                clientLastUpdate = json.refresh_timestamp || json.last_db_update;
+                            // Initialize client timestamp from first load
+                            if (!clientLastUpdate && json.last_db_update) {
+                                clientLastUpdate = json.last_db_update;
                                 console.log('Initialized clientLastUpdate:', clientLastUpdate);
                             }
 
+                            updateStats(json.stats || {});
+                            updateLastRefreshTime();
                             pollingFailureCount = 0;
+
                             return json.data;
                         },
                         error: function(xhr, error, code) {
-                            console.error('DataTable Ajax Error:', {
-                                status: xhr.status,
-                                error: error,
-                                code: code
-                            });
+                            console.error('DataTable Ajax Error:', xhr.status, error);
                             pollingFailureCount++;
 
                             if (pollingFailureCount >= MAX_FAILURES) {
@@ -910,18 +816,15 @@
                 // === PAGE VISIBILITY HANDLING ===
                 document.addEventListener('visibilitychange', function() {
                     if (document.hidden) {
-                        console.log('Page hidden - pausing activities');
+                        console.log('Page hidden - pausing polling');
                         isPollingEnabled = false;
                     } else {
-                        console.log('Page visible - resuming activities');
+                        console.log('Page visible - resuming polling');
                         isPollingEnabled = true;
-                        pollingFailureCount = Math.max(0, pollingFailureCount - 1);
 
-
-
-                        // Resume polling after a short delay
+                        // Check for updates immediately when page becomes visible
                         setTimeout(() => {
-                            checkForDatabaseUpdates();
+                            checkForUpdates();
                         }, 1000);
                     }
                 });
@@ -980,12 +883,11 @@
                     });
                 });
 
-                // Delete item (SOFT DELETE)
+                // Delete item
                 $(document).on('click', '.delete-item', function(e) {
                     e.preventDefault();
                     const itemId = $(this).data('item-id');
                     const itemName = $(this).data('item-name');
-                    const itemStatus = $(this).data('item-status');
 
                     itemToDelete = {
                         id: itemId,
@@ -1009,7 +911,7 @@
                     $('#modal-mark-missing').modal('show');
                 });
 
-                // Confirm delete (SOFT DELETE)
+                // Confirm delete
                 $('#btn-confirm-delete').on('click', function() {
                     if (!itemToDelete) return;
 
@@ -1028,13 +930,8 @@
                             if (response.success) {
                                 showItemsToast(response.message ||
                                     'Item moved to trash successfully!', 'success');
-                                refreshNotifications();
+                                triggerImmediateUpdate();
 
-                                if (response.force_update || response.trigger_refresh) {
-                                    triggerImmediateUpdate();
-                                }
-
-                                // Update stats immediately
                                 if (response.stats) {
                                     updateStats(response.stats);
                                 }
@@ -1077,10 +974,8 @@
                             if (response.success) {
                                 showItemsToast(response.message ||
                                     'Item marked as missing successfully!', 'warning');
-                                refreshNotifications();
                                 triggerImmediateUpdate();
 
-                                // Update stats immediately
                                 if (response.stats) {
                                     updateStats(response.stats);
                                 }
@@ -1115,25 +1010,21 @@
                     console.log('Item added event received:', data);
                     triggerImmediateUpdate();
 
-                    // Update stats immediately
                     if (data.stats) {
                         updateStats(data.stats);
                     }
                 });
 
-                // === WINDOW UNLOAD HANDLING ===
+                // Window unload handling
                 window.addEventListener('beforeunload', function() {
                     stopPolling();
                 });
 
                 // === INITIALIZATION ===
                 updateLastRefreshTime();
-
-
-                // Start optimized polling immediately
                 startPolling();
 
-                // Show Laravel session messages
+                // Laravel session messages
                 @if (session('success'))
                     showItemsToast("{{ session('success') }}", 'success');
                 @endif
@@ -1150,7 +1041,7 @@
                     showItemsToast("{{ session('info') }}", 'info');
                 @endif
 
-                // === GLOBAL FUNCTIONS ===
+                // Global functions
                 window.refreshItemsTable = function(silent = true) {
                     if ($('#itemsTable').DataTable()) {
                         $('#itemsTable').DataTable().ajax.reload(null, false);
@@ -1158,7 +1049,7 @@
                 };
 
                 window.debugItemsRealTime = function() {
-                    console.log('=== OPTIMIZED REAL-TIME DEBUG INFO ===');
+                    console.log('=== REAL-TIME DEBUG INFO ===');
                     console.log('Client Last Update:', clientLastUpdate);
                     console.log('Polling Interval:', POLLING_INTERVAL);
                     console.log('Failure Count:', pollingFailureCount);
@@ -1166,7 +1057,7 @@
                     console.log('Polling Enabled:', isPollingEnabled);
                 };
 
-                console.log(`Optimized real-time system initialized with ${POLLING_INTERVAL}ms interval`);
+                console.log('Real-time system initialized');
             });
         </script>
     @endpush

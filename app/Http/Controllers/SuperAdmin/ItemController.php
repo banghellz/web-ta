@@ -258,31 +258,15 @@ class ItemController extends Controller
                 'required',
                 'in:available,borrowed,missing,out_of_stock'
             ]
-        ], [
-            'epc.required' => 'EPC field is required.',
-            'epc.unique' => 'This EPC already exists in the system.',
-            'nama_barang.required' => 'Item name is required.',
-            'status.required' => 'Status is required.',
-            'status.in' => 'Invalid status selected.'
         ]);
 
         try {
             DB::beginTransaction();
 
-            $oldName = $item->nama_barang;
             $oldStatus = $item->status;
             $currentUser = Auth::user();
 
-            // Create notification
-            try {
-                if ($currentUser && class_exists('App\Models\Notification')) {
-                    Notification::toolEdited($item, $currentUser);
-                }
-            } catch (\Exception $notifError) {
-                Log::warning('Failed to create notification for item update: ' . $notifError->getMessage());
-            }
-
-            // Special handling for status changes
+            // Handle status changes
             if ($validated['status'] !== $oldStatus) {
                 if ($oldStatus === 'borrowed' && in_array($validated['status'], ['available', 'out_of_stock'])) {
                     $validated['user_id'] = null;
@@ -293,14 +277,27 @@ class ItemController extends Controller
                 }
             }
 
+            // Update item
             $item->update($validated);
+
+            // Force timestamp update to ensure real-time detection
+            $item->touch();
+
+            // Create notification
+            try {
+                if ($currentUser && class_exists('App\Models\Notification')) {
+                    Notification::toolEdited($item, $currentUser);
+                }
+            } catch (\Exception $notifError) {
+                Log::warning('Failed to create notification: ' . $notifError->getMessage());
+            }
+
             DB::commit();
 
-            // IMPROVED: Force immediate update
+            // Clear cache to ensure fresh data
             $this->clearStatsCache();
-            $this->updateGlobalTimestamp();
 
-            $successMessage = "Item '{$oldName}' has been updated successfully!";
+            $successMessage = "Item '{$item->nama_barang}' has been updated successfully!";
             $stats = $this->getCurrentStats();
 
             if ($request->expectsJson() || $request->ajax()) {
@@ -309,8 +306,7 @@ class ItemController extends Controller
                     'message' => $successMessage,
                     'item' => $item->fresh(),
                     'stats' => $stats,
-                    'trigger_refresh' => true,
-                    'force_update' => true
+                    'trigger_refresh' => true
                 ]);
             }
 
@@ -603,19 +599,8 @@ class ItemController extends Controller
                 'updated_at'
             ]);
 
-            // IMPROVED: Add better caching for status-only requests
-            if ($request->get('status_only')) {
-                $query->select(['id', 'status', 'updated_at']);
-            }
-
             return DataTables::of($query)
                 ->addIndexColumn()
-                ->addColumn('status_text', function ($item) {
-                    return $item->status_text;
-                })
-                ->addColumn('status_badge_class', function ($item) {
-                    return $item->status_badge_class;
-                })
                 ->addColumn('created_at_formatted', function ($item) {
                     return $item->created_at->format('d M Y, H:i');
                 })
@@ -623,42 +608,42 @@ class ItemController extends Controller
                     $editUrl = route('superadmin.items.edit', $item->id);
 
                     $actions = '
-                        <div class="d-flex justify-content-center align-items-center">
-                            <div class="dropdown">
-                                <button class="btn btn-actions" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                    <i class="ti ti-dots-vertical"></i>
-                                </button>
-                                <ul class="dropdown-menu dropdown-menu-end dropdown-menu-actions">
-                                    <li>
-                                        <a class="dropdown-item" href="' . $editUrl . '">
-                                            <i class="ti ti-edit me-2"></i>Edit
-                                        </a>
-                                    </li>';
+                    <div class="d-flex justify-content-center align-items-center">
+                        <div class="dropdown">
+                            <button class="btn btn-actions" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="ti ti-dots-vertical"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end dropdown-menu-actions">
+                                <li>
+                                    <a class="dropdown-item" href="' . $editUrl . '">
+                                        <i class="ti ti-edit me-2"></i>Edit
+                                    </a>
+                                </li>';
 
                     if ($item->status === 'borrowed') {
                         $actions .= '
-                            <li>
-                                <a class="dropdown-item text-warning mark-missing" href="#" 
-                                   data-item-id="' . $item->id . '" 
-                                   data-item-name="' . e($item->nama_barang) . '">
-                                    <i class="ti ti-alert-triangle me-2"></i>Mark as Missing
-                                </a>
-                            </li>';
+                        <li>
+                            <a class="dropdown-item text-warning mark-missing" href="#" 
+                               data-item-id="' . $item->id . '" 
+                               data-item-name="' . e($item->nama_barang) . '">
+                                <i class="ti ti-alert-triangle me-2"></i>Mark as Missing
+                            </a>
+                        </li>';
                     }
 
                     $actions .= '
-                            <li><hr class="dropdown-divider"></li>
-                            <li>
-                                <a class="dropdown-item text-danger delete-item" href="#" 
-                                   data-item-id="' . $item->id . '" 
-                                   data-item-name="' . e($item->nama_barang) . '"
-                                   data-item-status="' . $item->status . '">
-                                    <i class="ti ti-trash me-2"></i>Move to Trash
-                                </a>
-                            </li>
-                        </ul>
-                    </div>
-                </div>';
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <a class="dropdown-item text-danger delete-item" href="#" 
+                               data-item-id="' . $item->id . '" 
+                               data-item-name="' . e($item->nama_barang) . '"
+                               data-item-status="' . $item->status . '">
+                                <i class="ti ti-trash me-2"></i>Move to Trash
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>';
 
                     return $actions;
                 })
@@ -675,7 +660,7 @@ class ItemController extends Controller
                 ->with([
                     'stats' => $this->getCurrentStats(),
                     'last_db_update' => $this->getLastDatabaseUpdate(),
-                    'refresh_timestamp' => now()->toISOString() // IMPROVED: Add explicit refresh timestamp
+                    'timestamp' => now()->toISOString()
                 ])
                 ->rawColumns(['actions'])
                 ->make(true);
@@ -700,76 +685,67 @@ class ItemController extends Controller
         try {
             $clientLastUpdate = $request->get('last_update');
             $hasUpdates = false;
-            $updateInfo = [];
 
+            // Get latest database timestamp
             $latestDbUpdate = $this->getLastDatabaseUpdate();
-            $currentTime = now()->toISOString();
 
-            // IMPROVED: Better comparison logic
+            // Simple comparison logic
             if ($latestDbUpdate && $clientLastUpdate) {
                 try {
                     $dbTime = Carbon::parse($latestDbUpdate);
                     $clientTime = Carbon::parse($clientLastUpdate);
 
-                    // Add a small buffer to avoid false positives (1 second)
-                    $hasUpdates = $dbTime->greaterThan($clientTime->addSecond());
+                    // Check if database has newer data
+                    $hasUpdates = $dbTime->greaterThan($clientTime);
 
-                    if ($hasUpdates) {
-                        // Get recent changes for context
-                        $recentChanges = Item::where('updated_at', '>', $clientTime)
-                            ->orWhere('created_at', '>', $clientTime)
-                            ->orderBy('updated_at', 'desc')
-                            ->limit(5)
-                            ->get(['id', 'nama_barang', 'status', 'updated_at', 'created_at']);
-
-                        if ($recentChanges->isNotEmpty()) {
-                            $updateInfo = $recentChanges->map(function ($item) use ($clientTime) {
-                                $isNew = $item->created_at > $clientTime;
-                                return [
-                                    'id' => $item->id,
-                                    'name' => $item->nama_barang,
-                                    'status' => $item->status,
-                                    'action' => $isNew ? 'created' : 'updated',
-                                    'time' => $item->updated_at->toISOString()
-                                ];
-                            })->toArray();
-                        }
-                    }
+                    // Debug logging
+                    Log::info('Update check comparison', [
+                        'db_time' => $dbTime->toISOString(),
+                        'client_time' => $clientTime->toISOString(),
+                        'has_updates' => $hasUpdates
+                    ]);
                 } catch (\Exception $e) {
                     Log::warning('Failed to parse timestamps: ' . $e->getMessage());
-                    $hasUpdates = false;
+                    // If parsing fails, assume updates are needed
+                    $hasUpdates = true;
                 }
             } elseif ($latestDbUpdate && !$clientLastUpdate) {
+                // No client timestamp means first load, trigger update
                 $hasUpdates = true;
-            } else {
-                $hasUpdates = false;
             }
 
-            // Get stats hanya jika ada update
+            // Get current stats only if there are updates
             $currentStats = null;
             if ($hasUpdates) {
                 $currentStats = $this->getCurrentStats();
             }
 
-            return response()->json([
+            $response = [
                 'has_updates' => $hasUpdates,
-                'current_time' => $currentTime,
                 'latest_db_update' => $latestDbUpdate,
                 'client_last_update' => $clientLastUpdate,
-                'updates' => $updateInfo,
-                'stats' => $currentStats,
-                'debug' => [
-                    'detection_method' => 'database_timestamp',
-                    'latest_item_update' => $latestDbUpdate
-                ]
-            ]);
+                'current_time' => now()->toISOString(),
+                'stats' => $currentStats
+            ];
+
+            // Add debug info in development
+            if (config('app.debug')) {
+                $response['debug'] = [
+                    'latest_item_update' => $latestDbUpdate,
+                    'comparison_result' => $hasUpdates ? 'newer_data_found' : 'no_updates'
+                ];
+            }
+
+            return response()->json($response);
         } catch (\Exception $e) {
-            Log::error('Check updates error: ' . $e->getMessage());
+            Log::error('Check updates error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
 
             return response()->json([
                 'has_updates' => false,
                 'current_time' => now()->toISOString(),
-                'error' => 'Failed to check updates: ' . $e->getMessage()
+                'error' => 'Failed to check updates'
             ], 500);
         }
     }
@@ -809,27 +785,31 @@ class ItemController extends Controller
     private function getLastDatabaseUpdate()
     {
         try {
-            // HANYA consider item yang tidak di-soft delete
+            // Get latest timestamps from items table (excluding soft deleted)
             $latestUpdate = Item::max('updated_at');
             $latestCreated = Item::max('created_at');
 
-            $latest = null;
+            // Determine which is newer
             if ($latestUpdate && $latestCreated) {
-                $latest = Carbon::parse($latestUpdate)->greaterThan(Carbon::parse($latestCreated))
-                    ? $latestUpdate
-                    : $latestCreated;
+                $updateTime = Carbon::parse($latestUpdate);
+                $createTime = Carbon::parse($latestCreated);
+
+                $latest = $updateTime->greaterThan($createTime) ? $latestUpdate : $latestCreated;
             } elseif ($latestUpdate) {
                 $latest = $latestUpdate;
             } elseif ($latestCreated) {
                 $latest = $latestCreated;
+            } else {
+                return null;
             }
 
-            return $latest ? Carbon::parse($latest)->toISOString() : null;
+            return Carbon::parse($latest)->toISOString();
         } catch (\Exception $e) {
-            Log::error('Failed to get database timestamp: ' . $e->getMessage());
+            Log::error('Failed to get last database update: ' . $e->getMessage());
             return null;
         }
     }
+
 
     /**
      * IMPROVED: Force refresh all connected clients
