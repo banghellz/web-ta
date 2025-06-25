@@ -444,8 +444,8 @@
                 function checkStatusUpdates() {
                     // Catat waktu mulai check
                     const checkStartTime = performance.now();
-                    const checkTimestamp = new Date();
-                    const timeString = checkTimestamp.toLocaleTimeString('id-ID', {
+                    const clientDetectionTime = new Date();
+                    const timeString = clientDetectionTime.toLocaleTimeString('id-ID', {
                         hour12: false,
                         hour: '2-digit',
                         minute: '2-digit',
@@ -461,7 +461,8 @@
                         type: 'POST',
                         data: {
                             _token: csrfToken,
-                            current_statuses: currentStatusesObj
+                            current_statuses: currentStatusesObj,
+                            client_check_time: clientDetectionTime.toISOString() // Kirim waktu client check
                         },
                         timeout: 8000,
                         success: function(response) {
@@ -476,19 +477,19 @@
                             pollingFailureCount = 0;
 
                             if (response.has_status_changes === true) {
-                                const changeTime = new Date().toLocaleTimeString('id-ID', {
+                                const changeDetectedTime = new Date().toLocaleTimeString('id-ID', {
                                     hour12: false,
                                     hour: '2-digit',
                                     minute: '2-digit',
                                     second: '2-digit'
                                 });
 
-                                console.log(`🔄 Status changes detected at ${changeTime}`);
+                                console.log(`🔄 Status changes detected at ${changeDetectedTime}`);
 
-                                // Log detail perubahan untuk setiap item
+                                // Log detail perubahan dengan delay calculation
                                 if (response.changed_items && response.changed_items.length > 0) {
                                     console.group(
-                                        `📦 ${response.changed_items.length} Item(s) Changed - ${changeTime}`
+                                        `📦 ${response.changed_items.length} Item(s) Changed - Detection Delay Analysis`
                                         );
 
                                     response.changed_items.forEach((item, index) => {
@@ -504,10 +505,62 @@
                                         const prevEmoji = statusEmoji[previousStatus] || '❓';
                                         const newEmoji = statusEmoji[item.status] || '❓';
 
+                                        // Hitung delay dari waktu update di database ke waktu deteksi
+                                        let delayInfo = '';
+                                        if (item.updated_at) {
+                                            try {
+                                                const dbUpdateTime = new Date(item.updated_at);
+                                                const detectionTime = new Date();
+                                                const delayMs = detectionTime.getTime() -
+                                                    dbUpdateTime.getTime();
+                                                const delaySeconds = (delayMs / 1000).toFixed(1);
+
+                                                let delayEmoji = '';
+                                                if (delayMs < 2000) delayEmoji = '⚡'; // Very fast
+                                                else if (delayMs < 5000) delayEmoji = '🚀'; // Fast
+                                                else if (delayMs < 10000) delayEmoji =
+                                                '⏰'; // Normal
+                                                else delayEmoji = '🐌'; // Slow
+
+                                                delayInfo =
+                                                ` ${delayEmoji} Delay: ${delaySeconds}s`;
+                                            } catch (e) {
+                                                delayInfo = ' ❓ Delay: unknown';
+                                            }
+                                        }
+
                                         console.log(
-                                            `${prevEmoji} ➡️ ${newEmoji} Item #${item.id}: ${previousStatus} → ${item.status} (${changeTime})`
+                                            `${prevEmoji} ➡️ ${newEmoji} Item #${item.id}: ${previousStatus} → ${item.status}${delayInfo} (${changeDetectedTime})`
                                             );
                                     });
+
+                                    // Hitung rata-rata delay
+                                    if (response.changed_items.length > 0) {
+                                        const delays = response.changed_items.map(item => {
+                                            if (item.updated_at) {
+                                                try {
+                                                    const dbUpdateTime = new Date(item.updated_at);
+                                                    const detectionTime = new Date();
+                                                    return (detectionTime.getTime() - dbUpdateTime
+                                                        .getTime()) / 1000;
+                                                } catch (e) {
+                                                    return null;
+                                                }
+                                            }
+                                            return null;
+                                        }).filter(delay => delay !== null);
+
+                                        if (delays.length > 0) {
+                                            const avgDelay = (delays.reduce((a, b) => a + b, 0) / delays
+                                                .length).toFixed(1);
+                                            const minDelay = Math.min(...delays).toFixed(1);
+                                            const maxDelay = Math.max(...delays).toFixed(1);
+
+                                            console.log(
+                                                `📊 Delay Summary: Avg: ${avgDelay}s, Min: ${minDelay}s, Max: ${maxDelay}s`
+                                                );
+                                        }
+                                    }
 
                                     console.groupEnd();
                                 }
