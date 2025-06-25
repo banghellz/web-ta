@@ -212,6 +212,7 @@ Route::prefix('superadmin')
             Route::post('/{item}/change-status', [ItemController::class, 'changeStatus'])->name('change-status');
             Route::get('/check-epc', [ItemController::class, 'checkEpc'])->name('check-epc');
             Route::get('/check-updates', [ItemController::class, 'checkUpdates'])->name('check-updates');
+            Route::get('/check-status-updates', [ItemController::class, 'checkStatusUpdates'])->name('check-status-updates');
 
             // Real-time endpoints
             Route::post('/force-refresh', [ItemController::class, 'forceRefresh'])->name('force-refresh');

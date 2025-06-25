@@ -90,9 +90,8 @@ class ItemController extends Controller
 
             DB::commit();
 
-            // IMPROVED: Force immediate cache clear
+            // Clear cache
             $this->clearStatsCache();
-            $this->updateGlobalTimestamp();
 
             $successMessage = "Item '{$item->nama_barang}' has been added successfully!";
             $stats = $this->getCurrentStats();
@@ -108,8 +107,7 @@ class ItemController extends Controller
                         'status' => $item->status
                     ],
                     'stats' => $stats,
-                    'trigger_refresh' => true,
-                    'force_update' => true
+                    'trigger_status_check' => true // New flag for status check
                 ], 200);
             }
 
@@ -258,6 +256,12 @@ class ItemController extends Controller
                 'required',
                 'in:available,borrowed,missing,out_of_stock'
             ]
+        ], [
+            'epc.required' => 'EPC field is required.',
+            'epc.unique' => 'This EPC already exists in the system.',
+            'nama_barang.required' => 'Item name is required.',
+            'status.required' => 'Status is required.',
+            'status.in' => 'Invalid status selected.'
         ]);
 
         try {
@@ -280,9 +284,6 @@ class ItemController extends Controller
             // Update item
             $item->update($validated);
 
-            // Force timestamp update to ensure real-time detection
-            $item->touch();
-
             // Create notification
             try {
                 if ($currentUser && class_exists('App\Models\Notification')) {
@@ -294,7 +295,7 @@ class ItemController extends Controller
 
             DB::commit();
 
-            // Clear cache to ensure fresh data
+            // Clear cache
             $this->clearStatsCache();
 
             $successMessage = "Item '{$item->nama_barang}' has been updated successfully!";
@@ -306,7 +307,8 @@ class ItemController extends Controller
                     'message' => $successMessage,
                     'item' => $item->fresh(),
                     'stats' => $stats,
-                    'trigger_refresh' => true
+                    'trigger_status_check' => true, // New flag for status check
+                    'status_changed' => $validated['status'] !== $oldStatus
                 ]);
             }
 
@@ -327,6 +329,7 @@ class ItemController extends Controller
             return redirect()->back()->with('error', $errorMessage)->withInput();
         }
     }
+
 
     /**
      * SOFT DELETE: Remove the specified item from storage (soft delete)
@@ -349,14 +352,13 @@ class ItemController extends Controller
                 Log::warning('Failed to create notification for item deletion: ' . $notifError->getMessage());
             }
 
-            // SOFT DELETE - menggunakan method delete() dari model yang sudah di-override
-            $item->delete(); // Ini akan throw exception jika item sedang dipinjam/missing
+            // Soft delete
+            $item->delete();
 
             DB::commit();
 
-            // IMPROVED: Force immediate cache clear dan timestamp update
+            // Clear cache
             $this->clearStatsCache();
-            $this->updateGlobalTimestamp();
 
             $successMessage = "Item '{$itemName}' has been moved to trash successfully!";
             $stats = $this->getCurrentStats();
@@ -364,8 +366,7 @@ class ItemController extends Controller
             Log::info('Item soft deleted successfully', [
                 'item_id' => $itemId,
                 'item_name' => $itemName,
-                'deleted_by' => $currentUser->id ?? 'unknown',
-                'new_stats' => $stats
+                'deleted_by' => $currentUser->id ?? 'unknown'
             ]);
 
             if (request()->expectsJson()) {
@@ -373,13 +374,12 @@ class ItemController extends Controller
                     'success' => true,
                     'message' => $successMessage,
                     'stats' => $stats,
-                    'trigger_refresh' => true,
-                    'force_update' => true,
+                    'trigger_status_check' => true, // New flag for status check
                     'deleted_item_id' => $itemId
                 ], 200);
             }
 
-            return redirect()->route('superadmin.items.index')->with('success', $successMessage);
+            return redirect()->route('superladmin.items.index')->with('success', $successMessage);
         } catch (\Exception $e) {
             DB::rollBack();
 
@@ -388,12 +388,8 @@ class ItemController extends Controller
                 'trace' => $e->getTraceAsString()
             ]);
 
-            // Pesan error yang lebih spesifik
             $errorMessage = $e->getMessage();
-            if (strpos($errorMessage, 'borrowed') !== false || strpos($errorMessage, 'missing') !== false) {
-                // Gunakan pesan error dari model
-                $errorMessage = $e->getMessage();
-            } else {
+            if (strpos($errorMessage, 'borrowed') === false && strpos($errorMessage, 'missing') === false) {
                 $errorMessage = 'Failed to delete item. Please try again.';
             }
 
@@ -525,6 +521,93 @@ class ItemController extends Controller
             }
 
             return redirect()->back()->with('error', 'Failed to permanently delete item. Please try again.');
+        }
+    }
+
+    /**
+     * NEW: Check for status changes only - more reliable than timestamp comparison
+     */
+    public function checkStatusUpdates(Request $request)
+    {
+        try {
+            // Get current item statuses from database
+            $currentStatuses = Item::select('id', 'status', 'updated_at')
+                ->get()
+                ->keyBy('id')
+                ->map(function ($item) {
+                    return [
+                        'status' => $item->status,
+                        'updated_at' => $item->updated_at->toISOString()
+                    ];
+                })
+                ->toArray();
+
+            // Get client's current statuses from request
+            $clientStatuses = $request->get('current_statuses', []);
+
+            // Find items with status changes
+            $changedItems = [];
+            $hasChanges = false;
+
+            foreach ($currentStatuses as $itemId => $dbData) {
+                $dbStatus = $dbData['status'];
+                $clientStatus = $clientStatuses[$itemId] ?? null;
+
+                // If client doesn't have this item or status is different
+                if ($clientStatus === null || $clientStatus !== $dbStatus) {
+                    $changedItems[] = [
+                        'id' => $itemId,
+                        'status' => $dbStatus,
+                        'updated_at' => $dbData['updated_at']
+                    ];
+                    $hasChanges = true;
+                }
+            }
+
+            // Check for deleted items (items that client has but db doesn't)
+            foreach ($clientStatuses as $itemId => $clientStatus) {
+                if (!isset($currentStatuses[$itemId])) {
+                    // Item was deleted
+                    $hasChanges = true;
+                }
+            }
+
+            // Get current stats only if there are changes
+            $currentStats = null;
+            if ($hasChanges) {
+                $currentStats = $this->getCurrentStats();
+            }
+
+            // Prepare response
+            $response = [
+                'has_status_changes' => $hasChanges,
+                'changed_items' => $changedItems,
+                'current_statuses' => array_map(function ($data) {
+                    return $data['status'];
+                }, $currentStatuses),
+                'stats' => $currentStats,
+                'timestamp' => now()->toISOString()
+            ];
+
+            // Add debug info if needed
+            if (config('app.debug')) {
+                $response['debug'] = [
+                    'total_db_items' => count($currentStatuses),
+                    'total_client_items' => count($clientStatuses),
+                    'changed_count' => count($changedItems)
+                ];
+            }
+
+            return response()->json($response);
+        } catch (\Exception $e) {
+            Log::error('Check status updates error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'has_status_changes' => false,
+                'error' => 'Failed to check status updates'
+            ], 500);
         }
     }
 

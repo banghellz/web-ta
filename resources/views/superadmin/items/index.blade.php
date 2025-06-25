@@ -452,15 +452,16 @@
                 let itemToDelete = null;
                 let itemToMarkMissing = null;
 
-                // === SIMPLIFIED REAL-TIME CONFIGURATION ===
+                // === SIMPLIFIED STATUS-ONLY REFRESH ===
                 let pollingInterval = null;
-                let clientLastUpdate = null;
                 let isPollingEnabled = true;
                 let pollingFailureCount = 0;
 
                 const POLLING_INTERVAL = 5000; // 5 seconds
                 const MAX_FAILURES = 3;
-                const RETRY_DELAY = 3000;
+
+                // Store current item statuses for comparison
+                let currentItemStatuses = new Map();
 
                 let currentStats = {
                     total_items: {{ $totalItems ?? 0 }},
@@ -469,15 +470,15 @@
                     missing_items: {{ $missingItems ?? 0 }}
                 };
 
-                // === FIXED POLLING SYSTEM ===
+                // === STATUS-ONLY POLLING SYSTEM ===
                 function startPolling() {
                     if (pollingInterval) clearInterval(pollingInterval);
 
-                    console.log('Starting real-time polling...');
+                    console.log('Starting status-only polling...');
 
                     pollingInterval = setInterval(() => {
                         if (!isPollingEnabled || document.hidden) return;
-                        checkForUpdates();
+                        checkStatusUpdates();
                     }, POLLING_INTERVAL);
                 }
 
@@ -488,39 +489,43 @@
                     }
                 }
 
-                // === FIXED UPDATE CHECKER ===
-                function checkForUpdates() {
+                // === CHECK ONLY STATUS CHANGES ===
+                function checkStatusUpdates() {
+                    // Send current statuses to server for comparison
+                    const currentStatusesObj = Object.fromEntries(currentItemStatuses);
+
                     $.ajax({
-                        url: "/superadmin/items/check-updates",
-                        type: 'GET',
+                        url: "/superadmin/items/check-status-updates",
+                        type: 'POST',
                         data: {
-                            last_update: clientLastUpdate
+                            _token: csrfToken,
+                            current_statuses: currentStatusesObj
                         },
                         timeout: 8000,
                         success: function(response) {
-                            console.log('Update check response:', response);
+                            console.log('Status check response:', response);
 
                             pollingFailureCount = 0;
 
-                            // Update client timestamp FIRST
-                            if (response.latest_db_update) {
-                                clientLastUpdate = response.latest_db_update;
-                            }
-
-                            // Check for updates
-                            if (response.has_updates === true) {
-                                console.log('Updates detected - refreshing table');
-                                performSilentRefresh();
+                            if (response.has_status_changes === true) {
+                                console.log('Status changes detected');
+                                updateItemStatuses(response.changed_items || []);
 
                                 // Update stats if provided
                                 if (response.stats) {
                                     updateStats(response.stats);
                                 }
+
+                                // Update current statuses map
+                                if (response.current_statuses) {
+                                    currentItemStatuses = new Map(Object.entries(response
+                                    .current_statuses));
+                                }
                             }
                         },
                         error: function(xhr, status, error) {
                             pollingFailureCount++;
-                            console.error('Update check failed:', xhr.status, error);
+                            console.error('Status check failed:', xhr.status, error);
 
                             if (pollingFailureCount >= MAX_FAILURES) {
                                 showItemsToast('Connection lost. Auto-refresh disabled.', 'warning');
@@ -530,35 +535,74 @@
                                 setTimeout(() => {
                                     pollingFailureCount = 0;
                                     startPolling();
-                                }, RETRY_DELAY * 2);
+                                }, 10000);
                             }
                         }
                     });
                 }
 
-                // === FIXED SILENT REFRESH ===
-                function performSilentRefresh() {
-                    if (!table) return;
+                // === UPDATE ONLY CHANGED ITEM STATUSES ===
+                function updateItemStatuses(changedItems) {
+                    if (!changedItems || changedItems.length === 0) return;
 
-                    console.log('Performing silent table refresh...');
+                    console.log('Updating statuses for items:', changedItems);
 
-                    table.ajax.reload(function(json) {
-                        console.log('Table refreshed silently');
-                        updateLastRefreshTime();
+                    changedItems.forEach(item => {
+                        // Find the status badge for this item
+                        const $badge = $(`span.badge[data-item-id="${item.id}"]`);
 
-                        // Update client timestamp from table response
-                        if (json && json.last_db_update) {
-                            clientLastUpdate = json.last_db_update;
+                        if ($badge.length > 0) {
+                            updateStatusBadge($badge, item.status);
+                            console.log(`Updated status for item ${item.id}: ${item.status}`);
                         }
+                    });
 
-                        // Update stats from table response
-                        if (json && json.stats) {
-                            updateStats(json.stats);
-                        }
-                    }, false); // false = don't reset pagination
+                    // Update last refresh time
+                    updateLastRefreshTime();
                 }
 
-                // === MANUAL REFRESH ===
+                // === UPDATE STATUS BADGE ===
+                function updateStatusBadge($badge, newStatus) {
+                    const statusConfig = {
+                        'available': {
+                            icon: 'ti-check',
+                            class: 'bg-success',
+                            text: 'Available'
+                        },
+                        'borrowed': {
+                            icon: 'ti-user',
+                            class: 'bg-warning',
+                            text: 'Borrowed'
+                        },
+                        'missing': {
+                            icon: 'ti-alert-triangle',
+                            class: 'bg-dark',
+                            text: 'Missing'
+                        },
+                        'out_of_stock': {
+                            icon: 'ti-x',
+                            class: 'bg-danger',
+                            text: 'Out of Stock'
+                        }
+                    };
+
+                    const config = statusConfig[newStatus] || {
+                        icon: 'ti-help',
+                        class: 'bg-secondary',
+                        text: 'Unknown'
+                    };
+
+                    // Add subtle animation
+                    $badge.addClass('status-updating')
+                        .removeClass('bg-success bg-warning bg-dark bg-danger bg-secondary')
+                        .addClass(config.class)
+                        .attr('data-status', newStatus)
+                        .html(`<i class="ti ${config.icon} me-1"></i>${config.text}`);
+
+                    setTimeout(() => $badge.removeClass('status-updating'), 600);
+                }
+
+                // === FULL TABLE REFRESH (for manual refresh only) ===
                 function performManualRefresh() {
                     const $refreshBtn = $('#reload-items');
                     $refreshBtn.addClass('refreshing');
@@ -568,8 +612,17 @@
                         showItemsToast('Data refreshed successfully!', 'success');
                         updateLastRefreshTime();
 
-                        if (json && json.last_db_update) {
-                            clientLastUpdate = json.last_db_update;
+                        // Update current statuses map from full data
+                        if (json && json.data) {
+                            currentItemStatuses.clear();
+                            json.data.forEach(item => {
+                                currentItemStatuses.set(item.id.toString(), item.status);
+                            });
+                        }
+
+                        // Update stats
+                        if (json && json.stats) {
+                            updateStats(json.stats);
                         }
                     }, false);
                 }
@@ -618,11 +671,6 @@
                     });
                 }
 
-                function triggerImmediateUpdate() {
-                    console.log('Triggering immediate update...');
-                    performSilentRefresh();
-                }
-
                 // === DATATABLE INITIALIZATION ===
                 const table = $('#itemsTable').DataTable({
                     processing: true,
@@ -634,10 +682,12 @@
                         dataSrc: function(json) {
                             console.log('DataTable loaded successfully');
 
-                            // Initialize client timestamp from first load
-                            if (!clientLastUpdate && json.last_db_update) {
-                                clientLastUpdate = json.last_db_update;
-                                console.log('Initialized clientLastUpdate:', clientLastUpdate);
+                            // Initialize current statuses map
+                            if (json && json.data) {
+                                currentItemStatuses.clear();
+                                json.data.forEach(item => {
+                                    currentItemStatuses.set(item.id.toString(), item.status);
+                                });
                             }
 
                             updateStats(json.stats || {});
@@ -824,7 +874,7 @@
 
                         // Check for updates immediately when page becomes visible
                         setTimeout(() => {
-                            checkForUpdates();
+                            checkStatusUpdates();
                         }, 1000);
                     }
                 });
@@ -930,7 +980,12 @@
                             if (response.success) {
                                 showItemsToast(response.message ||
                                     'Item moved to trash successfully!', 'success');
-                                triggerImmediateUpdate();
+
+                                // Remove from current statuses
+                                currentItemStatuses.delete(itemToDelete.id.toString());
+
+                                // Trigger immediate status check
+                                setTimeout(() => checkStatusUpdates(), 500);
 
                                 if (response.stats) {
                                     updateStats(response.stats);
@@ -974,7 +1029,12 @@
                             if (response.success) {
                                 showItemsToast(response.message ||
                                     'Item marked as missing successfully!', 'warning');
-                                triggerImmediateUpdate();
+
+                                // Update status in map
+                                currentItemStatuses.set(itemToMarkMissing.id.toString(), 'missing');
+
+                                // Trigger immediate status check
+                                setTimeout(() => checkStatusUpdates(), 500);
 
                                 if (response.stats) {
                                     updateStats(response.stats);
@@ -1008,7 +1068,14 @@
                 // Handle successful item creation from modal
                 $(document).on('itemAdded', function(event, data) {
                     console.log('Item added event received:', data);
-                    triggerImmediateUpdate();
+
+                    // Add new item to statuses map
+                    if (data.item && data.item.id) {
+                        currentItemStatuses.set(data.item.id.toString(), data.item.status || 'available');
+                    }
+
+                    // Trigger status check
+                    setTimeout(() => checkStatusUpdates(), 500);
 
                     if (data.stats) {
                         updateStats(data.stats);
@@ -1043,21 +1110,24 @@
 
                 // Global functions
                 window.refreshItemsTable = function(silent = true) {
-                    if ($('#itemsTable').DataTable()) {
-                        $('#itemsTable').DataTable().ajax.reload(null, false);
+                    if (silent) {
+                        checkStatusUpdates();
+                    } else {
+                        performManualRefresh();
                     }
                 };
 
                 window.debugItemsRealTime = function() {
-                    console.log('=== REAL-TIME DEBUG INFO ===');
-                    console.log('Client Last Update:', clientLastUpdate);
+                    console.log('=== STATUS-ONLY REAL-TIME DEBUG ===');
                     console.log('Polling Interval:', POLLING_INTERVAL);
                     console.log('Failure Count:', pollingFailureCount);
                     console.log('Active Polling:', !!pollingInterval);
                     console.log('Polling Enabled:', isPollingEnabled);
+                    console.log('Current Item Statuses:', Object.fromEntries(currentItemStatuses));
+                    console.log('Current Stats:', currentStats);
                 };
 
-                console.log('Real-time system initialized');
+                console.log('Status-only real-time system initialized');
             });
         </script>
     @endpush
