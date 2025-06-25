@@ -297,60 +297,11 @@
                 }
             }
 
-            /* Optimized stat update animation */
-            .stat-updating {
-                animation: statUpdate 0.6s ease-in-out;
-                transform-origin: center;
-            }
-
-            @keyframes statUpdate {
-                0% {
-                    background-color: transparent;
-                    transform: scale(1);
-                }
-
-                50% {
-                    background-color: var(--tblr-green-lt);
-                    transform: scale(1.02);
-                }
-
-                100% {
-                    background-color: transparent;
-                    transform: scale(1);
-                }
-            }
-
-            /* Status badge update animation */
-            .status-updating {
-                animation: statusUpdate 0.8s ease-in-out;
-                transform-origin: center;
-            }
-
-            @keyframes statusUpdate {
-                0% {
-                    transform: scale(1);
-                }
-
-                30% {
-                    transform: scale(1.05);
-                }
-
-                100% {
-                    transform: scale(1);
-                }
-            }
-
             /* Refresh button animation */
             .btn.refreshing {
                 animation: spin 1s linear infinite;
             }
 
-            /* Performance optimization for animations */
-            .status-updating,
-            .stat-updating,
-            #connection-indicator {
-                will-change: transform, opacity;
-            }
 
             /* Dropdown actions styling */
             .dropdown-menu-actions {
@@ -457,7 +408,7 @@
                 let isPollingEnabled = true;
                 let pollingFailureCount = 0;
 
-                const POLLING_INTERVAL = 3000; // 1 seconds
+                const POLLING_INTERVAL = 500; // 1 seconds
                 const MAX_FAILURES = 3;
 
                 // Store current item statuses for comparison
