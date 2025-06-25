@@ -462,7 +462,7 @@
                         data: {
                             _token: csrfToken,
                             current_statuses: currentStatusesObj,
-                            client_check_time: clientDetectionTime.toISOString() // Kirim waktu client check
+                            client_check_time: clientDetectionTime.toISOString()
                         },
                         timeout: 8000,
                         success: function(response) {
@@ -486,11 +486,14 @@
 
                                 console.log(`🔄 Status changes detected at ${changeDetectedTime}`);
 
-                                // Log detail perubahan dengan delay calculation
+                                // Log detail perubahan dengan delay calculation yang diperbaiki
                                 if (response.changed_items && response.changed_items.length > 0) {
                                     console.group(
                                         `📦 ${response.changed_items.length} Item(s) Changed - Detection Delay Analysis`
                                         );
+
+                                    const detectionTimestamp =
+                                new Date(); // Waktu saat ini untuk semua perhitungan
 
                                     response.changed_items.forEach((item, index) => {
                                         const previousStatus = currentItemStatuses.get(item.id
@@ -505,28 +508,49 @@
                                         const prevEmoji = statusEmoji[previousStatus] || '❓';
                                         const newEmoji = statusEmoji[item.status] || '❓';
 
-                                        // Hitung delay dari waktu update di database ke waktu deteksi
+                                        // Hitung delay dari waktu update di database ke waktu deteksi (dalam MS)
                                         let delayInfo = '';
                                         if (item.updated_at) {
                                             try {
+                                                // Parse timestamp dari server dengan benar
                                                 const dbUpdateTime = new Date(item.updated_at);
-                                                const detectionTime = new Date();
-                                                const delayMs = detectionTime.getTime() -
-                                                    dbUpdateTime.getTime();
-                                                const delaySeconds = (delayMs / 1000).toFixed(1);
 
-                                                let delayEmoji = '';
-                                                if (delayMs < 2000) delayEmoji = '⚡'; // Very fast
-                                                else if (delayMs < 5000) delayEmoji = '🚀'; // Fast
-                                                else if (delayMs < 10000) delayEmoji =
-                                                '⏰'; // Normal
-                                                else delayEmoji = '🐌'; // Slow
+                                                // Validasi apakah parsing berhasil
+                                                if (isNaN(dbUpdateTime.getTime())) {
+                                                    delayInfo = ' ❓ Delay: invalid timestamp';
+                                                } else {
+                                                    const delayMs = detectionTimestamp.getTime() -
+                                                        dbUpdateTime.getTime();
 
-                                                delayInfo =
-                                                ` ${delayEmoji} Delay: ${delaySeconds}s`;
+                                                    // Pastikan delay masuk akal (tidak negatif dan tidak terlalu besar)
+                                                    if (delayMs < 0) {
+                                                        delayInfo =
+                                                            ' ⚡ Delay: <0ms (future timestamp)';
+                                                    } else if (delayMs >
+                                                        86400000) { // Lebih dari 1 hari
+                                                        delayInfo = ' 🐌 Delay: >1day (old data)';
+                                                    } else {
+                                                        // Format delay
+                                                        let delayEmoji = '';
+                                                        if (delayMs < 500) delayEmoji =
+                                                        '⚡'; // Very fast
+                                                        else if (delayMs < 2000) delayEmoji =
+                                                        '🚀'; // Fast  
+                                                        else if (delayMs < 5000) delayEmoji =
+                                                        '⏰'; // Normal
+                                                        else delayEmoji = '🐌'; // Slow
+
+                                                        delayInfo =
+                                                            ` ${delayEmoji} Delay: ${delayMs.toFixed(0)}ms`;
+                                                    }
+                                                }
                                             } catch (e) {
-                                                delayInfo = ' ❓ Delay: unknown';
+                                                delayInfo = ' ❓ Delay: parse error';
+                                                console.warn('Error parsing timestamp:', item
+                                                    .updated_at, e);
                                             }
+                                        } else {
+                                            delayInfo = ' ❓ Delay: no timestamp';
                                         }
 
                                         console.log(
@@ -534,32 +558,38 @@
                                             );
                                     });
 
-                                    // Hitung rata-rata delay
-                                    if (response.changed_items.length > 0) {
-                                        const delays = response.changed_items.map(item => {
-                                            if (item.updated_at) {
-                                                try {
-                                                    const dbUpdateTime = new Date(item.updated_at);
-                                                    const detectionTime = new Date();
-                                                    return (detectionTime.getTime() - dbUpdateTime
-                                                        .getTime()) / 1000;
-                                                } catch (e) {
-                                                    return null;
+                                    // Hitung rata-rata delay dalam MS
+                                    const validDelays = [];
+                                    response.changed_items.forEach(item => {
+                                        if (item.updated_at) {
+                                            try {
+                                                const dbUpdateTime = new Date(item.updated_at);
+                                                if (!isNaN(dbUpdateTime.getTime())) {
+                                                    const delayMs = detectionTimestamp.getTime() -
+                                                        dbUpdateTime.getTime();
+                                                    if (delayMs >= 0 && delayMs <=
+                                                        86400000) { // Valid range
+                                                        validDelays.push(delayMs);
+                                                    }
                                                 }
+                                            } catch (e) {
+                                                // Skip invalid timestamps
                                             }
-                                            return null;
-                                        }).filter(delay => delay !== null);
-
-                                        if (delays.length > 0) {
-                                            const avgDelay = (delays.reduce((a, b) => a + b, 0) / delays
-                                                .length).toFixed(1);
-                                            const minDelay = Math.min(...delays).toFixed(1);
-                                            const maxDelay = Math.max(...delays).toFixed(1);
-
-                                            console.log(
-                                                `📊 Delay Summary: Avg: ${avgDelay}s, Min: ${minDelay}s, Max: ${maxDelay}s`
-                                                );
                                         }
+                                    });
+
+                                    if (validDelays.length > 0) {
+                                        const avgDelay = Math.round(validDelays.reduce((a, b) => a + b, 0) /
+                                            validDelays.length);
+                                        const minDelay = Math.min(...validDelays);
+                                        const maxDelay = Math.max(...validDelays);
+
+                                        console.log(
+                                            `📊 Delay Summary: Avg: ${avgDelay}ms, Min: ${minDelay}ms, Max: ${maxDelay}ms`
+                                            );
+                                    } else {
+                                        console.log(
+                                            `📊 Delay Summary: No valid timestamps to calculate delay`);
                                     }
 
                                     console.groupEnd();
