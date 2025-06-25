@@ -441,12 +441,12 @@
                 }
 
                 // === CHECK ONLY STATUS CHANGES ===
-                // Tracking untuk average delay calculation
-                let delayTracker = {
-                    delays: [],
-                    changeCount: 0,
-                    totalDelay: 0,
-                    averageDelay: 0
+                // Tracking untuk average request duration calculation
+                let requestTracker = {
+                    durations: [],
+                    requestCount: 0,
+                    totalDuration: 0,
+                    averageDuration: 0
                 };
 
                 function checkStatusUpdates() {
@@ -477,6 +477,12 @@
                             const checkEndTime = performance.now();
                             const requestDuration = (checkEndTime - checkStartTime).toFixed(2);
 
+                            // Track request duration untuk average calculation
+                            const durationMs = parseFloat(requestDuration);
+                            requestTracker.durations.push(durationMs);
+                            requestTracker.requestCount++;
+                            requestTracker.totalDuration += durationMs;
+
                             console.log(
                                 `⏱️ Status check completed in ${requestDuration}ms at ${timeString}`,
                                 response);
@@ -496,7 +502,7 @@
                                     `🔄 Status changes detected at ${changeTime} (Request: ${requestDuration}ms)`
                                     );
 
-                                // Log detail perubahan untuk setiap item dengan delay tracking
+                                // Log detail perubahan untuk setiap item
                                 if (response.changed_items && response.changed_items.length > 0) {
                                     console.group(
                                         `📦 ${response.changed_items.length} Item(s) Changed - ${changeTime}`
@@ -515,56 +521,35 @@
                                         const prevEmoji = statusEmoji[previousStatus] || '❓';
                                         const newEmoji = statusEmoji[item.status] || '❓';
 
-                                        // Hitung delay jika server timestamp tersedia
-                                        let delayInfo = '';
-                                        let currentDelay = 0;
-
-                                        if (item.updated_at) {
-                                            const serverChangeTime = new Date(item.updated_at);
-                                            const detectionTime = new Date();
-                                            currentDelay = Math.abs(detectionTime.getTime() -
-                                                serverChangeTime.getTime());
-                                            delayInfo = ` [Delay: ${currentDelay}ms]`;
-
-                                            console.log(
-                                                `🔍 Debug timestamps - Server: ${serverChangeTime.toISOString()}, Detection: ${detectionTime.toISOString()}, Delay: ${currentDelay}ms`
-                                                );
-
-                                            // Track delay untuk average calculation
-                                            delayTracker.delays.push(currentDelay);
-                                            delayTracker.changeCount++;
-                                            delayTracker.totalDelay += currentDelay;
-
-                                            // Hitung dan tampilkan average setiap 10 perubahan
-                                            if (delayTracker.changeCount % 10 === 0) {
-                                                delayTracker.averageDelay = delayTracker
-                                                    .totalDelay / delayTracker.changeCount;
-                                                const last10Average = delayTracker.delays.slice(-10)
-                                                    .reduce((a, b) => a + b, 0) / 10;
-
-                                                console.log(
-                                                    `📊 AVERAGE DELAY REPORT (${delayTracker.changeCount} changes):`
-                                                );
-                                                console.log(
-                                                    `   📈 Overall Average: ${delayTracker.averageDelay.toFixed(2)}ms`
-                                                );
-                                                console.log(
-                                                    `   🔟 Last 10 Changes Average: ${last10Average.toFixed(2)}ms`
-                                                );
-                                                console.log(
-                                                    `   📊 Min/Max in last 10: ${Math.min(...delayTracker.delays.slice(-10))}ms / ${Math.max(...delayTracker.delays.slice(-10))}ms`
-                                                );
-                                                console.log(
-                                                    `   🔍 Debug - Total delay: ${delayTracker.totalDelay}ms, Count: ${delayTracker.changeCount}`
-                                                );
-                                                console.log('─'.repeat(50));
-                                            }
-                                        }
-
                                         console.log(
-                                            `${prevEmoji} ➡️ ${newEmoji} Item #${item.id}: ${previousStatus} → ${item.status} (${changeTime})${delayInfo}`
+                                            `${prevEmoji} ➡️ ${newEmoji} Item #${item.id}: ${previousStatus} → ${item.status} (${changeTime}) [Request: ${requestDuration}ms]`
                                         );
                                     });
+
+                                    // Hitung dan tampilkan average setiap 10 request
+                                    if (requestTracker.requestCount % 10 === 0) {
+                                        requestTracker.averageDuration = requestTracker.totalDuration /
+                                            requestTracker.requestCount;
+                                        const last10Average = requestTracker.durations.slice(-10).reduce((a,
+                                            b) => a + b, 0) / 10;
+
+                                        console.log(
+                                            `📊 REQUEST PERFORMANCE REPORT (${requestTracker.requestCount} requests):`
+                                        );
+                                        console.log(
+                                            `   📈 Overall Average: ${requestTracker.averageDuration.toFixed(2)}ms`
+                                        );
+                                        console.log(
+                                            `   🔟 Last 10 Requests Average: ${last10Average.toFixed(2)}ms`
+                                        );
+                                        console.log(
+                                            `   📊 Min/Max in last 10: ${Math.min(...requestTracker.durations.slice(-10)).toFixed(2)}ms / ${Math.max(...requestTracker.durations.slice(-10)).toFixed(2)}ms`
+                                        );
+                                        console.log(
+                                            `   🔍 Debug - Total duration: ${requestTracker.totalDuration.toFixed(2)}ms, Count: ${requestTracker.requestCount}`
+                                        );
+                                        console.log('─'.repeat(50));
+                                    }
 
                                     console.groupEnd();
                                 }
@@ -582,6 +567,29 @@
                                     .current_statuses));
                                 }
                             } else {
+                                // Track request duration meski tidak ada perubahan
+                                if (requestTracker.requestCount % 10 === 0 && requestTracker.requestCount >
+                                    0) {
+                                    requestTracker.averageDuration = requestTracker.totalDuration /
+                                        requestTracker.requestCount;
+                                    const last10Average = requestTracker.durations.slice(-10).reduce((a,
+                                        b) => a + b, 0) / 10;
+
+                                    console.log(
+                                        `📊 REQUEST PERFORMANCE REPORT (${requestTracker.requestCount} requests):`
+                                    );
+                                    console.log(
+                                        `   📈 Overall Average: ${requestTracker.averageDuration.toFixed(2)}ms`
+                                    );
+                                    console.log(
+                                        `   🔟 Last 10 Requests Average: ${last10Average.toFixed(2)}ms`
+                                    );
+                                    console.log(
+                                        `   📊 Min/Max in last 10: ${Math.min(...requestTracker.durations.slice(-10)).toFixed(2)}ms / ${Math.max(...requestTracker.durations.slice(-10)).toFixed(2)}ms`
+                                    );
+                                    console.log('─'.repeat(50));
+                                }
+
                                 // Log occasional "no changes" untuk monitoring dengan milisecond
                                 if (Math.random() < 0.05) { // 5% chance
                                     console.log(
