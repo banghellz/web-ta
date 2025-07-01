@@ -94,13 +94,13 @@
             <div class="w-full max-w-md">
                 <!-- Logo and Title -->
                 <div class="text-center mb-8">
-                    <div
-                        class="mx-auto w-20 h-20 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg">
-                        <svg class="w-10 h-10 text-white" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-                        </svg>
+                    <div class="flex-grow-1 d-flex justify-content-center">
+                        <a href="." aria-label="Cabinex" class="navbar-brand m-0">
+                            <img src="/logo/darkmode_logo.png" alt="Cabinex Logo" class="navbar-brand-image"
+                                style="width: 120px; height: auto;">
+                        </a>
                     </div>
-                    <h1 class="text-2xl font-bold text-gray-900 mb-2">ATMI Education Portal</h1>
+                    <h1 class="text-2xl font-bold text-gray-900 mb-2">Cabinex Portal</h1>
                     <p class="text-gray-600">Welcome back! Please sign in to your account</p>
                 </div>
 
@@ -174,8 +174,8 @@
         <!-- Right Panel - Image -->
         <div class="hidden lg:flex lg:flex-1 relative overflow-hidden">
             <!-- Background Image -->
-            <img src="https://images.unsplash.com/photo-1523240795612-9a054b0db644?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80"
-                alt="Education Background" class="absolute inset-0 w-full h-full object-cover" />
+            <img src="/img/login_background.jpg" alt="Education Background"
+                class="absolute inset-0 w-full h-full object-cover" />
 
             <!-- Overlay -->
             <div class="absolute inset-0 bg-gradient-to-br from-indigo-900/80 via-indigo-800/70 to-purple-900/80"></div>
