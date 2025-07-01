@@ -172,7 +172,8 @@
                     <div class="mt-6 text-center space-y-3">
                         <p class="text-xs text-gray-500">
                             By signing in, you agree to our
-                            <a href="#" class="text-indigo-600 hover:text-indigo-700 font-medium">Terms of
+                            <a href="{{ route('terms-of-service') }}"
+                                class="text-indigo-600 hover:text-indigo-700 font-medium">Terms of
                                 Service</a>
                             and
                             <a href="{{ route('privacy-policy') }}"

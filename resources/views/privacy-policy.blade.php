@@ -325,7 +325,7 @@
                             <p class="text-gray-600 mb-6">If you have any questions or concerns about this Privacy
                                 Policy or our data practices, please contact us:</p>
                             <div class="space-y-2 text-sm text-gray-600">
-                                <p><strong>Email:</strong> privacy@cabinex.atmi.ac.id</p>
+                                <p><strong>Email:</strong> cabinex.indo@gmail.com</p>
                                 <p><strong>Address:</strong> ATMI Polytechnic, Surakarta, Indonesia</p>
                                 <p><strong>Phone:</strong> +62 271 714466</p>
                             </div>
