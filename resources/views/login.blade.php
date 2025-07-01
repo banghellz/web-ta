@@ -43,6 +43,27 @@
             max-width: 320px !important;
         }
 
+        /* Logo styling */
+        .navbar-brand-image {
+            display: block;
+            margin: 0 auto;
+        }
+
+        /* Background image fallback */
+        .bg-fallback {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        /* Spinner styles */
+        .spinner {
+            width: 24px;
+            height: 24px;
+            border: 3px solid #e5e7eb;
+            border-top: 3px solid #6366f1;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
         @keyframes spin {
             0% {
                 transform: rotate(0deg);
@@ -94,9 +115,17 @@
             <div class="w-full max-w-md">
                 <!-- Logo and Title -->
                 <div class="text-center mb-8">
-                    <img src="/logo/logo_new_mid.png" alt="Cabinex Logo" class="navbar-brand-image"
-                        style="width: 150px; height: auto;">
-                    <h1 class="text-2xl font-bold text-gray-900 mb-2">Cabinex Portal</h1>
+                    <!-- Fixed logo centering -->
+                    <div class="flex justify-center mb-4">
+                        <img src="https://via.placeholder.com/150x60/6366f1/ffffff?text=CABINEX" alt="Cabinex Logo"
+                            class="navbar-brand-image" style="width: 150px; height: auto;"
+                            onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                        <!-- Fallback if logo doesn't load -->
+                        <div
+                            style="display: none; width: 150px; height: 60px; background: linear-gradient(135deg, #6366f1, #8b5cf6); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 18px;">
+                            CABINEX
+                        </div>
+                    </div>
                     <p class="text-gray-600">Welcome back! Please sign in to your account</p>
                 </div>
 
@@ -167,11 +196,12 @@
             </div>
         </div>
 
-        <!-- Right Panel - Image -->
-        <div class="hidden lg:flex lg:flex-1 relative overflow-hidden">
-            <!-- Background Image -->
-            <img src="/img/background_login.jpg" alt="Education Background"
-                class="absolute inset-0 w-full h-full object-cover" />
+        <!-- Right Panel - Image (Fixed) -->
+        <div class="hidden lg:flex lg:flex-1 relative overflow-hidden bg-fallback">
+            <!-- Background Image with fallback -->
+            <img src="https://images.unsplash.com/photo-1523050854058-8df90110c9f1?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80"
+                alt="Education Background" class="absolute inset-0 w-full h-full object-cover"
+                onerror="this.style.opacity='0';" />
 
             <!-- Overlay -->
             <div class="absolute inset-0 bg-gradient-to-br from-indigo-900/80 via-indigo-800/70 to-purple-900/80"></div>
@@ -179,11 +209,31 @@
             <!-- Content -->
             <div class="relative flex flex-col justify-center items-center text-white p-12 z-10">
                 <div class="text-center max-w-md">
+                    <div class="mb-6">
+                        <div
+                            class="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-sm">
+                            <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253">
+                                </path>
+                            </svg>
+                        </div>
+                    </div>
                     <h2 class="text-3xl font-bold mb-4">ATMI Education Portal</h2>
                     <p class="text-xl text-indigo-100 leading-relaxed">
                         Access your academic resources, course materials, and institutional services with your ATMI
                         account.
                     </p>
+                    <div class="mt-8 grid grid-cols-2 gap-4 text-sm">
+                        <div class="bg-white/10 backdrop-blur-sm rounded-lg p-3">
+                            <div class="font-semibold">📚 Course Materials</div>
+                            <div class="text-indigo-200 text-xs">Access all your resources</div>
+                        </div>
+                        <div class="bg-white/10 backdrop-blur-sm rounded-lg p-3">
+                            <div class="font-semibold">📊 Academic Records</div>
+                            <div class="text-indigo-200 text-xs">Track your progress</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
