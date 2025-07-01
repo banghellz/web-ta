@@ -94,12 +94,8 @@
             <div class="w-full max-w-md">
                 <!-- Logo and Title -->
                 <div class="text-center mb-8">
-                    <div class="flex-grow-1 d-flex justify-content-center">
-                        <a href="." aria-label="Cabinex" class="navbar-brand m-0">
-                            <img src="/logo/darkmode_logo.png" alt="Cabinex Logo" class="navbar-brand-image"
-                                style="width: 120px; height: auto;">
-                        </a>
-                    </div>
+                    <img src="/logo/logo_new_mid.png" alt="Cabinex Logo" class="navbar-brand-image"
+                        style="width: 150px; height: auto;">
                     <h1 class="text-2xl font-bold text-gray-900 mb-2">Cabinex Portal</h1>
                     <p class="text-gray-600">Welcome back! Please sign in to your account</p>
                 </div>
