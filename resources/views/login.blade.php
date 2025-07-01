@@ -174,7 +174,7 @@
         <!-- Right Panel - Image -->
         <div class="hidden lg:flex lg:flex-1 relative overflow-hidden">
             <!-- Background Image -->
-            <img src="/img/login_background.jpg" alt="Education Background"
+            <img src="/img/background_login.jpg" alt="Education Background"
                 class="absolute inset-0 w-full h-full object-cover" />
 
             <!-- Overlay -->
