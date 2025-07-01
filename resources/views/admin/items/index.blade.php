@@ -1,4 +1,4 @@
-<!-- resources/views/superadmin/items/index.blade.php -->
+<!-- resources/views/admin/items/index.blade.php -->
 <x-layouts.admin_layout>
     <x-slot name="title">{{ $title }}</x-slot>
     <x-slot name="content">{{ $content }}</x-slot>
@@ -465,7 +465,7 @@
                     const currentStatusesObj = Object.fromEntries(currentItemStatuses);
 
                     $.ajax({
-                        url: "/superadmin/items/check-status-updates",
+                        url: "/admin/items/check-status-updates",
                         type: 'POST',
                         data: {
                             _token: csrfToken,
@@ -774,7 +774,7 @@
                     processing: true,
                     serverSide: true,
                     ajax: {
-                        url: "/superadmin/items/data/items",
+                        url: "/admin/items/data/items",
                         type: 'GET',
                         timeout: 10000,
                         dataSrc: function(json) {
@@ -900,7 +900,7 @@
                                 </button>
                                 <ul class="dropdown-menu dropdown-menu-end dropdown-menu-actions">
                                     <li>
-                                        <a class="dropdown-item" href="/superadmin/items/${row.id}/edit">
+                                        <a class="dropdown-item" href="/admin/items/${row.id}/edit">
                                             <i class="ti ti-edit me-2"></i>Edit
                                         </a>
                                     </li>`;
@@ -1004,7 +1004,7 @@
                     $('#modal-item-detail').modal('show');
 
                     $.ajax({
-                        url: `/superadmin/items/${itemId}`,
+                        url: `/admin/items/${itemId}`,
                         type: 'GET',
                         timeout: 10000,
                         success: function(response) {
@@ -1068,7 +1068,7 @@
                     $btn.prop('disabled', true).html('<i class="ti ti-loader-2 me-1 spinning"></i>Moving...');
 
                     $.ajax({
-                        url: `/superadmin/items/${itemToDelete.id}`,
+                        url: `/admin/items/${itemToDelete.id}`,
                         type: 'DELETE',
                         data: {
                             _token: csrfToken
@@ -1117,7 +1117,7 @@
                         '<i class="ti ti-loader-2 me-1 spinning"></i>Processing...');
 
                     $.ajax({
-                        url: `/superadmin/missing-tools/mark-missing/${itemToMarkMissing.id}`,
+                        url: `/admin/missing-tools/mark-missing/${itemToMarkMissing.id}`,
                         type: 'POST',
                         data: {
                             _token: csrfToken
