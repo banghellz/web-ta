@@ -202,10 +202,10 @@
             <!-- Content -->
             <div class="relative flex flex-col justify-center items-center text-white p-12 z-10">
                 <div class="text-center max-w-md">
-                    <h2 class="text-3xl font-bold mb-4">ATMI Education Portal</h2>
+                    <h2 class="text-3xl font-bold mb-4">Cabinex Portal</h2>
                     <p class="text-xl text-indigo-100 leading-relaxed">
-                        Access your academic resources, course materials, and institutional services with your ATMI
-                        account.
+                        Your gateway to smart tool borrowing — check availability, manage your digital coins, and track
+                        cabinet activity in real-time.
                     </p>
                 </div>
             </div>
