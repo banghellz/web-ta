@@ -117,14 +117,8 @@
                 <div class="text-center mb-8">
                     <!-- Fixed logo centering -->
                     <div class="flex justify-center mb-4">
-                        <img src="https://via.placeholder.com/150x60/6366f1/ffffff?text=CABINEX" alt="Cabinex Logo"
-                            class="navbar-brand-image" style="width: 150px; height: auto;"
-                            onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                        <!-- Fallback if logo doesn't load -->
-                        <div
-                            style="display: none; width: 150px; height: 60px; background: linear-gradient(135deg, #6366f1, #8b5cf6); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 18px;">
-                            CABINEX
-                        </div>
+                        <img src="/logo/logo_new_mid.png" alt="Cabinex Logo" class="navbar-brand-image"
+                            style="width: 150px; height: auto;">
                     </div>
                     <p class="text-gray-600">Welcome back! Please sign in to your account</p>
                 </div>
@@ -198,10 +192,9 @@
 
         <!-- Right Panel - Image (Fixed) -->
         <div class="hidden lg:flex lg:flex-1 relative overflow-hidden bg-fallback">
-            <!-- Background Image with fallback -->
-            <img src="https://images.unsplash.com/photo-1523050854058-8df90110c9f1?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80"
-                alt="Education Background" class="absolute inset-0 w-full h-full object-cover"
-                onerror="this.style.opacity='0';" />
+            <!-- Background Image -->
+            <img src="/img/background_login.jpg" alt="Education Background"
+                class="absolute inset-0 w-full h-full object-cover" />
 
             <!-- Overlay -->
             <div class="absolute inset-0 bg-gradient-to-br from-indigo-900/80 via-indigo-800/70 to-purple-900/80"></div>
