@@ -351,6 +351,7 @@ Route::prefix('admin')
             Route::post('/{item}/change-status', [App\Http\Controllers\Admin\ItemController::class, 'changeStatus'])->name('change-status');
             Route::get('/check-epc', [App\Http\Controllers\Admin\ItemController::class, 'checkEpc'])->name('check-epc');
             Route::get('/check-updates', [App\Http\Controllers\Admin\ItemController::class, 'checkUpdates'])->name('check-updates');
+            Route::post('/check-status-updates', [App\Http\Controllers\Admin\ItemController::class, 'checkStatusUpdates'])->name('check-status-updates');
 
             // Real-time endpoints
             Route::post('/force-refresh', [App\Http\Controllers\Admin\ItemController::class, 'forceRefresh'])->name('force-refresh');

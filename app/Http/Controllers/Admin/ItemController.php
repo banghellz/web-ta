@@ -90,9 +90,8 @@ class ItemController extends Controller
 
             DB::commit();
 
-            // IMPROVED: Force immediate cache clear
+            // Clear cache
             $this->clearStatsCache();
-            $this->updateGlobalTimestamp();
 
             $successMessage = "Item '{$item->nama_barang}' has been added successfully!";
             $stats = $this->getCurrentStats();
@@ -108,12 +107,11 @@ class ItemController extends Controller
                         'status' => $item->status
                     ],
                     'stats' => $stats,
-                    'trigger_refresh' => true,
-                    'force_update' => true
+                    'trigger_status_check' => true // New flag for status check
                 ], 200);
             }
 
-            return redirect()->route('admin.items.index')->with('success', $successMessage);
+            return redirect()->route('superadmin.items.index')->with('success', $successMessage);
         } catch (ValidationException $e) {
             DB::rollBack();
 
@@ -197,7 +195,7 @@ class ItemController extends Controller
             }
 
             // Generate HTML untuk modal detail
-            $html = view('admin.items.detail-partial', compact('item'))->render();
+            $html = view('superadmin.items.detail-partial', compact('item'))->render();
 
             return response()->json([
                 'success' => true,
@@ -213,7 +211,7 @@ class ItemController extends Controller
                 ]
             ]);
         } catch (\Exception $e) {
-            Log::error('Error loading item details in admin: ' . $e->getMessage(), [
+            Log::error('Error loading item details in superadmin: ' . $e->getMessage(), [
                 'item_id' => $item->id,
                 'admin_user_id' => Auth::id(),
                 'trace' => $e->getTraceAsString()
@@ -269,20 +267,10 @@ class ItemController extends Controller
         try {
             DB::beginTransaction();
 
-            $oldName = $item->nama_barang;
             $oldStatus = $item->status;
             $currentUser = Auth::user();
 
-            // Create notification
-            try {
-                if ($currentUser && class_exists('App\Models\Notification')) {
-                    Notification::toolEdited($item, $currentUser);
-                }
-            } catch (\Exception $notifError) {
-                Log::warning('Failed to create notification for item update: ' . $notifError->getMessage());
-            }
-
-            // Special handling for status changes
+            // Handle status changes
             if ($validated['status'] !== $oldStatus) {
                 if ($oldStatus === 'borrowed' && in_array($validated['status'], ['available', 'out_of_stock'])) {
                     $validated['user_id'] = null;
@@ -293,14 +281,24 @@ class ItemController extends Controller
                 }
             }
 
+            // Update item
             $item->update($validated);
+
+            // Create notification
+            try {
+                if ($currentUser && class_exists('App\Models\Notification')) {
+                    Notification::toolEdited($item, $currentUser);
+                }
+            } catch (\Exception $notifError) {
+                Log::warning('Failed to create notification: ' . $notifError->getMessage());
+            }
+
             DB::commit();
 
-            // IMPROVED: Force immediate update
+            // Clear cache
             $this->clearStatsCache();
-            $this->updateGlobalTimestamp();
 
-            $successMessage = "Item '{$oldName}' has been updated successfully!";
+            $successMessage = "Item '{$item->nama_barang}' has been updated successfully!";
             $stats = $this->getCurrentStats();
 
             if ($request->expectsJson() || $request->ajax()) {
@@ -309,8 +307,8 @@ class ItemController extends Controller
                     'message' => $successMessage,
                     'item' => $item->fresh(),
                     'stats' => $stats,
-                    'trigger_refresh' => true,
-                    'force_update' => true
+                    'trigger_status_check' => true, // New flag for status check
+                    'status_changed' => $validated['status'] !== $oldStatus
                 ]);
             }
 
@@ -331,6 +329,7 @@ class ItemController extends Controller
             return redirect()->back()->with('error', $errorMessage)->withInput();
         }
     }
+
 
     /**
      * SOFT DELETE: Remove the specified item from storage (soft delete)
@@ -353,14 +352,13 @@ class ItemController extends Controller
                 Log::warning('Failed to create notification for item deletion: ' . $notifError->getMessage());
             }
 
-            // SOFT DELETE - menggunakan method delete() dari model yang sudah di-override
-            $item->delete(); // Ini akan throw exception jika item sedang dipinjam/missing
+            // Soft delete
+            $item->delete();
 
             DB::commit();
 
-            // IMPROVED: Force immediate cache clear dan timestamp update
+            // Clear cache
             $this->clearStatsCache();
-            $this->updateGlobalTimestamp();
 
             $successMessage = "Item '{$itemName}' has been moved to trash successfully!";
             $stats = $this->getCurrentStats();
@@ -368,8 +366,7 @@ class ItemController extends Controller
             Log::info('Item soft deleted successfully', [
                 'item_id' => $itemId,
                 'item_name' => $itemName,
-                'deleted_by' => $currentUser->id ?? 'unknown',
-                'new_stats' => $stats
+                'deleted_by' => $currentUser->id ?? 'unknown'
             ]);
 
             if (request()->expectsJson()) {
@@ -377,13 +374,12 @@ class ItemController extends Controller
                     'success' => true,
                     'message' => $successMessage,
                     'stats' => $stats,
-                    'trigger_refresh' => true,
-                    'force_update' => true,
+                    'trigger_status_check' => true, // New flag for status check
                     'deleted_item_id' => $itemId
                 ], 200);
             }
 
-            return redirect()->route('admin.items.index')->with('success', $successMessage);
+            return redirect()->route('superladmin.items.index')->with('success', $successMessage);
         } catch (\Exception $e) {
             DB::rollBack();
 
@@ -392,12 +388,8 @@ class ItemController extends Controller
                 'trace' => $e->getTraceAsString()
             ]);
 
-            // Pesan error yang lebih spesifik
             $errorMessage = $e->getMessage();
-            if (strpos($errorMessage, 'borrowed') !== false || strpos($errorMessage, 'missing') !== false) {
-                // Gunakan pesan error dari model
-                $errorMessage = $e->getMessage();
-            } else {
+            if (strpos($errorMessage, 'borrowed') === false && strpos($errorMessage, 'missing') === false) {
                 $errorMessage = 'Failed to delete item. Please try again.';
             }
 
@@ -533,6 +525,93 @@ class ItemController extends Controller
     }
 
     /**
+     * NEW: Check for status changes only - more reliable than timestamp comparison
+     */
+    public function checkStatusUpdates(Request $request)
+    {
+        try {
+            // Get current item statuses from database
+            $currentStatuses = Item::select('id', 'status', 'updated_at')
+                ->get()
+                ->keyBy('id')
+                ->map(function ($item) {
+                    return [
+                        'status' => $item->status,
+                        'updated_at' => $item->updated_at->toISOString()
+                    ];
+                })
+                ->toArray();
+
+            // Get client's current statuses from request
+            $clientStatuses = $request->get('current_statuses', []);
+
+            // Find items with status changes
+            $changedItems = [];
+            $hasChanges = false;
+
+            foreach ($currentStatuses as $itemId => $dbData) {
+                $dbStatus = $dbData['status'];
+                $clientStatus = $clientStatuses[$itemId] ?? null;
+
+                // If client doesn't have this item or status is different
+                if ($clientStatus === null || $clientStatus !== $dbStatus) {
+                    $changedItems[] = [
+                        'id' => $itemId,
+                        'status' => $dbStatus,
+                        'updated_at' => $dbData['updated_at']
+                    ];
+                    $hasChanges = true;
+                }
+            }
+
+            // Check for deleted items (items that client has but db doesn't)
+            foreach ($clientStatuses as $itemId => $clientStatus) {
+                if (!isset($currentStatuses[$itemId])) {
+                    // Item was deleted
+                    $hasChanges = true;
+                }
+            }
+
+            // Get current stats only if there are changes
+            $currentStats = null;
+            if ($hasChanges) {
+                $currentStats = $this->getCurrentStats();
+            }
+
+            // Prepare response
+            $response = [
+                'has_status_changes' => $hasChanges,
+                'changed_items' => $changedItems,
+                'current_statuses' => array_map(function ($data) {
+                    return $data['status'];
+                }, $currentStatuses),
+                'stats' => $currentStats,
+                'timestamp' => now()->toISOString()
+            ];
+
+            // Add debug info if needed
+            if (config('app.debug')) {
+                $response['debug'] = [
+                    'total_db_items' => count($currentStatuses),
+                    'total_client_items' => count($clientStatuses),
+                    'changed_count' => count($changedItems)
+                ];
+            }
+
+            return response()->json($response);
+        } catch (\Exception $e) {
+            Log::error('Check status updates error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'has_status_changes' => false,
+                'error' => 'Failed to check status updates'
+            ], 500);
+        }
+    }
+
+    /**
      * NEW: Get deleted items data for DataTables AJAX
      */
     public function getDeletedData(Request $request)
@@ -603,19 +682,8 @@ class ItemController extends Controller
                 'updated_at'
             ]);
 
-            // IMPROVED: Add better caching for status-only requests
-            if ($request->get('status_only')) {
-                $query->select(['id', 'status', 'updated_at']);
-            }
-
             return DataTables::of($query)
                 ->addIndexColumn()
-                ->addColumn('status_text', function ($item) {
-                    return $item->status_text;
-                })
-                ->addColumn('status_badge_class', function ($item) {
-                    return $item->status_badge_class;
-                })
                 ->addColumn('created_at_formatted', function ($item) {
                     return $item->created_at->format('d M Y, H:i');
                 })
@@ -623,42 +691,42 @@ class ItemController extends Controller
                     $editUrl = route('admin.items.edit', $item->id);
 
                     $actions = '
-                        <div class="d-flex justify-content-center align-items-center">
-                            <div class="dropdown">
-                                <button class="btn btn-actions" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                    <i class="ti ti-dots-vertical"></i>
-                                </button>
-                                <ul class="dropdown-menu dropdown-menu-end dropdown-menu-actions">
-                                    <li>
-                                        <a class="dropdown-item" href="' . $editUrl . '">
-                                            <i class="ti ti-edit me-2"></i>Edit
-                                        </a>
-                                    </li>';
+                    <div class="d-flex justify-content-center align-items-center">
+                        <div class="dropdown">
+                            <button class="btn btn-actions" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="ti ti-dots-vertical"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end dropdown-menu-actions">
+                                <li>
+                                    <a class="dropdown-item" href="' . $editUrl . '">
+                                        <i class="ti ti-edit me-2"></i>Edit
+                                    </a>
+                                </li>';
 
                     if ($item->status === 'borrowed') {
                         $actions .= '
-                            <li>
-                                <a class="dropdown-item text-warning mark-missing" href="#" 
-                                   data-item-id="' . $item->id . '" 
-                                   data-item-name="' . e($item->nama_barang) . '">
-                                    <i class="ti ti-alert-triangle me-2"></i>Mark as Missing
-                                </a>
-                            </li>';
+                        <li>
+                            <a class="dropdown-item text-warning mark-missing" href="#" 
+                               data-item-id="' . $item->id . '" 
+                               data-item-name="' . e($item->nama_barang) . '">
+                                <i class="ti ti-alert-triangle me-2"></i>Mark as Missing
+                            </a>
+                        </li>';
                     }
 
                     $actions .= '
-                            <li><hr class="dropdown-divider"></li>
-                            <li>
-                                <a class="dropdown-item text-danger delete-item" href="#" 
-                                   data-item-id="' . $item->id . '" 
-                                   data-item-name="' . e($item->nama_barang) . '"
-                                   data-item-status="' . $item->status . '">
-                                    <i class="ti ti-trash me-2"></i>Move to Trash
-                                </a>
-                            </li>
-                        </ul>
-                    </div>
-                </div>';
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <a class="dropdown-item text-danger delete-item" href="#" 
+                               data-item-id="' . $item->id . '" 
+                               data-item-name="' . e($item->nama_barang) . '"
+                               data-item-status="' . $item->status . '">
+                                <i class="ti ti-trash me-2"></i>Move to Trash
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>';
 
                     return $actions;
                 })
@@ -675,7 +743,7 @@ class ItemController extends Controller
                 ->with([
                     'stats' => $this->getCurrentStats(),
                     'last_db_update' => $this->getLastDatabaseUpdate(),
-                    'refresh_timestamp' => now()->toISOString() // IMPROVED: Add explicit refresh timestamp
+                    'timestamp' => now()->toISOString()
                 ])
                 ->rawColumns(['actions'])
                 ->make(true);
@@ -700,76 +768,67 @@ class ItemController extends Controller
         try {
             $clientLastUpdate = $request->get('last_update');
             $hasUpdates = false;
-            $updateInfo = [];
 
+            // Get latest database timestamp
             $latestDbUpdate = $this->getLastDatabaseUpdate();
-            $currentTime = now()->toISOString();
 
-            // IMPROVED: Better comparison logic
+            // Simple comparison logic
             if ($latestDbUpdate && $clientLastUpdate) {
                 try {
                     $dbTime = Carbon::parse($latestDbUpdate);
                     $clientTime = Carbon::parse($clientLastUpdate);
 
-                    // Add a small buffer to avoid false positives (1 second)
-                    $hasUpdates = $dbTime->greaterThan($clientTime->addSecond());
+                    // Check if database has newer data
+                    $hasUpdates = $dbTime->greaterThan($clientTime);
 
-                    if ($hasUpdates) {
-                        // Get recent changes for context
-                        $recentChanges = Item::where('updated_at', '>', $clientTime)
-                            ->orWhere('created_at', '>', $clientTime)
-                            ->orderBy('updated_at', 'desc')
-                            ->limit(5)
-                            ->get(['id', 'nama_barang', 'status', 'updated_at', 'created_at']);
-
-                        if ($recentChanges->isNotEmpty()) {
-                            $updateInfo = $recentChanges->map(function ($item) use ($clientTime) {
-                                $isNew = $item->created_at > $clientTime;
-                                return [
-                                    'id' => $item->id,
-                                    'name' => $item->nama_barang,
-                                    'status' => $item->status,
-                                    'action' => $isNew ? 'created' : 'updated',
-                                    'time' => $item->updated_at->toISOString()
-                                ];
-                            })->toArray();
-                        }
-                    }
+                    // Debug logging
+                    Log::info('Update check comparison', [
+                        'db_time' => $dbTime->toISOString(),
+                        'client_time' => $clientTime->toISOString(),
+                        'has_updates' => $hasUpdates
+                    ]);
                 } catch (\Exception $e) {
                     Log::warning('Failed to parse timestamps: ' . $e->getMessage());
-                    $hasUpdates = false;
+                    // If parsing fails, assume updates are needed
+                    $hasUpdates = true;
                 }
             } elseif ($latestDbUpdate && !$clientLastUpdate) {
+                // No client timestamp means first load, trigger update
                 $hasUpdates = true;
-            } else {
-                $hasUpdates = false;
             }
 
-            // Get stats hanya jika ada update
+            // Get current stats only if there are updates
             $currentStats = null;
             if ($hasUpdates) {
                 $currentStats = $this->getCurrentStats();
             }
 
-            return response()->json([
+            $response = [
                 'has_updates' => $hasUpdates,
-                'current_time' => $currentTime,
                 'latest_db_update' => $latestDbUpdate,
                 'client_last_update' => $clientLastUpdate,
-                'updates' => $updateInfo,
-                'stats' => $currentStats,
-                'debug' => [
-                    'detection_method' => 'database_timestamp',
-                    'latest_item_update' => $latestDbUpdate
-                ]
-            ]);
+                'current_time' => now()->toISOString(),
+                'stats' => $currentStats
+            ];
+
+            // Add debug info in development
+            if (config('app.debug')) {
+                $response['debug'] = [
+                    'latest_item_update' => $latestDbUpdate,
+                    'comparison_result' => $hasUpdates ? 'newer_data_found' : 'no_updates'
+                ];
+            }
+
+            return response()->json($response);
         } catch (\Exception $e) {
-            Log::error('Check updates error: ' . $e->getMessage());
+            Log::error('Check updates error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
 
             return response()->json([
                 'has_updates' => false,
                 'current_time' => now()->toISOString(),
-                'error' => 'Failed to check updates: ' . $e->getMessage()
+                'error' => 'Failed to check updates'
             ], 500);
         }
     }
@@ -809,27 +868,31 @@ class ItemController extends Controller
     private function getLastDatabaseUpdate()
     {
         try {
-            // HANYA consider item yang tidak di-soft delete
+            // Get latest timestamps from items table (excluding soft deleted)
             $latestUpdate = Item::max('updated_at');
             $latestCreated = Item::max('created_at');
 
-            $latest = null;
+            // Determine which is newer
             if ($latestUpdate && $latestCreated) {
-                $latest = Carbon::parse($latestUpdate)->greaterThan(Carbon::parse($latestCreated))
-                    ? $latestUpdate
-                    : $latestCreated;
+                $updateTime = Carbon::parse($latestUpdate);
+                $createTime = Carbon::parse($latestCreated);
+
+                $latest = $updateTime->greaterThan($createTime) ? $latestUpdate : $latestCreated;
             } elseif ($latestUpdate) {
                 $latest = $latestUpdate;
             } elseif ($latestCreated) {
                 $latest = $latestCreated;
+            } else {
+                return null;
             }
 
-            return $latest ? Carbon::parse($latest)->toISOString() : null;
+            return Carbon::parse($latest)->toISOString();
         } catch (\Exception $e) {
-            Log::error('Failed to get database timestamp: ' . $e->getMessage());
+            Log::error('Failed to get last database update: ' . $e->getMessage());
             return null;
         }
     }
+
 
     /**
      * IMPROVED: Force refresh all connected clients
