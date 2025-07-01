@@ -167,6 +167,25 @@
                         <p class="text-sm text-gray-600 mb-2">Signing you in...</p>
                         <p class="text-xs text-gray-500">Please wait while we verify your account</p>
                     </div>
+
+                    <!-- Footer Links -->
+                    <div class="mt-6 text-center space-y-3">
+                        <p class="text-xs text-gray-500">
+                            By signing in, you agree to our
+                            <a href="#" class="text-indigo-600 hover:text-indigo-700 font-medium">Terms of
+                                Service</a>
+                            and
+                            <a href="#" class="text-indigo-600 hover:text-indigo-700 font-medium">Privacy
+                                Policy</a>
+                        </p>
+                        <div class="pt-3 border-t border-gray-100">
+                            <p class="text-sm text-gray-600">
+                                Need help?
+                                <a href="#" class="text-indigo-600 hover:text-indigo-700 font-medium">Contact
+                                    Support</a>
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
