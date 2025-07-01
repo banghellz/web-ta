@@ -175,7 +175,8 @@
                             <a href="#" class="text-indigo-600 hover:text-indigo-700 font-medium">Terms of
                                 Service</a>
                             and
-                            <a href="#" class="text-indigo-600 hover:text-indigo-700 font-medium">Privacy
+                            <a href="{{ route('privacy-policy') }}"
+                                class="text-indigo-600 hover:text-indigo-700 font-medium">Privacy
                                 Policy</a>
                         </p>
                         <div class="pt-3 border-t border-gray-100">

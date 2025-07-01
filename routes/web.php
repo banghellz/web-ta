@@ -28,6 +28,10 @@ Route::get('/login', function () {
     return view('login');
 })->name('login');
 
+Route::get('privacy-policy', function () {
+    return view('privacy-policy');
+})->name('privacy-policy');
+
 // Auth Routes
 Route::prefix('auth')->group(function () {
     // Google Login Routes
