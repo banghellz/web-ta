@@ -32,7 +32,7 @@ class ItemController extends Controller
 
         return view('admin.items.index', [
             'title' => 'Item Management',
-            'content' => 'Kelola semua tools dalam sistem',
+            'content' => 'Manage inventory items and stock',
             'totalItems' => $totalItems,
             'availableItems' => $availableItems,
             'borrowedItems' => $borrowedItems,
