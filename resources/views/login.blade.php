@@ -183,7 +183,8 @@
                         <div class="pt-3 border-t border-gray-100">
                             <p class="text-sm text-gray-600">
                                 Need help?
-                                <a href="#" class="text-indigo-600 hover:text-indigo-700 font-medium">Contact
+                                <a href="mailto:cabinex.indo@gmail.com"
+                                    class="text-indigo-600 hover:text-indigo-700 font-medium">Contact
                                     Support</a>
                             </p>
                         </div>
