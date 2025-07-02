@@ -16,7 +16,7 @@
             <div class="flex lg:flex-1">
                 <a href="#" class="-m-1.5 p-1.5">
                     <span class="sr-only">ATMI</span>
-                    <img class="h-8 w-auto" src="/logo/darkmode_logo.png" alt="ATMI Logo">
+                    <img class="h-8 w-auto" src="/logo/logo_new_mid.png" alt="ATMI Logo">
                 </a>
             </div>
             <div class="flex lg:hidden">
