@@ -68,11 +68,11 @@ Route::prefix('user')
         Route::get('/dashboard', [App\Http\Controllers\User\DashboardController::class, 'index'])->name('dashboard.index');
 
         // Dashboard AJAX routes
-        Route::get('/dashboard/refresh', [App\Http\Controllers\User\DashboardController::class, 'refresh'])->name('dashboard.refresh');
-        Route::get('/dashboard/stats', [App\Http\Controllers\User\DashboardController::class, 'getStats'])->name('dashboard.stats');
-        Route::get('/dashboard/activities', [App\Http\Controllers\User\DashboardController::class, 'getRecentActivitiesAjax'])->name('dashboard.activities');
-        Route::get('/dashboard/chart-data', [App\Http\Controllers\User\DashboardController::class, 'getChartData'])->name('dashboard.chart-data');
-        Route::post('/dashboard/sync-koin', [App\Http\Controllers\User\DashboardController::class, 'syncKoin'])->name('dashboard.sync-koin');
+        Route::get('/dashboard/refresh', [App\Http\Controllers\Guest\DashboardController::class, 'refresh'])->name('dashboard.refresh');
+        Route::get('/dashboard/stats', [App\Http\Controllers\Guest\DashboardController::class, 'getStats'])->name('dashboard.stats');
+        Route::get('/dashboard/activities', [App\Http\Controllers\Guest\DashboardController::class, 'getRecentActivitiesAjax'])->name('dashboard.activities');
+        Route::get('/dashboard/chart-data', [App\Http\Controllers\Guest\DashboardController::class, 'getChartData'])->name('dashboard.chart-data');
+        Route::post('/dashboard/sync-koin', [App\Http\Controllers\Guest\DashboardController::class, 'syncKoin'])->name('dashboard.sync-koin');
 
         Route::prefix('profile')->name('profile.')->group(function () {
             Route::get('/', [App\Http\Controllers\User\ProfileController::class, 'index'])->name('index');
