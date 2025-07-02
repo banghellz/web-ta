@@ -48,7 +48,7 @@ Route::prefix('auth')->group(function () {
 
 // PERBAIKAN: Tambahkan route untuk guest dashboard
 Route::prefix('guest')->name('guest.')->group(function () {
-    Route::get('/dashboard', [App\Http\Controllers\Guest\DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/dashboard', [App\Http\Controllers\Guest\DashboardController::class, 'index'])->name('dashboard.index');
     Route::get('/tools/data', [App\Http\Controllers\Guest\DashboardController::class, 'getToolsData'])->name('tools.data');
     Route::get('/tools/check-updates', [App\Http\Controllers\Guest\DashboardController::class, 'checkUpdates'])->name('tools.check-updates');
 
