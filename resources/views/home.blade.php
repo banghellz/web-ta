@@ -207,7 +207,7 @@
         </div>
 
         <!-- Main Hero Content -->
-        <div class="relative mx-auto max-w-7xl px-6 py-24 sm:py-32 lg:px-8">
+        <div class="relative mx-auto max-w-7xl px-6 py-24 sm:py-32 lg:px-8 z-10">
             <div class="mx-auto max-w-2xl text-center">
                 <h1 class="text-4xl font-bold tracking-tight sm:text-6xl">
                     Welcome to <span class="text-indigo-300">CABINEX</span>
@@ -439,7 +439,7 @@
                         <h3 class="text-xl font-semibold text-gray-900 mb-3">Quick Start Guide</h3>
                         <p class="text-gray-600 mb-4">Get up and running in minutes with our step-by-step installation
                             and setup guide for CABINEX.</p>
-                        <a href="#"
+                        <a href="/manuals/quick-start-guide.pdf" download="CABINEX-Quick-Start-Guide.pdf"
                             class="inline-flex items-center text-blue-600 hover:text-blue-800 font-medium">
                             Download PDF <span class="ml-1">→</span>
                         </a>
@@ -457,7 +457,7 @@
                         <h3 class="text-xl font-semibold text-gray-900 mb-3">User Manual</h3>
                         <p class="text-gray-600 mb-4">Comprehensive documentation covering all CABINEX features, user
                             interface, and best practices.</p>
-                        <a href="#"
+                        <a href="/manuals/user-manual.pdf" download="CABINEX-User-Manual.pdf"
                             class="inline-flex items-center text-green-600 hover:text-green-800 font-medium">
                             Download PDF <span class="ml-1">→</span>
                         </a>
@@ -477,7 +477,7 @@
                         <h3 class="text-xl font-semibold text-gray-900 mb-3">Technical Manual</h3>
                         <p class="text-gray-600 mb-4">Advanced configuration, hardware setup, troubleshooting, and
                             maintenance procedures.</p>
-                        <a href="#"
+                        <a href="/manuals/technical-manual.pdf" download="CABINEX-Technical-Manual.pdf"
                             class="inline-flex items-center text-purple-600 hover:text-purple-800 font-medium">
                             Download PDF <span class="ml-1">→</span>
                         </a>
@@ -496,8 +496,8 @@
                     The innovative minds behind CABINEX - Smart Tool Management System.
                 </p>
             </div>
-            <div class="mx-auto mt-16 max-w-4xl">
-                <div class="grid grid-cols-1 gap-8 sm:grid-cols-2 justify-center">
+            <div class="mx-auto mt-16 max-w-6xl">
+                <div class="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
                     <div class="bg-white rounded-2xl p-8 text-center shadow-lg hover:shadow-xl transition-shadow">
                         <div
                             class="w-20 h-20 bg-gradient-to-br from-indigo-400 to-indigo-600 rounded-full mx-auto mb-4 flex items-center justify-center">
@@ -517,6 +517,26 @@
                         <p class="text-blue-600 font-medium mb-3">Hardware Engineer & Integration Specialist</p>
                         <p class="text-gray-600 text-sm">Specializing in hardware integration, Raspberry Pi
                             configuration, and ensuring seamless communication between all system components.</p>
+                    </div>
+                    <div class="bg-white rounded-2xl p-8 text-center shadow-lg hover:shadow-xl transition-shadow">
+                        <div
+                            class="w-20 h-20 bg-gradient-to-br from-pink-400 to-pink-600 rounded-full mx-auto mb-4 flex items-center justify-center">
+                            <span class="text-2xl font-bold text-white">IV</span>
+                        </div>
+                        <h3 class="text-xl font-semibold text-gray-900 mb-1">Ivana</h3>
+                        <p class="text-pink-600 font-medium mb-3">UI/UX Designer & Frontend Developer</p>
+                        <p class="text-gray-600 text-sm">Creating intuitive user interfaces and ensuring seamless user
+                            experience across all CABINEX platforms and touchscreen interfaces.</p>
+                    </div>
+                    <div class="bg-white rounded-2xl p-8 text-center shadow-lg hover:shadow-xl transition-shadow">
+                        <div
+                            class="w-20 h-20 bg-gradient-to-br from-green-400 to-green-600 rounded-full mx-auto mb-4 flex items-center justify-center">
+                            <span class="text-2xl font-bold text-white">DA</span>
+                        </div>
+                        <h3 class="text-xl font-semibold text-gray-900 mb-1">Davin Ardianto</h3>
+                        <p class="text-green-600 font-medium mb-3">Quality Assurance & Testing Specialist</p>
+                        <p class="text-gray-600 text-sm">Ensuring system reliability and performance through
+                            comprehensive testing, validation, and quality control processes.</p>
                     </div>
                 </div>
             </div>
@@ -586,23 +606,6 @@
                                         <h4 class="text-lg font-semibold text-gray-900">Email Address</h4>
                                         <p class="text-gray-600">info@atmi.ac.id<br>cabinex@atmi.ac.id</p>
                                     </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="bg-gradient-to-br from-indigo-50 to-blue-100 rounded-2xl p-6">
-                            <h4 class="text-lg font-semibold text-gray-900 mb-3">Office Hours</h4>
-                            <div class="space-y-2 text-sm text-gray-600">
-                                <div class="flex justify-between">
-                                    <span>Monday - Friday</span>
-                                    <span>7:00 AM - 4:00 PM</span>
-                                </div>
-                                <div class="flex justify-between">
-                                    <span>Saturday</span>
-                                    <span>7:00 AM - 12:00 PM</span>
-                                </div>
-                                <div class="flex justify-between">
-                                    <span>Sunday</span>
-                                    <span>Closed</span>
                                 </div>
                             </div>
                         </div>
