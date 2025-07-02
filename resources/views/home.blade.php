@@ -504,7 +504,7 @@
                             <span class="text-2xl font-bold text-white">CD</span>
                         </div>
                         <h3 class="text-xl font-semibold text-gray-900 mb-1">Christopher Davin</h3>
-                        <p class="text-indigo-600 font-medium mb-3">Lead Developer & System Architect</p>
+                        <p class="text-indigo-600 font-medium mb-3">Web Developer</p>
                         <p class="text-gray-600 text-sm">Designing and implementing the core CABINEX system
                             architecture, from RFID integration to web dashboard development.</p>
                     </div>
