@@ -31,7 +31,7 @@ class DashboardController extends Controller
             Log::error('Dashboard Error: ' . $e->getMessage());
 
             return view('admin.dashboard.index', [
-                'title' => 'Master Admin Dashboard',
+                'title' => 'Admin Dashboard',
                 'content' => 'Management dashboard overview',
                 'error' => 'Unable to load dashboard data'
             ]);

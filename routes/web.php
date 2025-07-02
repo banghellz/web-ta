@@ -46,20 +46,13 @@ Route::prefix('auth')->group(function () {
     Route::get('/logout', [AuthController::class, 'logout'])->name('logout');
 });
 
-// PERBAIKAN: Tambahkan route untuk guest dashboard
 Route::prefix('guest')->name('guest.')->group(function () {
-
-    // Main dashboard page
-    Route::get('/dashboard', [App\Http\Controllers\Guest\DashboardController::class, 'index'])->name('dashboard.index');
-
-    // Tools data for DataTables AJAX
+    Route::get('/dashboard', [App\Http\Controllers\Guest\DashboardController::class, 'index'])->name('dashboard');
     Route::get('/tools/data', [App\Http\Controllers\Guest\DashboardController::class, 'getToolsData'])->name('tools.data');
-
-    // Real-time update checking
     Route::get('/tools/check-updates', [App\Http\Controllers\Guest\DashboardController::class, 'checkUpdates'])->name('tools.check-updates');
 
-    // Stats API
-    Route::get('/tools/stats', [App\Http\Controllers\Guest\DashboardController::class, 'getStats'])->name('tools.stats');
+    // NEW: Advanced status checking
+    Route::post('/tools/check-status-updates', [App\Http\Controllers\Guest\DashboardController::class, 'checkStatusUpdates'])->name('tools.check-status-updates');
 });
 // Profile completion routes - PERBAIKAN: Tambahkan middleware auth
 Route::middleware(['auth'])->group(function () {

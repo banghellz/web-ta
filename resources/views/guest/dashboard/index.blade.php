@@ -190,16 +190,290 @@
                     missing_items: {{ $missingItems ?? 0 }}
                 };
 
-                // Real-time configuration
+                // === ADVANCED STATUS-ONLY POLLING SYSTEM ===
                 let pollingInterval = null;
-                let clientLastUpdate = null;
                 let isPollingEnabled = true;
                 let pollingFailureCount = 0;
 
-                const POLLING_INTERVAL = 10000; // 10 seconds for guest view
+                const POLLING_INTERVAL = 2000; // 2 seconds for guest view
                 const MAX_FAILURES = 3;
 
-                // Initialize DataTable
+                // Store current item statuses for comparison
+                let currentItemStatuses = new Map();
+
+                // Performance tracking
+                let requestTracker = {
+                    durations: [],
+                    requestCount: 0,
+                    totalDuration: 0,
+                    averageDuration: 0
+                };
+
+                // === STATUS-ONLY POLLING SYSTEM ===
+                function startPolling() {
+                    if (pollingInterval) clearInterval(pollingInterval);
+
+                    console.log('Starting advanced guest status-only polling...');
+
+                    pollingInterval = setInterval(() => {
+                        if (!isPollingEnabled || document.hidden) return;
+                        checkStatusUpdates();
+                    }, POLLING_INTERVAL);
+                }
+
+                function stopPolling() {
+                    if (pollingInterval) {
+                        clearInterval(pollingInterval);
+                        pollingInterval = null;
+                    }
+                }
+
+                // === CHECK ONLY STATUS CHANGES ===
+                function checkStatusUpdates() {
+                    // Record start time
+                    const checkStartTime = performance.now();
+                    const checkTimestamp = new Date();
+                    const timeString = checkTimestamp.toLocaleTimeString('id-ID', {
+                        hour12: false,
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit'
+                    });
+
+                    // Send current statuses to server for comparison
+                    const currentStatusesObj = Object.fromEntries(currentItemStatuses);
+
+                    $.ajax({
+                        url: "/guest/tools/check-status-updates",
+                        type: 'POST',
+                        data: {
+                            _token: $('meta[name="csrf-token"]').attr('content'),
+                            current_statuses: currentStatusesObj
+                        },
+                        timeout: 8000,
+                        success: function(response) {
+                            // Calculate request duration in seconds
+                            const checkEndTime = performance.now();
+                            const requestDuration = ((checkEndTime - checkStartTime) / 1000).toFixed(3);
+
+                            // Track request duration for average calculation
+                            const durationSec = parseFloat(requestDuration);
+                            requestTracker.durations.push(durationSec);
+                            requestTracker.requestCount++;
+                            requestTracker.totalDuration += durationSec;
+
+                            console.log(
+                                `⏱️ Guest status check completed in ${requestDuration}s at ${timeString}`,
+                                response);
+
+                            pollingFailureCount = 0;
+
+                            if (response.has_status_changes === true) {
+                                const changeTime = new Date().toLocaleTimeString('id-ID', {
+                                    hour12: false,
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                    second: '2-digit'
+                                });
+
+                                console.log(
+                                    `🔄 Guest status changes detected at ${changeTime} (Request: ${requestDuration}s)`
+                                );
+
+                                // Log detail perubahan untuk setiap item
+                                if (response.changed_items && response.changed_items.length > 0) {
+                                    console.group(
+                                        `📦 ${response.changed_items.length} Tool(s) Changed - ${changeTime} [Guest View]`
+                                    );
+
+                                    response.changed_items.forEach((item, index) => {
+                                        const previousStatus = currentItemStatuses.get(item.id
+                                            .toString()) || 'unknown';
+                                        const statusEmoji = {
+                                            'available': '✅',
+                                            'borrowed': '👤',
+                                            'missing': '⚠️',
+                                            'out_of_stock': '❌'
+                                        };
+
+                                        const prevEmoji = statusEmoji[previousStatus] || '❓';
+                                        const newEmoji = statusEmoji[item.status] || '❓';
+
+                                        console.log(
+                                            `${prevEmoji} ➡️ ${newEmoji} Tool #${item.id}: ${previousStatus} → ${item.status} (${changeTime}) [Request: ${requestDuration}s]`
+                                        );
+                                    });
+
+                                    // Performance report every 10 requests
+                                    if (requestTracker.requestCount % 10 === 0) {
+                                        requestTracker.averageDuration = requestTracker.totalDuration /
+                                            requestTracker.requestCount;
+                                        const last10Average = requestTracker.durations.slice(-10).reduce((a,
+                                            b) => a + b, 0) / 10;
+
+                                        console.log(
+                                            `📊 GUEST REQUEST PERFORMANCE REPORT (${requestTracker.requestCount} requests):`
+                                        );
+                                        console.log(
+                                            `   📈 Overall Average: ${requestTracker.averageDuration.toFixed(3)}s`
+                                        );
+                                        console.log(
+                                            `   🔟 Last 10 Requests Average: ${last10Average.toFixed(3)}s`
+                                        );
+                                        console.log(
+                                            `   📊 Min/Max in last 10: ${Math.min(...requestTracker.durations.slice(-10)).toFixed(3)}s / ${Math.max(...requestTracker.durations.slice(-10)).toFixed(3)}s`
+                                        );
+                                        console.log('─'.repeat(50));
+                                    }
+
+                                    console.groupEnd();
+                                }
+
+                                updateItemStatuses(response.changed_items || []);
+
+                                // Update stats if provided
+                                if (response.stats) {
+                                    updateStats(response.stats);
+                                }
+
+                                // Update current statuses map
+                                if (response.current_statuses) {
+                                    currentItemStatuses = new Map(Object.entries(response
+                                        .current_statuses));
+                                }
+                            } else {
+                                // Track request duration even when no changes
+                                if (requestTracker.requestCount % 10 === 0 && requestTracker.requestCount >
+                                    0) {
+                                    requestTracker.averageDuration = requestTracker.totalDuration /
+                                        requestTracker.requestCount;
+                                    const last10Average = requestTracker.durations.slice(-10).reduce((a,
+                                        b) => a + b, 0) / 10;
+
+                                    console.log(
+                                        `📊 GUEST REQUEST PERFORMANCE REPORT (${requestTracker.requestCount} requests):`
+                                    );
+                                    console.log(
+                                        `   📈 Overall Average: ${requestTracker.averageDuration.toFixed(3)}s`
+                                    );
+                                    console.log(
+                                        `   🔟 Last 10 Requests Average: ${last10Average.toFixed(3)}s`
+                                    );
+                                    console.log('─'.repeat(50));
+                                }
+
+                                // Log occasional "no changes" for monitoring
+                                if (Math.random() < 0.05) { // 5% chance
+                                    console.log(
+                                        `✅ No status changes - checked in ${requestDuration}s at ${timeString} [Guest]`
+                                    );
+                                }
+                            }
+                        },
+                        error: function(xhr, status, error) {
+                            const checkEndTime = performance.now();
+                            const requestDuration = ((checkEndTime - checkStartTime) / 1000).toFixed(3);
+                            const errorTime = new Date().toLocaleTimeString('id-ID', {
+                                hour12: false,
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                second: '2-digit'
+                            });
+
+                            pollingFailureCount++;
+                            console.error(
+                                `❌ Guest status check failed after ${requestDuration}s at ${errorTime}:`,
+                                xhr
+                                .status, error);
+
+                            if (pollingFailureCount >= MAX_FAILURES) {
+                                console.warn(
+                                    `🔌 Guest connection lost at ${errorTime} after ${MAX_FAILURES} failures. Auto-refresh disabled.`
+                                );
+                                showToast('Connection lost. Auto-refresh disabled.', 'warning');
+                                stopPolling();
+
+                                // Retry after delay
+                                setTimeout(() => {
+                                    const retryTime = new Date().toLocaleTimeString('id-ID', {
+                                        hour12: false,
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                        second: '2-digit'
+                                    });
+                                    console.log(
+                                        `🔄 Guest attempting to reconnect at ${retryTime}...`);
+                                    pollingFailureCount = 0;
+                                    startPolling();
+                                }, 10000);
+                            }
+                        }
+                    });
+                }
+
+                // === UPDATE ONLY CHANGED ITEM STATUSES ===
+                function updateItemStatuses(changedItems) {
+                    if (!changedItems || changedItems.length === 0) return;
+
+                    console.log('Updating guest tool statuses:', changedItems);
+
+                    changedItems.forEach(item => {
+                        // Find the status badge for this item (guest table uses different structure)
+                        const $badge = $(`.status-badge[data-item-id="${item.id}"]`);
+
+                        if ($badge.length > 0) {
+                            updateStatusBadge($badge, item.status);
+                            console.log(`Updated guest tool status for item ${item.id}: ${item.status}`);
+                        }
+                    });
+
+                    // Update last refresh time
+                    updateLastRefreshTime();
+                }
+
+                // === UPDATE STATUS BADGE FOR GUEST VIEW ===
+                function updateStatusBadge($badge, newStatus) {
+                    const statusConfig = {
+                        'available': {
+                            icon: 'ti-check-circle',
+                            class: 'status-available',
+                            text: 'Available'
+                        },
+                        'borrowed': {
+                            icon: 'ti-user-check',
+                            class: 'status-borrowed',
+                            text: 'Borrowed'
+                        },
+                        'missing': {
+                            icon: 'ti-alert-triangle',
+                            class: 'status-missing',
+                            text: 'Missing'
+                        },
+                        'out_of_stock': {
+                            icon: 'ti-x',
+                            class: 'status-out-of-stock',
+                            text: 'Out of Stock'
+                        }
+                    };
+
+                    const config = statusConfig[newStatus] || {
+                        icon: 'ti-help',
+                        class: 'status-unknown',
+                        text: 'Unknown'
+                    };
+
+                    // Add subtle animation and update status
+                    $badge.addClass('status-updating')
+                        .removeClass(
+                            'status-available status-borrowed status-missing status-out-of-stock status-unknown')
+                        .addClass(config.class)
+                        .attr('data-status', newStatus)
+                        .html(`<i class="ti ${config.icon} me-1"></i>${config.text}`);
+
+                    setTimeout(() => $badge.removeClass('status-updating'), 600);
+                }
+
+                // Initialize DataTable with improved configuration
                 const table = $('#toolsTable').DataTable({
                     processing: true,
                     serverSide: true,
@@ -208,19 +482,24 @@
                         type: 'GET',
                         timeout: 10000,
                         dataSrc: function(json) {
-                            console.log('DataTable loaded successfully');
-                            updateStats(json.stats || {});
-                            updateLastRefreshTime();
+                            console.log('Guest DataTable loaded successfully');
 
-                            if (!clientLastUpdate && json.refresh_timestamp) {
-                                clientLastUpdate = json.refresh_timestamp;
+                            // Initialize current statuses map
+                            if (json && json.data) {
+                                currentItemStatuses.clear();
+                                json.data.forEach(item => {
+                                    currentItemStatuses.set(item.id.toString(), item.status);
+                                });
                             }
 
+                            updateStats(json.stats || {});
+                            updateLastRefreshTime();
                             pollingFailureCount = 0;
+
                             return json.data;
                         },
                         error: function(xhr, error, code) {
-                            console.error('DataTable Ajax Error:', {
+                            console.error('Guest DataTable Ajax Error:', {
                                 status: xhr.status,
                                 error: error,
                                 code: code
@@ -280,7 +559,7 @@
                                         iconClass = 'ti-alert-triangle';
                                         break;
                                     default:
-                                        badgeClass = 'badge bg-secondary';
+                                        badgeClass = 'status-unknown';
                                         statusText = 'Unknown';
                                         iconClass = 'ti-help';
                                 }
@@ -376,64 +655,39 @@
                     });
                 }
 
-                // Real-time polling for guest view
-                function startPolling() {
-                    if (pollingInterval) clearInterval(pollingInterval);
-
-                    console.log(`Starting guest polling - interval: ${POLLING_INTERVAL}ms`);
-
-                    pollingInterval = setInterval(() => {
-                        if (!isPollingEnabled || document.hidden) return;
-                        checkForUpdates();
-                    }, POLLING_INTERVAL);
-                }
-
-                function checkForUpdates() {
-                    $.ajax({
-                        url: "/guest/tools/check-updates",
-                        type: 'GET',
-                        data: {
-                            last_update: clientLastUpdate
-                        },
-                        timeout: 5000,
-                        success: function(response) {
-                            pollingFailureCount = 0;
-
-                            if (response.has_updates) {
-                                console.log('Changes detected - refreshing table');
-                                table.ajax.reload(null, false);
-
-                                if (response.stats) {
-                                    updateStats(response.stats);
-                                }
-                            }
-
-                            if (response.latest_db_update) {
-                                clientLastUpdate = response.latest_db_update;
-                            }
-                        },
-                        error: function(xhr, status, error) {
-                            pollingFailureCount++;
-                            console.error('Update check failed:', xhr.status);
-
-                            if (pollingFailureCount >= MAX_FAILURES) {
-                                showToast('Connection lost. Auto-refresh disabled.', 'warning');
-                                clearInterval(pollingInterval);
-                            }
-                        }
-                    });
+                // Show toast messages
+                function showToast(message, type = 'success') {
+                    if (window.UnifiedToastSystem) {
+                        window.UnifiedToastSystem.show(type, message);
+                    } else if (typeof window.showNotificationToast === 'function') {
+                        window.showNotificationToast(message, type);
+                    } else {
+                        console.log(`${type.toUpperCase()}: ${message}`);
+                    }
                 }
 
                 // Page visibility handling
                 document.addEventListener('visibilitychange', function() {
-                    isPollingEnabled = !document.hidden;
-                    if (!document.hidden) {
-                        pollingFailureCount = Math.max(0, pollingFailureCount - 1);
-                        setTimeout(checkForUpdates, 1000);
+                    if (document.hidden) {
+                        console.log('Guest page hidden - pausing polling');
+                        isPollingEnabled = false;
+                    } else {
+                        console.log('Guest page visible - resuming polling');
+                        isPollingEnabled = true;
+
+                        // Check for updates immediately when page becomes visible
+                        setTimeout(() => {
+                            checkStatusUpdates();
+                        }, 1000);
                     }
                 });
 
-                // Initialize
+                // Window unload handling
+                window.addEventListener('beforeunload', function() {
+                    stopPolling();
+                });
+
+                // === INITIALIZATION ===
                 updateLastRefreshTime();
                 startPolling();
 
@@ -446,7 +700,19 @@
                     showToast("{{ session('error') }}", 'danger');
                 @endif
 
-                console.log('Guest dashboard initialized with real-time updates');
+                // Global debug function
+                window.debugGuestRealTime = function() {
+                    console.log('=== GUEST STATUS-ONLY REAL-TIME DEBUG ===');
+                    console.log('Polling Interval:', POLLING_INTERVAL);
+                    console.log('Failure Count:', pollingFailureCount);
+                    console.log('Active Polling:', !!pollingInterval);
+                    console.log('Polling Enabled:', isPollingEnabled);
+                    console.log('Current Tool Statuses:', Object.fromEntries(currentItemStatuses));
+                    console.log('Current Stats:', currentStats);
+                    console.log('Request Tracker:', requestTracker);
+                };
+
+                console.log('Advanced guest status-only real-time system initialized');
             });
         </script>
     @endpush

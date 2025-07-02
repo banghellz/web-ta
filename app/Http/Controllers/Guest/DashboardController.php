@@ -239,4 +239,91 @@ class DashboardController extends Controller
             return null;
         }
     }
+
+    /**
+     * Check for status changes only - for advanced real-time functionality
+     */
+    public function checkStatusUpdates(Request $request)
+    {
+        try {
+            // Get current item statuses from database
+            $currentStatuses = Item::select('id', 'status', 'updated_at')
+                ->get()
+                ->keyBy('id')
+                ->map(function ($item) {
+                    return [
+                        'status' => $item->status,
+                        'updated_at' => $item->updated_at->toISOString()
+                    ];
+                })
+                ->toArray();
+
+            // Get client's current statuses from request
+            $clientStatuses = $request->get('current_statuses', []);
+
+            // Find items with status changes
+            $changedItems = [];
+            $hasChanges = false;
+
+            foreach ($currentStatuses as $itemId => $dbData) {
+                $dbStatus = $dbData['status'];
+                $clientStatus = $clientStatuses[$itemId] ?? null;
+
+                // If client doesn't have this item or status is different
+                if ($clientStatus === null || $clientStatus !== $dbStatus) {
+                    $changedItems[] = [
+                        'id' => $itemId,
+                        'status' => $dbStatus,
+                        'updated_at' => $dbData['updated_at']
+                    ];
+                    $hasChanges = true;
+                }
+            }
+
+            // Check for deleted items (items that client has but db doesn't)
+            foreach ($clientStatuses as $itemId => $clientStatus) {
+                if (!isset($currentStatuses[$itemId])) {
+                    // Item was deleted
+                    $hasChanges = true;
+                }
+            }
+
+            // Get current stats only if there are changes
+            $currentStats = null;
+            if ($hasChanges) {
+                $currentStats = $this->getCurrentStats();
+            }
+
+            // Prepare response
+            $response = [
+                'has_status_changes' => $hasChanges,
+                'changed_items' => $changedItems,
+                'current_statuses' => array_map(function ($data) {
+                    return $data['status'];
+                }, $currentStatuses),
+                'stats' => $currentStats,
+                'timestamp' => now()->toISOString()
+            ];
+
+            // Add debug info if needed
+            if (config('app.debug')) {
+                $response['debug'] = [
+                    'total_db_items' => count($currentStatuses),
+                    'total_client_items' => count($clientStatuses),
+                    'changed_count' => count($changedItems)
+                ];
+            }
+
+            return response()->json($response);
+        } catch (\Exception $e) {
+            Log::error('Guest check status updates error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'has_status_changes' => false,
+                'error' => 'Failed to check status updates'
+            ], 500);
+        }
+    }
 }
