@@ -65,7 +65,7 @@ Route::prefix('user')
     ->middleware(['auth', 'user'])
     ->name('user.')
     ->group(function () {
-        Route::get('/dashboard', [App\Http\Controllers\User\DashboardController::class, 'index'])->name('dashboard.index');
+        Route::get('/dashboard', [App\Http\Controllers\Guest\DashboardController::class, 'index'])->name('dashboard.index');
 
         // Dashboard AJAX routes
         Route::get('/dashboard/refresh', [App\Http\Controllers\Guest\DashboardController::class, 'refresh'])->name('dashboard.refresh');
