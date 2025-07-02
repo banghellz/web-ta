@@ -299,7 +299,7 @@
             }
 
             /* Refresh button animation */
-            .btn.refreshing {
+            .btn.refreshing .ti-refresh {
                 animation: spin 1s linear infinite;
             }
 
@@ -701,7 +701,7 @@
                     setTimeout(() => $badge.removeClass('status-updating'), 600);
                 }
 
-                // === FULL TABLE REFRESH (for manual refresh only) ===
+                // === REFRESH FUNCTIONS ===
                 function performManualRefresh() {
                     const $refreshBtn = $('#reload-items');
                     $refreshBtn.addClass('refreshing');
@@ -709,6 +709,26 @@
                     table.ajax.reload(function(json) {
                         $refreshBtn.removeClass('refreshing');
                         showItemsToast('Data refreshed successfully!', 'success');
+                        updateLastRefreshTime();
+
+                        // Update current statuses map from full data
+                        if (json && json.data) {
+                            currentItemStatuses.clear();
+                            json.data.forEach(item => {
+                                currentItemStatuses.set(item.id.toString(), item.status);
+                            });
+                        }
+
+                        // Update stats
+                        if (json && json.stats) {
+                            updateStats(json.stats);
+                        }
+                    }, false);
+                }
+
+                function performAutoRefresh() {
+                    // Silent auto refresh without showing toast
+                    table.ajax.reload(function(json) {
                         updateLastRefreshTime();
 
                         // Update current statuses map from full data
@@ -1083,8 +1103,8 @@
                                 // Remove from current statuses
                                 currentItemStatuses.delete(itemToDelete.id.toString());
 
-                                // Trigger immediate status check
-                                setTimeout(() => checkStatusUpdates(), 500);
+                                // Auto refresh after successful delete
+                                setTimeout(() => performAutoRefresh(), 500);
 
                                 if (response.stats) {
                                     updateStats(response.stats);
@@ -1132,8 +1152,8 @@
                                 // Update status in map
                                 currentItemStatuses.set(itemToMarkMissing.id.toString(), 'missing');
 
-                                // Trigger immediate status check
-                                setTimeout(() => checkStatusUpdates(), 500);
+                                // Auto refresh after successful mark as missing
+                                setTimeout(() => performAutoRefresh(), 500);
 
                                 if (response.stats) {
                                     updateStats(response.stats);
@@ -1173,8 +1193,8 @@
                         currentItemStatuses.set(data.item.id.toString(), data.item.status || 'available');
                     }
 
-                    // Trigger status check
-                    setTimeout(() => checkStatusUpdates(), 500);
+                    // Auto refresh after successful item creation
+                    setTimeout(() => performAutoRefresh(), 500);
 
                     if (data.stats) {
                         updateStats(data.stats);
@@ -1210,7 +1230,7 @@
                 // Global functions
                 window.refreshItemsTable = function(silent = true) {
                     if (silent) {
-                        checkStatusUpdates();
+                        performAutoRefresh();
                     } else {
                         performManualRefresh();
                     }
@@ -1226,7 +1246,7 @@
                     console.log('Current Stats:', currentStats);
                 };
 
-                console.log('Status-only real-time system initialized');
+                console.log('Items management with auto-refresh initialized successfully');
             });
         </script>
     @endpush
