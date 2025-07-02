@@ -4,14 +4,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Website ATMI</title>
+    <title>Website ATMI - CABINEX</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>
+        .carousel-container {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .carousel-slide {
+            transition: transform 0.5s ease-in-out;
+        }
+
+        .carousel-indicators {
+            bottom: 1rem;
+        }
+
+        .indicator {
+            transition: all 0.3s ease;
+        }
+
+        .indicator.active {
+            background-color: white;
+            transform: scale(1.2);
+        }
+    </style>
 </head>
 
 <body class="bg-gray-50 font-sans">
     <!-- Navbar -->
-    <header class="bg-white shadow-lg" x-data="{ isMobileOpen: false, isPOpen: false }">
+    <header class="bg-white shadow-lg" x-data="{ isMobileOpen: false }">
         <nav class="mx-auto flex max-w-7xl items-center justify-between p-6 lg:px-8" aria-label="Global">
             <div class="flex lg:flex-1">
                 <a href="#" class="-m-1.5 p-1.5">
@@ -90,17 +113,108 @@
         </div>
     </header>
 
-    <!-- Hero Section -->
+    <!-- Hero Section with Carousel -->
     <section id="hero" class="relative bg-gradient-to-br from-indigo-900 via-indigo-800 to-blue-900 text-white">
         <div class="absolute inset-0 bg-black/20"></div>
+
+        <!-- Hero Carousel -->
+        <div class="carousel-container relative h-96 lg:h-[500px]" x-data="{
+            currentSlide: 0,
+            slides: [{
+                    image: 'https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80',
+                    title: 'Smart RFID Access Control',
+                    description: 'Secure tool access with RFID card authentication'
+                },
+                {
+                    image: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80',
+                    title: 'Digital Coin System',
+                    description: 'Modern digital token-based borrowing system'
+                },
+                {
+                    image: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80',
+                    title: 'Real-Time Dashboard',
+                    description: 'Monitor and manage tools in real-time'
+                },
+                {
+                    image: 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80',
+                    title: 'Automated Notifications',
+                    description: 'Smart alerts and complete history tracking'
+                }
+            ],
+            nextSlide() {
+                this.currentSlide = (this.currentSlide + 1) % this.slides.length;
+            },
+            prevSlide() {
+                this.currentSlide = this.currentSlide === 0 ? this.slides.length - 1 : this.currentSlide - 1;
+            },
+            goToSlide(index) {
+                this.currentSlide = index;
+            }
+        }" x-init="setInterval(() => nextSlide(), 5000)">
+
+            <!-- Carousel Images -->
+            <div class="absolute inset-0">
+                <template x-for="(slide, index) in slides" :key="index">
+                    <div x-show="currentSlide === index" x-transition:enter="transition ease-out duration-500"
+                        x-transition:enter-start="opacity-0 transform translate-x-full"
+                        x-transition:enter-end="opacity-100 transform translate-x-0"
+                        x-transition:leave="transition ease-in duration-500"
+                        x-transition:leave-start="opacity-100 transform translate-x-0"
+                        x-transition:leave-end="opacity-0 transform -translate-x-full" class="absolute inset-0">
+                        <img :src="slide.image" :alt="slide.title" class="w-full h-full object-cover">
+                        <div class="absolute inset-0 bg-black/40"></div>
+                    </div>
+                </template>
+            </div>
+
+            <!-- Carousel Content -->
+            <div class="relative z-10 flex items-center justify-center h-full">
+                <div class="text-center px-6 max-w-4xl">
+                    <template x-for="(slide, index) in slides" :key="index">
+                        <div x-show="currentSlide === index"
+                            x-transition:enter="transition ease-out duration-700 delay-300"
+                            x-transition:enter-start="opacity-0 transform translate-y-8"
+                            x-transition:enter-end="opacity-100 transform translate-y-0">
+                            <h2 class="text-2xl md:text-4xl font-bold mb-4" x-text="slide.title"></h2>
+                            <p class="text-lg md:text-xl text-gray-200" x-text="slide.description"></p>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Carousel Navigation -->
+            <button @click="prevSlide()"
+                class="absolute left-4 top-1/2 transform -translate-y-1/2 z-20 bg-white/20 hover:bg-white/30 rounded-full p-2 transition-colors">
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                </svg>
+            </button>
+
+            <button @click="nextSlide()"
+                class="absolute right-4 top-1/2 transform -translate-y-1/2 z-20 bg-white/20 hover:bg-white/30 rounded-full p-2 transition-colors">
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                </svg>
+            </button>
+
+            <!-- Carousel Indicators -->
+            <div class="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-20 flex space-x-2">
+                <template x-for="(slide, index) in slides" :key="index">
+                    <button @click="goToSlide(index)" :class="{ 'active': currentSlide === index }"
+                        class="indicator w-3 h-3 rounded-full bg-white/50 hover:bg-white/75 transition-all duration-300"></button>
+                </template>
+            </div>
+        </div>
+
+        <!-- Main Hero Content -->
         <div class="relative mx-auto max-w-7xl px-6 py-24 sm:py-32 lg:px-8">
             <div class="mx-auto max-w-2xl text-center">
                 <h1 class="text-4xl font-bold tracking-tight sm:text-6xl">
                     Welcome to <span class="text-indigo-300">CABINEX</span>
                 </h1>
                 <p class="mt-6 text-lg leading-8 text-gray-300">
-                    Advanced Technology Manufacturing Innovation - Pioneering the future of industrial automation and
-                    precision engineering solutions.
+                    Advanced Technology Manufacturing Innovation - Smart tool management system with RFID integration,
+                    digital coin system, and real-time monitoring for modern workshops.
                 </p>
                 <div class="mt-10 flex items-center justify-center gap-x-6">
                     <a href="#features"
@@ -126,9 +240,9 @@
     <section id="specs" class="py-24 sm:py-32 bg-white">
         <div class="mx-auto max-w-7xl px-6 lg:px-8">
             <div class="mx-auto max-w-2xl text-center">
-                <h2 class="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">Technical Specifications</h2>
+                <h2 class="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">Hardware Specifications</h2>
                 <p class="mt-4 text-lg leading-8 text-gray-600">
-                    Our cutting-edge technology delivers unmatched performance and reliability.
+                    CABINEX is built with high-quality components for reliable performance and seamless integration.
                 </p>
             </div>
             <div class="mx-auto mt-16 max-w-5xl">
@@ -138,37 +252,76 @@
                             <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor"
                                 viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                                    d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z">
+                                </path>
                             </svg>
                         </div>
-                        <h3 class="text-lg font-semibold text-gray-900 mb-2">Processing Power</h3>
-                        <p class="text-3xl font-bold text-indigo-600 mb-2">2.8 GHz</p>
-                        <p class="text-sm text-gray-600">Quad-core ARM processor for optimal performance</p>
+                        <h3 class="text-lg font-semibold text-gray-900 mb-2">Main Controller</h3>
+                        <p class="text-2xl font-bold text-indigo-600 mb-2">Raspberry Pi 4</p>
+                        <p class="text-sm text-gray-600">High-performance ARM processor with 4GB/8GB RAM options</p>
                     </div>
                     <div class="bg-gray-50 rounded-lg p-8 text-center hover:shadow-lg transition-shadow">
                         <div class="w-12 h-12 bg-green-600 rounded-lg mx-auto mb-4 flex items-center justify-center">
                             <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor"
                                 viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z">
-                                </path>
+                                    d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"></path>
                             </svg>
                         </div>
-                        <h3 class="text-lg font-semibold text-gray-900 mb-2">Precision</h3>
-                        <p class="text-3xl font-bold text-green-600 mb-2">±0.001mm</p>
-                        <p class="text-sm text-gray-600">Ultra-high precision manufacturing capability</p>
+                        <h3 class="text-lg font-semibold text-gray-900 mb-2">RFID Reader</h3>
+                        <p class="text-2xl font-bold text-green-600 mb-2">R20DC</p>
+                        <p class="text-sm text-gray-600">Long-range RFID reader for seamless card detection</p>
                     </div>
                     <div class="bg-gray-50 rounded-lg p-8 text-center hover:shadow-lg transition-shadow">
                         <div class="w-12 h-12 bg-purple-600 rounded-lg mx-auto mb-4 flex items-center justify-center">
                             <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor"
                                 viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z">
+                                </path>
                             </svg>
                         </div>
-                        <h3 class="text-lg font-semibold text-gray-900 mb-2">Uptime</h3>
-                        <p class="text-3xl font-bold text-purple-600 mb-2">99.9%</p>
-                        <p class="text-sm text-gray-600">Maximum operational reliability</p>
+                        <h3 class="text-lg font-semibold text-gray-900 mb-2">Display</h3>
+                        <p class="text-2xl font-bold text-purple-600 mb-2">Waveshare</p>
+                        <p class="text-sm text-gray-600">7-inch capacitive touchscreen for user interface</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-8 text-center hover:shadow-lg transition-shadow">
+                        <div class="w-12 h-12 bg-yellow-600 rounded-lg mx-auto mb-4 flex items-center justify-center">
+                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z">
+                                </path>
+                            </svg>
+                        </div>
+                        <h3 class="text-lg font-semibold text-gray-900 mb-2">Relay Module</h3>
+                        <p class="text-2xl font-bold text-yellow-600 mb-2">8-Channel</p>
+                        <p class="text-sm text-gray-600">For cabinet lock control and device automation</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-8 text-center hover:shadow-lg transition-shadow">
+                        <div class="w-12 h-12 bg-red-600 rounded-lg mx-auto mb-4 flex items-center justify-center">
+                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                            </svg>
+                        </div>
+                        <h3 class="text-lg font-semibold text-gray-900 mb-2">Power Supply</h3>
+                        <p class="text-2xl font-bold text-red-600 mb-2">5V 3A</p>
+                        <p class="text-sm text-gray-600">Stable power for Raspberry Pi and all accessories</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-8 text-center hover:shadow-lg transition-shadow">
+                        <div class="w-12 h-12 bg-blue-600 rounded-lg mx-auto mb-4 flex items-center justify-center">
+                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0">
+                                </path>
+                            </svg>
+                        </div>
+                        <h3 class="text-lg font-semibold text-gray-900 mb-2">Connectivity</h3>
+                        <p class="text-2xl font-bold text-blue-600 mb-2">Wi-Fi / LAN</p>
+                        <p class="text-sm text-gray-600">Dual connectivity options for flexible deployment</p>
                     </div>
                 </div>
             </div>
@@ -181,7 +334,7 @@
             <div class="mx-auto max-w-2xl text-center">
                 <h2 class="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">Key Features</h2>
                 <p class="mt-4 text-lg leading-8 text-gray-600">
-                    Discover what makes our technology stand out from the competition.
+                    CABINEX revolutionizes tool management with smart features designed for modern workshops.
                 </p>
             </div>
             <div class="mx-auto mt-16 max-w-7xl">
@@ -192,15 +345,16 @@
                                 <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor"
                                     viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z">
+                                        d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z">
                                     </path>
                                 </svg>
                             </div>
                         </div>
                         <div>
-                            <h3 class="text-xl font-semibold text-gray-900 mb-2">Smart Automation</h3>
-                            <p class="text-gray-600">AI-powered automation systems that adapt to your production needs
-                                and optimize efficiency in real-time.</p>
+                            <h3 class="text-xl font-semibold text-gray-900 mb-2">💳 Smart Access with RFID Integration
+                            </h3>
+                            <p class="text-gray-600">Users can only borrow tools by logging in with a registered
+                                account linked to an RFID card, ensuring secure and authorized access.</p>
                         </div>
                     </div>
                     <div class="flex gap-4">
@@ -209,15 +363,16 @@
                                 <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor"
                                     viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z">
+                                        d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1">
                                     </path>
                                 </svg>
                             </div>
                         </div>
                         <div>
-                            <h3 class="text-xl font-semibold text-gray-900 mb-2">Advanced Security</h3>
-                            <p class="text-gray-600">Multi-layered security protocols ensure your data and operations
-                                remain protected from cyber threats.</p>
+                            <h3 class="text-xl font-semibold text-gray-900 mb-2">💰 Digital Coin System</h3>
+                            <p class="text-gray-600">Physical coins are replaced with digital tokens. Each borrowing
+                                action deducts coins automatically, reducing the risk of loss and simplifying the
+                                lending process.</p>
                         </div>
                     </div>
                     <div class="flex gap-4">
@@ -226,14 +381,15 @@
                                 <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor"
                                     viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                                        d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z">
+                                    </path>
                                 </svg>
                             </div>
                         </div>
                         <div>
-                            <h3 class="text-xl font-semibold text-gray-900 mb-2">High Performance</h3>
-                            <p class="text-gray-600">Engineered for maximum throughput with minimal downtime,
-                                delivering consistent results at scale.</p>
+                            <h3 class="text-xl font-semibold text-gray-900 mb-2">📊 Real-Time Monitoring Dashboard</h3>
+                            <p class="text-gray-600">Admins can track tool status live, view borrowing history, and
+                                manage users and tools through an intuitive, web-based dashboard.</p>
                         </div>
                     </div>
                     <div class="flex gap-4">
@@ -242,15 +398,16 @@
                                 <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor"
                                     viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z">
-                                    </path>
+                                        d="M15 17h5l-5 5v-5zM4 6h16M4 12h16m-7 6H4"></path>
                                 </svg>
                             </div>
                         </div>
                         <div>
-                            <h3 class="text-xl font-semibold text-gray-900 mb-2">User-Friendly Interface</h3>
-                            <p class="text-gray-600">Intuitive design makes complex operations simple, reducing
-                                training time and improving productivity.</p>
+                            <h3 class="text-xl font-semibold text-gray-900 mb-2">🔔 Automated Notifications & History
+                                Logs</h3>
+                            <p class="text-gray-600">Automated notifications keep users informed about their borrowing
+                                activities, while comprehensive history logs provide complete audit trails for all
+                                transactions.</p>
                         </div>
                     </div>
                 </div>
@@ -264,7 +421,7 @@
             <div class="mx-auto max-w-2xl text-center">
                 <h2 class="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">Documentation & Manuals</h2>
                 <p class="mt-4 text-lg leading-8 text-gray-600">
-                    Comprehensive guides and documentation to help you get the most out of our technology.
+                    Comprehensive guides and documentation to help you get the most out of CABINEX.
                 </p>
             </div>
             <div class="mx-auto mt-16 max-w-5xl">
@@ -281,7 +438,7 @@
                         </div>
                         <h3 class="text-xl font-semibold text-gray-900 mb-3">Quick Start Guide</h3>
                         <p class="text-gray-600 mb-4">Get up and running in minutes with our step-by-step installation
-                            and setup guide.</p>
+                            and setup guide for CABINEX.</p>
                         <a href="#"
                             class="inline-flex items-center text-blue-600 hover:text-blue-800 font-medium">
                             Download PDF <span class="ml-1">→</span>
@@ -298,8 +455,8 @@
                             </svg>
                         </div>
                         <h3 class="text-xl font-semibold text-gray-900 mb-3">User Manual</h3>
-                        <p class="text-gray-600 mb-4">Comprehensive documentation covering all features, functions, and
-                            best practices.</p>
+                        <p class="text-gray-600 mb-4">Comprehensive documentation covering all CABINEX features, user
+                            interface, and best practices.</p>
                         <a href="#"
                             class="inline-flex items-center text-green-600 hover:text-green-800 font-medium">
                             Download PDF <span class="ml-1">→</span>
@@ -318,8 +475,8 @@
                             </svg>
                         </div>
                         <h3 class="text-xl font-semibold text-gray-900 mb-3">Technical Manual</h3>
-                        <p class="text-gray-600 mb-4">Advanced configuration, troubleshooting, and maintenance
-                            procedures for technical users.</p>
+                        <p class="text-gray-600 mb-4">Advanced configuration, hardware setup, troubleshooting, and
+                            maintenance procedures.</p>
                         <a href="#"
                             class="inline-flex items-center text-purple-600 hover:text-purple-800 font-medium">
                             Download PDF <span class="ml-1">→</span>
@@ -336,40 +493,30 @@
             <div class="mx-auto max-w-2xl text-center">
                 <h2 class="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">Meet Our Team</h2>
                 <p class="mt-4 text-lg leading-8 text-gray-600">
-                    The brilliant minds behind ATMI's innovative solutions and cutting-edge technology.
+                    The innovative minds behind CABINEX - Smart Tool Management System.
                 </p>
             </div>
-            <div class="mx-auto mt-16 max-w-6xl">
-                <div class="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
+            <div class="mx-auto mt-16 max-w-4xl">
+                <div class="grid grid-cols-1 gap-8 sm:grid-cols-2 justify-center">
                     <div class="bg-white rounded-2xl p-8 text-center shadow-lg hover:shadow-xl transition-shadow">
                         <div
                             class="w-20 h-20 bg-gradient-to-br from-indigo-400 to-indigo-600 rounded-full mx-auto mb-4 flex items-center justify-center">
-                            <span class="text-2xl font-bold text-white">JS</span>
+                            <span class="text-2xl font-bold text-white">CD</span>
                         </div>
-                        <h3 class="text-xl font-semibold text-gray-900 mb-1">John Smith</h3>
-                        <p class="text-indigo-600 font-medium mb-3">Chief Technology Officer</p>
-                        <p class="text-gray-600 text-sm">Bridging the gap between technology and user needs, ensuring
-                            our products deliver real-world value.</p>
+                        <h3 class="text-xl font-semibold text-gray-900 mb-1">Christopher Davin</h3>
+                        <p class="text-indigo-600 font-medium mb-3">Lead Developer & System Architect</p>
+                        <p class="text-gray-600 text-sm">Designing and implementing the core CABINEX system
+                            architecture, from RFID integration to web dashboard development.</p>
                     </div>
                     <div class="bg-white rounded-2xl p-8 text-center shadow-lg hover:shadow-xl transition-shadow">
                         <div
                             class="w-20 h-20 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full mx-auto mb-4 flex items-center justify-center">
-                            <span class="text-2xl font-bold text-white">RT</span>
+                            <span class="text-2xl font-bold text-white">DN</span>
                         </div>
-                        <h3 class="text-xl font-semibold text-gray-900 mb-1">Robert Taylor</h3>
-                        <p class="text-blue-600 font-medium mb-3">Operations Director</p>
-                        <p class="text-gray-600 text-sm">Optimizing manufacturing processes and ensuring seamless
-                            delivery of our advanced solutions.</p>
-                    </div>
-                    <div class="bg-white rounded-2xl p-8 text-center shadow-lg hover:shadow-xl transition-shadow">
-                        <div
-                            class="w-20 h-20 bg-gradient-to-br from-pink-400 to-pink-600 rounded-full mx-auto mb-4 flex items-center justify-center">
-                            <span class="text-2xl font-bold text-white">AB</span>
-                        </div>
-                        <h3 class="text-xl font-semibold text-gray-900 mb-1">Anna Brown</h3>
-                        <p class="text-pink-600 font-medium mb-3">Quality Assurance Lead</p>
-                        <p class="text-gray-600 text-sm">Maintaining the highest quality standards through rigorous
-                            testing and continuous improvement processes.</p>
+                        <h3 class="text-xl font-semibold text-gray-900 mb-1">Dipa Nusantara</h3>
+                        <p class="text-blue-600 font-medium mb-3">Hardware Engineer & Integration Specialist</p>
+                        <p class="text-gray-600 text-sm">Specializing in hardware integration, Raspberry Pi
+                            configuration, and ensuring seamless communication between all system components.</p>
                     </div>
                 </div>
             </div>
@@ -382,7 +529,7 @@
             <div class="mx-auto max-w-2xl text-center">
                 <h2 class="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">Get In Touch</h2>
                 <p class="mt-4 text-lg leading-8 text-gray-600">
-                    Ready to transform your manufacturing process? Contact our team of experts today.
+                    Interested in implementing CABINEX in your workshop? Contact our team for more information.
                 </p>
             </div>
             <div class="mx-auto mt-16 max-w-6xl">
@@ -406,8 +553,8 @@
                                     </div>
                                     <div>
                                         <h4 class="text-lg font-semibold text-gray-900">Office Address</h4>
-                                        <p class="text-gray-600">1234 Innovation Drive<br>Tech Valley, CA
-                                            94000<br>United States</p>
+                                        <p class="text-gray-600">ATMI Polytechnic<br>Jl. Mojo No.1,
+                                            Karangasem<br>Surakarta, Central Java<br>Indonesia</p>
                                     </div>
                                 </div>
                                 <div class="flex items-start gap-4">
@@ -422,7 +569,7 @@
                                     </div>
                                     <div>
                                         <h4 class="text-lg font-semibold text-gray-900">Phone Number</h4>
-                                        <p class="text-gray-600">+1 (555) 123-4567<br>+1 (555) 987-6543</p>
+                                        <p class="text-gray-600">+62 271 714466<br>+62 271 714390</p>
                                     </div>
                                 </div>
                                 <div class="flex items-start gap-4">
@@ -437,21 +584,21 @@
                                     </div>
                                     <div>
                                         <h4 class="text-lg font-semibold text-gray-900">Email Address</h4>
-                                        <p class="text-gray-600">info@atmi.com<br>support@atmi.com</p>
+                                        <p class="text-gray-600">info@atmi.ac.id<br>cabinex@atmi.ac.id</p>
                                     </div>
                                 </div>
                             </div>
                         </div>
                         <div class="bg-gradient-to-br from-indigo-50 to-blue-100 rounded-2xl p-6">
-                            <h4 class="text-lg font-semibold text-gray-900 mb-3">Business Hours</h4>
+                            <h4 class="text-lg font-semibold text-gray-900 mb-3">Office Hours</h4>
                             <div class="space-y-2 text-sm text-gray-600">
                                 <div class="flex justify-between">
                                     <span>Monday - Friday</span>
-                                    <span>8:00 AM - 6:00 PM</span>
+                                    <span>7:00 AM - 4:00 PM</span>
                                 </div>
                                 <div class="flex justify-between">
                                     <span>Saturday</span>
-                                    <span>9:00 AM - 4:00 PM</span>
+                                    <span>7:00 AM - 12:00 PM</span>
                                 </div>
                                 <div class="flex justify-between">
                                     <span>Sunday</span>
@@ -493,7 +640,7 @@
                                     class="block text-sm font-medium text-gray-700 mb-2">Message</label>
                                 <textarea id="message" rows="5" x-model="formData.message"
                                     class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors resize-none"
-                                    placeholder="Tell us more about your project or inquiry..."></textarea>
+                                    placeholder="Tell us about your workshop and requirements..."></textarea>
                             </div>
                             <button type="submit"
                                 class="w-full bg-indigo-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors">
@@ -512,14 +659,12 @@
             <div class="grid grid-cols-1 gap-8 lg:grid-cols-4">
                 <div class="lg:col-span-2">
                     <div class="flex items-center gap-2 mb-4">
-                        <img class="h-8 w-auto"
-                            src="https://tailwindcss.com/plus-assets/img/logos/mark.svg?color=indigo&shade=400"
-                            alt="ATMI Logo">
-                        <span class="text-xl font-bold">ATMI</span>
+                        <img class="h-8 w-auto" src="/logo/logo_new_mid.png" alt="ATMI Logo">
+                        <span class="text-xl font-bold">CABINEX</span>
                     </div>
                     <p class="text-gray-300 mb-6 max-w-md">
-                        Leading the future of manufacturing with innovative automation solutions and precision
-                        engineering technology.
+                        Revolutionary smart tool management system with RFID integration, digital coin system, and
+                        real-time monitoring for modern workshops.
                     </p>
                     <div class="flex space-x-4">
                         <a href="#"
@@ -533,13 +678,6 @@
                             class="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-gray-700 transition-colors">
                             <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                                 <path
-                                    d="M22.46 6c-.77.35-1.6.58-2.46.69.88-.53 1.56-1.37 1.88-2.38-.83.5-1.75.85-2.72 1.05C18.37 4.5 17.26 4 16 4c-2.35 0-4.27 1.92-4.27 4.29 0 .34.04.67.11.98C8.28 9.09 5.11 7.38 3 4.79c-.37.63-.58 1.37-.58 2.15 0 1.49.75 2.81 1.91 3.56-.71 0-1.37-.2-1.95-.5v.03c0 2.08 1.48 3.82 3.44 4.21a4.22 4.22 0 0 1-1.93.07 4.28 4.28 0 0 0 4 2.98 8.521 8.521 0 0 1-5.33 1.84c-.34 0-.68-.02-1.02-.06C3.44 20.29 5.7 21 8.12 21 16 21 20.33 14.46 20.33 8.79c0-.19 0-.37-.01-.56.84-.6 1.56-1.36 2.14-2.23z" />
-                            </svg>
-                        </a>
-                        <a href="#"
-                            class="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-gray-700 transition-colors">
-                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                                <path
                                     d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
                             </svg>
                         </a>
@@ -547,7 +685,14 @@
                             class="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-gray-700 transition-colors">
                             <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                                 <path
-                                    d="M12.017 0C5.396 0 .029 5.367.029 11.987c0 5.079 3.158 9.417 7.618 11.174-.105-.949-.199-2.403.041-3.439.219-.937 1.404-5.958 1.404-5.958s-.359-.72-.359-1.781c0-1.663.967-2.911 2.168-2.911 1.024 0 1.518.769 1.518 1.688 0 1.029-.653 2.567-.992 3.992-.285 1.193.6 2.165 1.775 2.165 2.128 0 3.768-2.245 3.768-5.487 0-2.861-2.063-4.869-5.008-4.869-3.41 0-5.409 2.562-5.409 5.199 0 1.033.394 2.143.889 2.741.099.12.112.225.085.346-.09.375-.293 1.199-.334 1.363-.053.225-.172.271-.402.165-1.495-.69-2.433-2.878-2.433-4.646 0-3.776 2.748-7.252 7.92-7.252 4.158 0 7.392 2.967 7.392 6.923 0 4.135-2.607 7.462-6.233 7.462-1.214 0-2.357-.629-2.75-1.378l-.748 2.853c-.271 1.043-1.002 2.35-1.492 3.146C9.57 23.812 10.763 24.009 12.017 24c6.624 0 11.99-5.367 11.99-12C24.007 5.367 18.641.001.001 12.017z" />
+                                    d="M22.46 6c-.77.35-1.6.58-2.46.69.88-.53 1.56-1.37 1.88-2.38-.83.5-1.75.85-2.72 1.05C18.37 4.5 17.26 4 16 4c-2.35 0-4.27 1.92-4.27 4.29 0 .34.04.67.11.98C8.28 9.09 5.11 7.38 3 4.79c-.37.63-.58 1.37-.58 2.15 0 1.49.75 2.81 1.91 3.56-.71 0-1.37-.2-1.95-.5v.03c0 2.08 1.48 3.82 3.44 4.21a4.22 4.22 0 0 1-1.93.07 4.28 4.28 0 0 0 4 2.98 8.521 8.521 0 0 1-5.33 1.84c-.34 0-.68-.02-1.02-.06C3.44 20.29 5.7 21 8.12 21 16 21 20.33 14.46 20.33 8.79c0-.19 0-.37-.01-.56.84-.6 1.56-1.36 2.14-2.23z" />
+                            </svg>
+                        </a>
+                        <a href="#"
+                            class="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-gray-700 transition-colors">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                <path
+                                    d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
                             </svg>
                         </a>
                     </div>
@@ -579,8 +724,8 @@
                 </div>
             </div>
             <div class="border-t border-gray-800 mt-12 pt-8 text-center">
-                <p class="text-gray-400">&copy; 2025 ATMI. All rights reserved. Advanced Technology Manufacturing
-                    Innovation.</p>
+                <p class="text-gray-400">&copy; 2025 ATMI Polytechnic - CABINEX. All rights reserved. Advanced
+                    Technology Manufacturing Innovation.</p>
             </div>
         </div>
     </footer>
