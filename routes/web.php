@@ -105,20 +105,13 @@ Route::prefix('user')
         });
 
         Route::prefix('items')->name('items.')->group(function () {
-            Route::get('/', [App\Http\Controllers\User\ItemController::class, 'index'])->name('index');
-            Route::get('/data', [App\Http\Controllers\User\ItemController::class, 'getData'])->name('data');
-            Route::get('/create', [App\Http\Controllers\User\ItemController::class, 'create'])->name('create');
-            Route::post('/', [App\Http\Controllers\User\ItemController::class, 'store'])->name('store');
-            Route::get('/{item}', [App\Http\Controllers\User\ItemController::class, 'show'])->name('show');
-            Route::get('/{item}/edit', [App\Http\Controllers\User\ItemController::class, 'edit'])->name('edit');
-            Route::put('/{item}', [App\Http\Controllers\User\ItemController::class, 'update'])->name('update');
-            Route::delete('/{item}', [App\Http\Controllers\User\ItemController::class, 'destroy'])->name('destroy');
-            Route::patch('/{item}/quantity', [App\Http\Controllers\User\ItemController::class, 'updateQuantity'])->name('update-quantity');
-            // Real-time update checking route
-            Route::get('/items/check-updates', [App\Http\Controllers\User\ItemController::class, 'checkUpdates'])->name('user.items.check-updates');
+            Route::get('/items', [App\Http\Controllers\User\ItemController::class, 'index'])->name('index');
+            Route::get('/items/data', [App\Http\Controllers\User\ItemController::class, 'getData'])->name('data');
+            Route::get('/items/check-updates', [App\Http\Controllers\User\ItemController::class, 'checkUpdates'])->name('check-updates');
+            Route::get('/items/stats', [App\Http\Controllers\User\ItemController::class, 'getStats'])->name('stats');
 
-            // Stats API route
-            Route::get('/items/stats', [App\Http\Controllers\User\ItemController::class, 'getStats'])->name('user.items.stats');
+            // NEW: Status-only polling route
+            Route::post('/items/check-status-updates', [App\Http\Controllers\User\ItemController::class, 'checkStatusUpdates'])->name('check-status-updates');
         });
 
         Route::prefix('missing-tools')->name('missing-tools.')->group(function () {
