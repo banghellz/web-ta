@@ -24,7 +24,6 @@ class ItemController extends Controller
      */
     public function index()
     {
-        // HANYA tampilkan item yang tidak di-soft delete
         $totalItems = Item::count();
         $availableItems = Item::available()->count();
         $borrowedItems = Item::borrowed()->count();
@@ -107,7 +106,7 @@ class ItemController extends Controller
                         'status' => $item->status
                     ],
                     'stats' => $stats,
-                    'trigger_status_check' => true // New flag for status check
+                    'trigger_status_check' => true
                 ], 200);
             }
 
@@ -307,7 +306,7 @@ class ItemController extends Controller
                     'message' => $successMessage,
                     'item' => $item->fresh(),
                     'stats' => $stats,
-                    'trigger_status_check' => true, // New flag for status check
+                    'trigger_status_check' => true,
                     'status_changed' => $validated['status'] !== $oldStatus
                 ]);
             }
@@ -330,9 +329,8 @@ class ItemController extends Controller
         }
     }
 
-
     /**
-     * SOFT DELETE: Remove the specified item from storage (soft delete)
+     * HARD DELETE: Permanently remove the specified item from storage
      */
     public function destroy(Item $item)
     {
@@ -343,6 +341,11 @@ class ItemController extends Controller
             $itemId = $item->id;
             $currentUser = Auth::user();
 
+            // Check if item can be deleted
+            if ($item->status === 'borrowed') {
+                throw new \Exception('Cannot delete item that is currently borrowed. Please return the item first.');
+            }
+
             // Create notification before deleting
             try {
                 if ($currentUser && class_exists('App\Models\Notification')) {
@@ -352,7 +355,7 @@ class ItemController extends Controller
                 Log::warning('Failed to create notification for item deletion: ' . $notifError->getMessage());
             }
 
-            // Soft delete
+            // Hard delete - permanently remove from database
             $item->delete();
 
             DB::commit();
@@ -360,10 +363,10 @@ class ItemController extends Controller
             // Clear cache
             $this->clearStatsCache();
 
-            $successMessage = "Item '{$itemName}' has been moved to trash successfully!";
+            $successMessage = "Item '{$itemName}' has been permanently deleted!";
             $stats = $this->getCurrentStats();
 
-            Log::info('Item soft deleted successfully', [
+            Log::info('Item permanently deleted', [
                 'item_id' => $itemId,
                 'item_name' => $itemName,
                 'deleted_by' => $currentUser->id ?? 'unknown'
@@ -374,16 +377,16 @@ class ItemController extends Controller
                     'success' => true,
                     'message' => $successMessage,
                     'stats' => $stats,
-                    'trigger_status_check' => true, // New flag for status check
+                    'trigger_status_check' => true,
                     'deleted_item_id' => $itemId
                 ], 200);
             }
 
-            return redirect()->route('superladmin.items.index')->with('success', $successMessage);
+            return redirect()->route('superadmin.items.index')->with('success', $successMessage);
         } catch (\Exception $e) {
             DB::rollBack();
 
-            Log::error('Failed to soft delete item: ' . $e->getMessage(), [
+            Log::error('Failed to delete item: ' . $e->getMessage(), [
                 'item_id' => $item->id,
                 'trace' => $e->getTraceAsString()
             ]);
@@ -405,127 +408,7 @@ class ItemController extends Controller
     }
 
     /**
-     * NEW: Restore soft deleted item
-     */
-    public function restore($id)
-    {
-        try {
-            $item = Item::onlyTrashed()->findOrFail($id);
-
-            DB::beginTransaction();
-
-            $item->restore();
-            $currentUser = Auth::user();
-
-            // Create notification for restore
-            try {
-                if ($currentUser && class_exists('App\Models\Notification')) {
-                    // Anda bisa membuat method baru di Notification untuk restore
-                    // Notification::toolRestored($item, $currentUser);
-                }
-            } catch (\Exception $notifError) {
-                Log::warning('Failed to create notification for item restore: ' . $notifError->getMessage());
-            }
-
-            DB::commit();
-
-            $this->clearStatsCache();
-            $this->updateGlobalTimestamp();
-
-            $successMessage = "Item '{$item->nama_barang}' has been restored successfully!";
-            $stats = $this->getCurrentStats();
-
-            Log::info('Item restored successfully', [
-                'item_id' => $item->id,
-                'item_name' => $item->nama_barang,
-                'restored_by' => $currentUser->id ?? 'unknown'
-            ]);
-
-            if (request()->expectsJson()) {
-                return response()->json([
-                    'success' => true,
-                    'message' => $successMessage,
-                    'stats' => $stats,
-                    'trigger_refresh' => true,
-                    'force_update' => true
-                ]);
-            }
-
-            return redirect()->route('superadmin.items.index')->with('success', $successMessage);
-        } catch (\Exception $e) {
-            DB::rollBack();
-
-            Log::error('Failed to restore item: ' . $e->getMessage());
-
-            if (request()->expectsJson()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Failed to restore item. Please try again.'
-                ], 500);
-            }
-
-            return redirect()->back()->with('error', 'Failed to restore item. Please try again.');
-        }
-    }
-
-    /**
-     * NEW: Force delete (permanent delete)
-     */
-    public function forceDestroy($id)
-    {
-        try {
-            $item = Item::onlyTrashed()->findOrFail($id);
-
-            DB::beginTransaction();
-
-            $itemName = $item->nama_barang;
-            $itemId = $item->id;
-            $currentUser = Auth::user();
-
-            // Force delete permanently
-            $item->forceDelete();
-
-            DB::commit();
-
-            $this->clearStatsCache();
-            $this->updateGlobalTimestamp();
-
-            $successMessage = "Item '{$itemName}' has been permanently deleted!";
-
-            Log::warning('Item permanently deleted', [
-                'item_id' => $itemId,
-                'item_name' => $itemName,
-                'deleted_by' => $currentUser->id ?? 'unknown'
-            ]);
-
-            if (request()->expectsJson()) {
-                return response()->json([
-                    'success' => true,
-                    'message' => $successMessage,
-                    'trigger_refresh' => true,
-                    'force_update' => true
-                ]);
-            }
-
-            return redirect()->route('superadmin.items.index')->with('success', $successMessage);
-        } catch (\Exception $e) {
-            DB::rollBack();
-
-            Log::error('Failed to force delete item: ' . $e->getMessage());
-
-            if (request()->expectsJson()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Failed to permanently delete item. Please try again.'
-                ], 500);
-            }
-
-            return redirect()->back()->with('error', 'Failed to permanently delete item. Please try again.');
-        }
-    }
-
-    /**
-     * NEW: Check for status changes only - more reliable than timestamp comparison
+     * Check for status changes only - more reliable than timestamp comparison
      */
     public function checkStatusUpdates(Request $request)
     {
@@ -612,66 +495,11 @@ class ItemController extends Controller
     }
 
     /**
-     * NEW: Get deleted items data for DataTables AJAX
-     */
-    public function getDeletedData(Request $request)
-    {
-        try {
-            $query = Item::onlyTrashed()->select([
-                'id',
-                'epc',
-                'nama_barang',
-                'user_id',
-                'status',
-                'created_at',
-                'updated_at',
-                'deleted_at'
-            ]);
-
-            return DataTables::of($query)
-                ->addIndexColumn()
-                ->addColumn('deleted_at_formatted', function ($item) {
-                    return $item->deleted_at->format('d M Y, H:i');
-                })
-                ->addColumn('actions', function ($item) {
-                    return '
-                        <div class="btn-group" role="group">
-                            <button type="button" class="btn btn-sm btn-success restore-item" 
-                                    data-item-id="' . $item->id . '" 
-                                    data-item-name="' . e($item->nama_barang) . '"
-                                    title="Restore Item">
-                                <i class="ti ti-arrow-back-up"></i>
-                            </button>
-                            <button type="button" class="btn btn-sm btn-danger force-delete-item" 
-                                    data-item-id="' . $item->id . '" 
-                                    data-item-name="' . e($item->nama_barang) . '"
-                                    title="Permanently Delete">
-                                <i class="ti ti-trash-x"></i>
-                            </button>
-                        </div>';
-                })
-                ->rawColumns(['actions'])
-                ->make(true);
-        } catch (\Exception $e) {
-            Log::error('DataTables Deleted Items Error: ' . $e->getMessage());
-
-            return response()->json([
-                'draw' => intval($request->get('draw')),
-                'recordsTotal' => 0,
-                'recordsFiltered' => 0,
-                'data' => [],
-                'error' => 'Error loading deleted items: ' . $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * OPTIMIZED: Get items data for DataTables AJAX with better performance
+     * Get items data for DataTables AJAX
      */
     public function getData(Request $request)
     {
         try {
-            // HANYA tampilkan item yang tidak di-soft delete
             $query = Item::select([
                 'id',
                 'epc',
@@ -721,7 +549,7 @@ class ItemController extends Controller
                                data-item-id="' . $item->id . '" 
                                data-item-name="' . e($item->nama_barang) . '"
                                data-item-status="' . $item->status . '">
-                                <i class="ti ti-trash me-2"></i>Move to Trash
+                                <i class="ti ti-trash me-2"></i>Delete Permanently
                             </a>
                         </li>
                     </ul>
@@ -761,7 +589,7 @@ class ItemController extends Controller
     }
 
     /**
-     * OPTIMIZED: Check for updates dengan database timestamp detection
+     * Check for updates dengan database timestamp detection
      */
     public function checkUpdates(Request $request)
     {
@@ -863,12 +691,12 @@ class ItemController extends Controller
     }
 
     /**
-     * OPTIMIZED: Get last database update timestamp
+     * Get last database update timestamp
      */
     private function getLastDatabaseUpdate()
     {
         try {
-            // Get latest timestamps from items table (excluding soft deleted)
+            // Get latest timestamps from items table
             $latestUpdate = Item::max('updated_at');
             $latestCreated = Item::max('created_at');
 
@@ -893,9 +721,8 @@ class ItemController extends Controller
         }
     }
 
-
     /**
-     * IMPROVED: Force refresh all connected clients
+     * Force refresh all connected clients
      */
     public function forceRefresh(Request $request)
     {
@@ -920,7 +747,7 @@ class ItemController extends Controller
     }
 
     /**
-     * OPTIMIZED: Get current system stats with caching
+     * Get current system stats
      */
     public function getStats()
     {

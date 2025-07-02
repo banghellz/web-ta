@@ -16,9 +16,7 @@
             <div class="flex lg:flex-1">
                 <a href="#" class="-m-1.5 p-1.5">
                     <span class="sr-only">ATMI</span>
-                    <img class="h-8 w-auto"
-                        src="https://tailwindcss.com/plus-assets/img/logos/mark.svg?color=indigo&shade=600"
-                        alt="ATMI Logo">
+                    <img class="h-8 w-auto" src="/logo/darkmode_logo.png" alt="ATMI Logo">
                 </a>
             </div>
             <div class="flex lg:hidden">
@@ -56,9 +54,7 @@
                 <div class="flex items-center justify-between">
                     <a href="#" class="-m-1.5 p-1.5">
                         <span class="sr-only">ATMI</span>
-                        <img class="h-8 w-auto"
-                            src="https://tailwindcss.com/plus-assets/img/logos/mark.svg?color=indigo&shade=600"
-                            alt="ATMI Logo">
+                        <img class="h-8 w-auto" src="/logo/darkmode_logo.png" alt="ATMI Logo">
                     </a>
                     <button type="button" class="-m-2.5 rounded-md p-2.5 text-gray-700" @click="isMobileOpen=false">
                         <span class="sr-only">Close menu</span>
@@ -100,7 +96,7 @@
         <div class="relative mx-auto max-w-7xl px-6 py-24 sm:py-32 lg:px-8">
             <div class="mx-auto max-w-2xl text-center">
                 <h1 class="text-4xl font-bold tracking-tight sm:text-6xl">
-                    Welcome to <span class="text-indigo-300">ATMI</span>
+                    Welcome to <span class="text-indigo-300">CABINEX</span>
                 </h1>
                 <p class="mt-6 text-lg leading-8 text-gray-300">
                     Advanced Technology Manufacturing Innovation - Pioneering the future of industrial automation and

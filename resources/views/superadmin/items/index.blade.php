@@ -205,22 +205,23 @@
         <div class="modal-dialog modal-dialog-centered" role="document">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Move Item to Trash</h5>
+                    <h5 class="modal-title">Delete Item Permanently</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <div class="text-center">
-                        <i class="ti ti-trash text-warning" style="font-size: 3rem;"></i>
-                        <h3 class="mt-3">Move to Trash?</h3>
-                        <p>Are you sure you want to move the item <span id="item-to-delete" class="fw-bold"></span> to
-                            trash?</p>
-                        <p class="text-muted">You can restore it later from the trash if needed.</p>
+                        <i class="ti ti-trash text-danger" style="font-size: 3rem;"></i>
+                        <h3 class="mt-3">Delete Permanently?</h3>
+                        <p>Are you sure you want to permanently delete the item <span id="item-to-delete"
+                                class="fw-bold"></span>?</p>
+                        <p class="text-danger">This action cannot be undone. The item will be permanently removed from
+                            the system.</p>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-warning ms-auto" id="btn-confirm-delete">
-                        <i class="ti ti-trash me-1"></i>Move to Trash
+                    <button type="button" class="btn btn-danger ms-auto" id="btn-confirm-delete">
+                        <i class="ti ti-trash me-1"></i>Delete Permanently
                     </button>
                 </div>
             </div>
@@ -408,7 +409,7 @@
                 let isPollingEnabled = true;
                 let pollingFailureCount = 0;
 
-                const POLLING_INTERVAL = 1500; // 1 seconds
+                const POLLING_INTERVAL = 1500; // 1.5 seconds
                 const MAX_FAILURES = 3;
 
                 // Store current item statuses for comparison
@@ -500,7 +501,7 @@
 
                                 console.log(
                                     `🔄 Status changes detected at ${changeTime} (Request: ${requestDuration}ms)`
-                                    );
+                                );
 
                                 // Log detail perubahan untuk setiap item
                                 if (response.changed_items && response.changed_items.length > 0) {
@@ -564,7 +565,7 @@
                                 // Update current statuses map
                                 if (response.current_statuses) {
                                     currentItemStatuses = new Map(Object.entries(response
-                                    .current_statuses));
+                                        .current_statuses));
                                 }
                             } else {
                                 // Track request duration meski tidak ada perubahan
@@ -923,7 +924,7 @@
                                    data-item-id="${row.id}" 
                                    data-item-name="${row.nama_barang}"
                                    data-item-status="${row.status}">
-                                    <i class="ti ti-trash me-2"></i>Move to Trash
+                                    <i class="ti ti-trash me-2"></i>Delete Permanently
                                 </a>
                             </li>
                         </ul>
@@ -1065,7 +1066,7 @@
 
                     const $btn = $(this);
                     const originalText = $btn.html();
-                    $btn.prop('disabled', true).html('<i class="ti ti-loader-2 me-1 spinning"></i>Moving...');
+                    $btn.prop('disabled', true).html('<i class="ti ti-loader-2 me-1 spinning"></i>Deleting...');
 
                     $.ajax({
                         url: `/superadmin/items/${itemToDelete.id}`,
@@ -1077,7 +1078,7 @@
                         success: function(response) {
                             if (response.success) {
                                 showItemsToast(response.message ||
-                                    'Item moved to trash successfully!', 'success');
+                                    'Item deleted permanently!', 'success');
 
                                 // Remove from current statuses
                                 currentItemStatuses.delete(itemToDelete.id.toString());
@@ -1089,12 +1090,12 @@
                                     updateStats(response.stats);
                                 }
                             } else {
-                                showItemsToast(response.message || 'Failed to move item to trash.',
+                                showItemsToast(response.message || 'Failed to delete item.',
                                     'error');
                             }
                         },
                         error: function(xhr, status, error) {
-                            let errorMessage = 'Failed to move item to trash. Please try again.';
+                            let errorMessage = 'Failed to delete item. Please try again.';
                             if (xhr.responseJSON && xhr.responseJSON.message) {
                                 errorMessage = xhr.responseJSON.message;
                             }
