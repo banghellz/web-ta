@@ -457,8 +457,7 @@
                         hour12: false,
                         hour: '2-digit',
                         minute: '2-digit',
-                        second: '2-digit',
-                        fractionalSecondDigits: 3
+                        second: '2-digit'
                     });
 
                     // Send current statuses to server for comparison
@@ -473,18 +472,18 @@
                         },
                         timeout: 8000,
                         success: function(response) {
-                            // Hitung durasi request
+                            // Hitung durasi request dalam second
                             const checkEndTime = performance.now();
-                            const requestDuration = (checkEndTime - checkStartTime).toFixed(2);
+                            const requestDuration = ((checkEndTime - checkStartTime) / 1000).toFixed(3);
 
                             // Track request duration untuk average calculation
-                            const durationMs = parseFloat(requestDuration);
-                            requestTracker.durations.push(durationMs);
+                            const durationSec = parseFloat(requestDuration);
+                            requestTracker.durations.push(durationSec);
                             requestTracker.requestCount++;
-                            requestTracker.totalDuration += durationMs;
+                            requestTracker.totalDuration += durationSec;
 
                             console.log(
-                                `⏱️ Status check completed in ${requestDuration}ms at ${timeString}`,
+                                `⏱️ Status check completed in ${requestDuration}s at ${timeString}`,
                                 response);
 
                             pollingFailureCount = 0;
@@ -494,12 +493,11 @@
                                     hour12: false,
                                     hour: '2-digit',
                                     minute: '2-digit',
-                                    second: '2-digit',
-                                    fractionalSecondDigits: 3
+                                    second: '2-digit'
                                 });
 
                                 console.log(
-                                    `🔄 Status changes detected at ${changeTime} (Request: ${requestDuration}ms)`
+                                    `🔄 Status changes detected at ${changeTime} (Request: ${requestDuration}s)`
                                 );
 
                                 // Log detail perubahan untuk setiap item
@@ -522,7 +520,7 @@
                                         const newEmoji = statusEmoji[item.status] || '❓';
 
                                         console.log(
-                                            `${prevEmoji} ➡️ ${newEmoji} Item #${item.id}: ${previousStatus} → ${item.status} (${changeTime}) [Request: ${requestDuration}ms]`
+                                            `${prevEmoji} ➡️ ${newEmoji} Item #${item.id}: ${previousStatus} → ${item.status} (${changeTime}) [Request: ${requestDuration}s]`
                                         );
                                     });
 
@@ -537,16 +535,16 @@
                                             `📊 REQUEST PERFORMANCE REPORT (${requestTracker.requestCount} requests):`
                                         );
                                         console.log(
-                                            `   📈 Overall Average: ${requestTracker.averageDuration.toFixed(2)}ms`
+                                            `   📈 Overall Average: ${requestTracker.averageDuration.toFixed(3)}s`
                                         );
                                         console.log(
-                                            `   🔟 Last 10 Requests Average: ${last10Average.toFixed(2)}ms`
+                                            `   🔟 Last 10 Requests Average: ${last10Average.toFixed(3)}s`
                                         );
                                         console.log(
-                                            `   📊 Min/Max in last 10: ${Math.min(...requestTracker.durations.slice(-10)).toFixed(2)}ms / ${Math.max(...requestTracker.durations.slice(-10)).toFixed(2)}ms`
+                                            `   📊 Min/Max in last 10: ${Math.min(...requestTracker.durations.slice(-10)).toFixed(3)}s / ${Math.max(...requestTracker.durations.slice(-10)).toFixed(3)}s`
                                         );
                                         console.log(
-                                            `   🔍 Debug - Total duration: ${requestTracker.totalDuration.toFixed(2)}ms, Count: ${requestTracker.requestCount}`
+                                            `   🔍 Debug - Total duration: ${requestTracker.totalDuration.toFixed(3)}s, Count: ${requestTracker.requestCount}`
                                         );
                                         console.log('─'.repeat(50));
                                     }
@@ -579,39 +577,38 @@
                                         `📊 REQUEST PERFORMANCE REPORT (${requestTracker.requestCount} requests):`
                                     );
                                     console.log(
-                                        `   📈 Overall Average: ${requestTracker.averageDuration.toFixed(2)}ms`
+                                        `   📈 Overall Average: ${requestTracker.averageDuration.toFixed(3)}s`
                                     );
                                     console.log(
-                                        `   🔟 Last 10 Requests Average: ${last10Average.toFixed(2)}ms`
+                                        `   🔟 Last 10 Requests Average: ${last10Average.toFixed(3)}s`
                                     );
                                     console.log(
-                                        `   📊 Min/Max in last 10: ${Math.min(...requestTracker.durations.slice(-10)).toFixed(2)}ms / ${Math.max(...requestTracker.durations.slice(-10)).toFixed(2)}ms`
+                                        `   📊 Min/Max in last 10: ${Math.min(...requestTracker.durations.slice(-10)).toFixed(3)}s / ${Math.max(...requestTracker.durations.slice(-10)).toFixed(3)}s`
                                     );
                                     console.log('─'.repeat(50));
                                 }
 
-                                // Log occasional "no changes" untuk monitoring dengan milisecond
+                                // Log occasional "no changes" untuk monitoring dengan second
                                 if (Math.random() < 0.05) { // 5% chance
                                     console.log(
-                                        `✅ No status changes - checked in ${requestDuration}ms at ${timeString}`
+                                        `✅ No status changes - checked in ${requestDuration}s at ${timeString}`
                                     );
                                 }
                             }
                         },
                         error: function(xhr, status, error) {
                             const checkEndTime = performance.now();
-                            const requestDuration = (checkEndTime - checkStartTime).toFixed(2);
+                            const requestDuration = ((checkEndTime - checkStartTime) / 1000).toFixed(3);
                             const errorTime = new Date().toLocaleTimeString('id-ID', {
                                 hour12: false,
                                 hour: '2-digit',
                                 minute: '2-digit',
-                                second: '2-digit',
-                                fractionalSecondDigits: 3
+                                second: '2-digit'
                             });
 
                             pollingFailureCount++;
                             console.error(
-                                `❌ Status check failed after ${requestDuration}ms at ${errorTime}:`, xhr
+                                `❌ Status check failed after ${requestDuration}s at ${errorTime}:`, xhr
                                 .status, error);
 
                             if (pollingFailureCount >= MAX_FAILURES) {
@@ -627,8 +624,7 @@
                                         hour12: false,
                                         hour: '2-digit',
                                         minute: '2-digit',
-                                        second: '2-digit',
-                                        fractionalSecondDigits: 3
+                                        second: '2-digit'
                                     });
                                     console.log(`🔄 Attempting to reconnect at ${retryTime}...`);
                                     pollingFailureCount = 0;
