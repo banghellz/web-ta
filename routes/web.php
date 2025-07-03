@@ -111,7 +111,7 @@ Route::prefix('user')
             Route::get('/items/stats', [App\Http\Controllers\User\ItemController::class, 'getStats'])->name('stats');
 
             // NEW: Status-only polling route
-            Route::post('/items/check-status-updates', [App\Http\Controllers\User\ItemController::class, 'checkStatusUpdates'])->name('check-status-updates');
+            Route::post('/items/check-status-updates', [App\Http\Controllers\User\ItemController::class, 'checkStatusUpdates'])->name('items.check-status-updates');
         });
 
         Route::prefix('missing-tools')->name('missing-tools.')->group(function () {

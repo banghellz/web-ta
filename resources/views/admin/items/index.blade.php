@@ -1,5 +1,5 @@
 <!-- resources/views/admin/items/index.blade.php -->
-<x-layouts.admin_layout>
+<x-layouts.superadmin_layout>
     <x-slot name="title">{{ $title }}</x-slot>
     <x-slot name="content">{{ $content }}</x-slot>
 
@@ -205,22 +205,23 @@
         <div class="modal-dialog modal-dialog-centered" role="document">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Move Item to Trash</h5>
+                    <h5 class="modal-title">Delete Item Permanently</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <div class="text-center">
-                        <i class="ti ti-trash text-warning" style="font-size: 3rem;"></i>
-                        <h3 class="mt-3">Move to Trash?</h3>
-                        <p>Are you sure you want to move the item <span id="item-to-delete" class="fw-bold"></span> to
-                            trash?</p>
-                        <p class="text-muted">You can restore it later from the trash if needed.</p>
+                        <i class="ti ti-trash text-danger" style="font-size: 3rem;"></i>
+                        <h3 class="mt-3">Delete Permanently?</h3>
+                        <p>Are you sure you want to permanently delete the item <span id="item-to-delete"
+                                class="fw-bold"></span>?</p>
+                        <p class="text-danger">This action cannot be undone. The item will be permanently removed from
+                            the system.</p>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-warning ms-auto" id="btn-confirm-delete">
-                        <i class="ti ti-trash me-1"></i>Move to Trash
+                    <button type="button" class="btn btn-danger ms-auto" id="btn-confirm-delete">
+                        <i class="ti ti-trash me-1"></i>Delete Permanently
                     </button>
                 </div>
             </div>
@@ -298,7 +299,7 @@
             }
 
             /* Refresh button animation */
-            .btn.refreshing {
+            .btn.refreshing .ti-refresh {
                 animation: spin 1s linear infinite;
             }
 
@@ -408,7 +409,7 @@
                 let isPollingEnabled = true;
                 let pollingFailureCount = 0;
 
-                const POLLING_INTERVAL = 1500; // 1 seconds
+                const POLLING_INTERVAL = 1500; // 1.5 seconds
                 const MAX_FAILURES = 3;
 
                 // Store current item statuses for comparison
@@ -457,7 +458,8 @@
                         hour12: false,
                         hour: '2-digit',
                         minute: '2-digit',
-                        second: '2-digit'
+                        second: '2-digit',
+                        fractionalSecondDigits: 3
                     });
 
                     // Send current statuses to server for comparison
@@ -472,18 +474,18 @@
                         },
                         timeout: 8000,
                         success: function(response) {
-                            // Hitung durasi request dalam second
+                            // Hitung durasi request
                             const checkEndTime = performance.now();
-                            const requestDuration = ((checkEndTime - checkStartTime) / 1000).toFixed(3);
+                            const requestDuration = (checkEndTime - checkStartTime).toFixed(2);
 
                             // Track request duration untuk average calculation
-                            const durationSec = parseFloat(requestDuration);
-                            requestTracker.durations.push(durationSec);
+                            const durationMs = parseFloat(requestDuration);
+                            requestTracker.durations.push(durationMs);
                             requestTracker.requestCount++;
-                            requestTracker.totalDuration += durationSec;
+                            requestTracker.totalDuration += durationMs;
 
                             console.log(
-                                `⏱️ Status check completed in ${requestDuration}s at ${timeString}`,
+                                `⏱️ Status check completed in ${requestDuration}ms at ${timeString}`,
                                 response);
 
                             pollingFailureCount = 0;
@@ -493,11 +495,12 @@
                                     hour12: false,
                                     hour: '2-digit',
                                     minute: '2-digit',
-                                    second: '2-digit'
+                                    second: '2-digit',
+                                    fractionalSecondDigits: 3
                                 });
 
                                 console.log(
-                                    `🔄 Status changes detected at ${changeTime} (Request: ${requestDuration}s)`
+                                    `🔄 Status changes detected at ${changeTime} (Request: ${requestDuration}ms)`
                                 );
 
                                 // Log detail perubahan untuk setiap item
@@ -520,7 +523,7 @@
                                         const newEmoji = statusEmoji[item.status] || '❓';
 
                                         console.log(
-                                            `${prevEmoji} ➡️ ${newEmoji} Item #${item.id}: ${previousStatus} → ${item.status} (${changeTime}) [Request: ${requestDuration}s]`
+                                            `${prevEmoji} ➡️ ${newEmoji} Item #${item.id}: ${previousStatus} → ${item.status} (${changeTime}) [Request: ${requestDuration}ms]`
                                         );
                                     });
 
@@ -535,16 +538,16 @@
                                             `📊 REQUEST PERFORMANCE REPORT (${requestTracker.requestCount} requests):`
                                         );
                                         console.log(
-                                            `   📈 Overall Average: ${requestTracker.averageDuration.toFixed(3)}s`
+                                            `   📈 Overall Average: ${requestTracker.averageDuration.toFixed(2)}ms`
                                         );
                                         console.log(
-                                            `   🔟 Last 10 Requests Average: ${last10Average.toFixed(3)}s`
+                                            `   🔟 Last 10 Requests Average: ${last10Average.toFixed(2)}ms`
                                         );
                                         console.log(
-                                            `   📊 Min/Max in last 10: ${Math.min(...requestTracker.durations.slice(-10)).toFixed(3)}s / ${Math.max(...requestTracker.durations.slice(-10)).toFixed(3)}s`
+                                            `   📊 Min/Max in last 10: ${Math.min(...requestTracker.durations.slice(-10)).toFixed(2)}ms / ${Math.max(...requestTracker.durations.slice(-10)).toFixed(2)}ms`
                                         );
                                         console.log(
-                                            `   🔍 Debug - Total duration: ${requestTracker.totalDuration.toFixed(3)}s, Count: ${requestTracker.requestCount}`
+                                            `   🔍 Debug - Total duration: ${requestTracker.totalDuration.toFixed(2)}ms, Count: ${requestTracker.requestCount}`
                                         );
                                         console.log('─'.repeat(50));
                                     }
@@ -577,38 +580,39 @@
                                         `📊 REQUEST PERFORMANCE REPORT (${requestTracker.requestCount} requests):`
                                     );
                                     console.log(
-                                        `   📈 Overall Average: ${requestTracker.averageDuration.toFixed(3)}s`
+                                        `   📈 Overall Average: ${requestTracker.averageDuration.toFixed(2)}ms`
                                     );
                                     console.log(
-                                        `   🔟 Last 10 Requests Average: ${last10Average.toFixed(3)}s`
+                                        `   🔟 Last 10 Requests Average: ${last10Average.toFixed(2)}ms`
                                     );
                                     console.log(
-                                        `   📊 Min/Max in last 10: ${Math.min(...requestTracker.durations.slice(-10)).toFixed(3)}s / ${Math.max(...requestTracker.durations.slice(-10)).toFixed(3)}s`
+                                        `   📊 Min/Max in last 10: ${Math.min(...requestTracker.durations.slice(-10)).toFixed(2)}ms / ${Math.max(...requestTracker.durations.slice(-10)).toFixed(2)}ms`
                                     );
                                     console.log('─'.repeat(50));
                                 }
 
-                                // Log occasional "no changes" untuk monitoring dengan second
+                                // Log occasional "no changes" untuk monitoring dengan milisecond
                                 if (Math.random() < 0.05) { // 5% chance
                                     console.log(
-                                        `✅ No status changes - checked in ${requestDuration}s at ${timeString}`
+                                        `✅ No status changes - checked in ${requestDuration}ms at ${timeString}`
                                     );
                                 }
                             }
                         },
                         error: function(xhr, status, error) {
                             const checkEndTime = performance.now();
-                            const requestDuration = ((checkEndTime - checkStartTime) / 1000).toFixed(3);
+                            const requestDuration = (checkEndTime - checkStartTime).toFixed(2);
                             const errorTime = new Date().toLocaleTimeString('id-ID', {
                                 hour12: false,
                                 hour: '2-digit',
                                 minute: '2-digit',
-                                second: '2-digit'
+                                second: '2-digit',
+                                fractionalSecondDigits: 3
                             });
 
                             pollingFailureCount++;
                             console.error(
-                                `❌ Status check failed after ${requestDuration}s at ${errorTime}:`, xhr
+                                `❌ Status check failed after ${requestDuration}ms at ${errorTime}:`, xhr
                                 .status, error);
 
                             if (pollingFailureCount >= MAX_FAILURES) {
@@ -624,7 +628,8 @@
                                         hour12: false,
                                         hour: '2-digit',
                                         minute: '2-digit',
-                                        second: '2-digit'
+                                        second: '2-digit',
+                                        fractionalSecondDigits: 3
                                     });
                                     console.log(`🔄 Attempting to reconnect at ${retryTime}...`);
                                     pollingFailureCount = 0;
@@ -696,7 +701,7 @@
                     setTimeout(() => $badge.removeClass('status-updating'), 600);
                 }
 
-                // === FULL TABLE REFRESH (for manual refresh only) ===
+                // === REFRESH FUNCTIONS ===
                 function performManualRefresh() {
                     const $refreshBtn = $('#reload-items');
                     $refreshBtn.addClass('refreshing');
@@ -704,6 +709,26 @@
                     table.ajax.reload(function(json) {
                         $refreshBtn.removeClass('refreshing');
                         showItemsToast('Data refreshed successfully!', 'success');
+                        updateLastRefreshTime();
+
+                        // Update current statuses map from full data
+                        if (json && json.data) {
+                            currentItemStatuses.clear();
+                            json.data.forEach(item => {
+                                currentItemStatuses.set(item.id.toString(), item.status);
+                            });
+                        }
+
+                        // Update stats
+                        if (json && json.stats) {
+                            updateStats(json.stats);
+                        }
+                    }, false);
+                }
+
+                function performAutoRefresh() {
+                    // Silent auto refresh without showing toast
+                    table.ajax.reload(function(json) {
                         updateLastRefreshTime();
 
                         // Update current statuses map from full data
@@ -919,7 +944,7 @@
                                    data-item-id="${row.id}" 
                                    data-item-name="${row.nama_barang}"
                                    data-item-status="${row.status}">
-                                    <i class="ti ti-trash me-2"></i>Move to Trash
+                                    <i class="ti ti-trash me-2"></i>Delete Permanently
                                 </a>
                             </li>
                         </ul>
@@ -1061,7 +1086,7 @@
 
                     const $btn = $(this);
                     const originalText = $btn.html();
-                    $btn.prop('disabled', true).html('<i class="ti ti-loader-2 me-1 spinning"></i>Moving...');
+                    $btn.prop('disabled', true).html('<i class="ti ti-loader-2 me-1 spinning"></i>Deleting...');
 
                     $.ajax({
                         url: `/admin/items/${itemToDelete.id}`,
@@ -1073,24 +1098,24 @@
                         success: function(response) {
                             if (response.success) {
                                 showItemsToast(response.message ||
-                                    'Item moved to trash successfully!', 'success');
+                                    'Item deleted permanently!', 'success');
 
                                 // Remove from current statuses
                                 currentItemStatuses.delete(itemToDelete.id.toString());
 
-                                // Trigger immediate status check
-                                setTimeout(() => checkStatusUpdates(), 500);
+                                // Auto refresh after successful delete
+                                setTimeout(() => performAutoRefresh(), 500);
 
                                 if (response.stats) {
                                     updateStats(response.stats);
                                 }
                             } else {
-                                showItemsToast(response.message || 'Failed to move item to trash.',
+                                showItemsToast(response.message || 'Failed to delete item.',
                                     'error');
                             }
                         },
                         error: function(xhr, status, error) {
-                            let errorMessage = 'Failed to move item to trash. Please try again.';
+                            let errorMessage = 'Failed to delete item. Please try again.';
                             if (xhr.responseJSON && xhr.responseJSON.message) {
                                 errorMessage = xhr.responseJSON.message;
                             }
@@ -1127,8 +1152,8 @@
                                 // Update status in map
                                 currentItemStatuses.set(itemToMarkMissing.id.toString(), 'missing');
 
-                                // Trigger immediate status check
-                                setTimeout(() => checkStatusUpdates(), 500);
+                                // Auto refresh after successful mark as missing
+                                setTimeout(() => performAutoRefresh(), 500);
 
                                 if (response.stats) {
                                     updateStats(response.stats);
@@ -1168,8 +1193,8 @@
                         currentItemStatuses.set(data.item.id.toString(), data.item.status || 'available');
                     }
 
-                    // Trigger status check
-                    setTimeout(() => checkStatusUpdates(), 500);
+                    // Auto refresh after successful item creation
+                    setTimeout(() => performAutoRefresh(), 500);
 
                     if (data.stats) {
                         updateStats(data.stats);
@@ -1205,7 +1230,7 @@
                 // Global functions
                 window.refreshItemsTable = function(silent = true) {
                     if (silent) {
-                        checkStatusUpdates();
+                        performAutoRefresh();
                     } else {
                         performManualRefresh();
                     }
@@ -1221,8 +1246,8 @@
                     console.log('Current Stats:', currentStats);
                 };
 
-                console.log('Status-only real-time system initialized');
+                console.log('Items management with auto-refresh initialized successfully');
             });
         </script>
     @endpush
-</x-layouts.admin_layout>
+</x-layouts.superadmin_layout>
