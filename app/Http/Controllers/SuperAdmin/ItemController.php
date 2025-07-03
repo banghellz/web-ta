@@ -355,8 +355,8 @@ class ItemController extends Controller
                 Log::warning('Failed to create notification for item deletion: ' . $notifError->getMessage());
             }
 
-            // Hard delete - permanently remove from database
-            $item->delete();
+            // HARD DELETE - permanently remove from database (not soft delete)
+            $item->forceDelete(); // Gunakan forceDelete() untuk hard delete
 
             DB::commit();
 
